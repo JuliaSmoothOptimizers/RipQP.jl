@@ -15,6 +15,9 @@ include("types_toolbox.jl")
 function ripQP(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
                tol_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., scaling=true, display=true)
 
+    if mode ∉ [:mono, :multi]
+        error("mode should be :mono or :multi")
+    end
     start_time = time()
     elapsed_time = 0.0
     QM = SlackModel(QM0)
