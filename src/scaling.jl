@@ -89,3 +89,37 @@ function scaling_Ruiz!(Arows, Acols, Avals, Qrows, Qcols, Qvals, c, b, lvar, uva
 
     return Arows, Acols, Avals, Qrows, Qcols, Qvals, c, b, lvar, uvar, d1, d2, d3
 end
+
+function post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm, rbNorm, lvar, uvar,
+                    ilow, iupp, b, c, c0, Qrows, Qcols, Qvals, Arows, Acols, Avals,
+                    Qx, ATλ, Ax, cTx, pri_obj, dual_obj, xTQx_2)
+    x .*= d2 .* d3
+    for i=1:length(Qrows)
+        Qvals[i] /= d2[Qrows[i]] * d2[Qcols[i]] * d3[Qrows[i]] * d3[Qcols[i]]
+    end
+    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
+    xTQx_2 =  x' * Qx / 2
+    for i=1:length(Arows)
+        Avals[i] /= d1[Arows[i]] * d2[Acols[i]] * d3[Acols[i]]
+    end
+    λ .*= d1
+    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
+    Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
+    b ./= d1
+    c ./= d2 .* d3
+    cTx = c' * x
+    pri_obj = xTQx_2 + cTx + c0
+    lvar .*= d2 .* d3
+    uvar .*= d2 .* d3
+    dual_obj = b' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar,ilow) -
+                view(s_u,iupp)'*view(uvar,iupp) +c0
+
+    s_l ./= d2 .* d3
+    s_u ./= d2 .* d3
+    rb .= Ax .- b
+    rc .= ATλ .-Qx .+ s_l .- s_u .- c
+#         rcNorm, rbNorm = norm(rc), norm(rb)
+    rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
+
+    return x, λ, s_l, s_u, pri_obj, rcNorm, rbNorm
+end
