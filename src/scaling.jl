@@ -6,7 +6,7 @@ function get_norm_rc!(v, A_i, Avals, n_v, n)
         if abs(Avals[j]) > v[A_i[j]]
             v[A_i[j]] = abs(Avals[j])
         end
-#         v[A_i[j]] += Avals[j]^2  #2-norm
+        #         v[A_i[j]] += Avals[j]^2  #2-norm
     end
 
     v = sqrt.(v)
@@ -112,13 +112,12 @@ function post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm, rbNorm, lvar, u
     lvar .*= d2 .* d3
     uvar .*= d2 .* d3
     dual_obj = b' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar,ilow) -
-                view(s_u,iupp)'*view(uvar,iupp) +c0
-
+                    view(s_u,iupp)'*view(uvar,iupp) +c0
     s_l ./= d2 .* d3
     s_u ./= d2 .* d3
     rb .= Ax .- b
     rc .= ATλ .-Qx .+ s_l .- s_u .- c
-#         rcNorm, rbNorm = norm(rc), norm(rb)
+    #         rcNorm, rbNorm = norm(rc), norm(rb)
     rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
 
     return x, λ, s_l, s_u, pri_obj, rcNorm, rbNorm
