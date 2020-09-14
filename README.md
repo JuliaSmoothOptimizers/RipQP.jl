@@ -1,7 +1,7 @@
 # RipQP
 
-A package to optimize linear and quadratic problems in QuadraticModels format
-(see QuadraticModels.jl).
+A package to optimize linear and quadratic problems in QuadraticModel format
+(see https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl).
 
 The ripQP function can work in mono mode (double precision only), or in multi
 mode (single precision, then double precision).
@@ -18,10 +18,10 @@ using QPSReader, QuadraticModels
 using RipQP
 qps = readqps("QAFIRO.SIF")
 qm = QuadraticModel(qps)
-stats = ripQP(qm)
+stats = ripqp(qm)
 ```
 
 To use the multi precision mode (default to :mono):
 ```julia
-stats = ripQP(qm, mode=:multi)
+stats = ripqp(qm, mode=:multi)
 ```

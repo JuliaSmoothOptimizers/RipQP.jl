@@ -4,7 +4,7 @@ using LinearAlgebra, SparseArrays, Statistics
 
 using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
 
-export ripQP
+export ripqp
 
 include("starting_points.jl")
 include("scaling.jl")
@@ -12,7 +12,7 @@ include("sparse_toolbox.jl")
 include("iterations.jl")
 include("types_toolbox.jl")
 
-function ripQP(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
+function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
                tol_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., scaling=true, display=true)
 
     if mode ∉ [:mono, :multi]
