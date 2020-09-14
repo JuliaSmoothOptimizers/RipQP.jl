@@ -85,7 +85,7 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
                           start_time, max_time, c_catch, c_pdd, display)
     T = eltype(Avals)
 
-        while k<max_iter && !optimal && !tired # && !small_μ && !small_μ
+    while k<max_iter && !optimal && !tired # && !small_μ && !small_μ
 
             # Affine scaling direction
         tmp_diag .= -ρ
