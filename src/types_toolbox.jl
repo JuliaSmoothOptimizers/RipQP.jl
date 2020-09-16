@@ -15,7 +15,7 @@ function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     tol_Δx_T = T(tol_Δx)
     ϵ_μ_T = T(ϵ_μ)
     # init regularization values
-    ρ, δ = T(sqrt(eps())*1e8), T(sqrt(eps())*1e9)
+    ρ, δ = T(sqrt(eps())*1e6), T(sqrt(eps())*1e8)
     ρ_min, δ_min = T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0)
     tmp_diag = -T(1.0e-2) .* ones(T, n_cols)
     J_augmvals = vcat(-Qvals_T, Avals_T, δ.*ones(T, n_rows), tmp_diag)
