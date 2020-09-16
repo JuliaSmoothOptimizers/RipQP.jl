@@ -121,7 +121,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
                                                J_augm, J_fact, J_P, diagind_J, diag_Q, tmp_diag,
                                                Δ_aff, Δ_cc, Δ, Δ_xλ, s_l_αΔ_aff, s_u_αΔ_aff,
                                                x_m_l_αΔ_aff, u_m_x_αΔ_aff, rxs_l, rxs_u,
-                                               20, ϵ_pdd32, ϵ_μ32, ϵ_rc32, ϵ_rb32, tol_Δx32,
+                                               30, ϵ_pdd32, ϵ_μ32, ϵ_rc32, ϵ_rb32, tol_Δx32,
                                                start_time, max_time, c_catch, c_pdd, display)
 
         # conversions to Float64

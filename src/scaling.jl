@@ -1,4 +1,3 @@
-
 function get_norm_rc!(v, A_i, Avals, n_v, n)
     T = eltype(v)
     v .= zero(T)
