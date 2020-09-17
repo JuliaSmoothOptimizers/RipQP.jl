@@ -9,9 +9,9 @@ function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     b_T = Array{T}(b)
     lvar_T = Array{T}(lvar)
     uvar_T = Array{T}(uvar)
-    ϵ_pdd_T = T(1e-2)
-    ϵ_rb_T = T(1e-3)
-    ϵ_rc_T = T(1e-3)
+    ϵ_pdd_T = T(1e-3)
+    ϵ_rb_T = T(1e-4)
+    ϵ_rc_T = T(1e-4)
     tol_Δx_T = T(tol_Δx)
     ϵ_μ_T = T(ϵ_μ)
     # init regularization values
