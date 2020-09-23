@@ -203,7 +203,7 @@ end
 
 function transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0, Qrows, Qcols, Qvals,
                     Arows, Acols, Avals, x_m_lvar, uvar_m_x, μ, tmp_diag,
-                    J_augm, J_fact, J_P, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx,
+                    J_augm, J_fact, J_P, Δ_cc, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx,
                     xTQx_2, cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc,
                     rcNorm, rbNorm, ρ, δ, diagind_J, diag_Q, n_rows, n_cols,
                     ilow, iupp, n_low, n_upp, k)
@@ -216,17 +216,18 @@ function transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0, Qrows, Qcols, Qvals,
     J_augm.nzval[view(diagind_J,1:n_cols)] .= @views tmp_diag .- diag_Q
     J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= δ
     J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_P)
-    Δ = solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,0.95, μ, x_m_lvar, uvar_m_x,
-                                        rxs_l, rxs_u, s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
+    Δ_cc = solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,0.95, μ, x_m_lvar,
+                                              uvar_m_x, rxs_l, rxs_u, s_l, s_u,
+                                              ilow, iupp, n_cols, n_rows, n_low)
     α_pri = @views compute_α_primal(x, Δ_cc[1:n_cols], lvar, uvar)
     α_dual_l = @views compute_α_dual(s_l[ilow], Δ_cc[n_rows+n_cols+1: n_rows+n_cols+n_low])
     α_dual_u = @views compute_α_dual(s_u[iupp], Δ_cc[n_rows+n_cols+n_low+1: end])
     α_dual_final = min(α_dual_l, α_dual_u)
-    x .= @views x .+ α_pri .* Δ[1:n_cols]
-    λ .= @views λ .+ α_dual_final .* Δ[n_cols+1: n_rows+n_cols]
-    s_l[ilow] .= @views s_l[ilow] .+ α_dual_final .* Δ[n_rows+n_cols+1: n_rows+n_cols+n_low]
-    s_u[iupp] .= @views s_u[iupp] .+ α_dual_final .* Δ[n_rows+n_cols+n_low+1: end]
-    n_Δx = @views α_pri * norm(Δ[1:n_cols])
+    x .= @views x .+ α_pri .* Δ_cc[1:n_cols]
+    λ .= @views λ .+ α_dual_final .* Δ_cc[n_cols+1: n_rows+n_cols]
+    s_l[ilow] .= @views s_l[ilow] .+ α_dual_final .* Δ_cc[n_rows+n_cols+1: n_rows+n_cols+n_low]
+    s_u[iupp] .= @views s_u[iupp] .+ α_dual_final .* Δ_cc[n_rows+n_cols+n_low+1: end]
+    n_Δx = @views α_pri * norm(Δ_cc[1:n_cols])
     x_m_lvar .= @views x[ilow] .- lvar[ilow]
     uvar_m_x .= @views uvar[iupp] .- x[iupp]
     μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp],
@@ -243,9 +244,9 @@ function transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0, Qrows, Qcols, Qvals,
     rc .= ATλ .-Qx .+ s_l .- s_u .- c
     rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
     pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
-    k += 2 # 1/2 step cc
+    k += 4
 
     return x, λ, s_l, s_u, x_m_lvar, uvar_m_x, μ, tmp_diag,
-    J_augm, J_fact, J_P, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx, xTQx_2,
+    J_augm, J_fact, J_P, Δ_cc, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx, xTQx_2,
     cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc, rcNorm, rbNorm, k
 end
