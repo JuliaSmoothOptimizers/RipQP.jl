@@ -144,6 +144,21 @@ function init_params_mono(Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
 end
 
 
+function solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,σ, μ, x_m_lvar, uvar_m_x,
+                                    rxs_l, rxs_u, s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
+
+    rxs_l .= -σ*μ
+    rxs_u .= σ*μ
+    Δ_xλ .= zero(eltype(Δ_xλ))
+    Δ_xλ[ilow] .+= rxs_l./x_m_lvar
+    Δ_xλ[iupp] .+= rxs_u./uvar_m_x
+
+    Δ_xλ = ldiv!(J_fact, Δ_xλ)
+    Δ_cc[1:n_cols+n_rows] = Δ_xλ
+    Δ_cc[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-(rxs_l.+s_l[ilow].*Δ_xλ[1:n_cols][ilow])./x_m_lvar
+    Δ_cc[n_cols+n_rows+n_low+1:end] .= @views (rxs_u.+s_u[iupp].*Δ_xλ[1:n_cols][iupp])./uvar_m_x
+    return Δ_cc
+end
 
 function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
                         rcNorm, rbNorm, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
@@ -177,10 +192,60 @@ function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
    x_m_l_αΔ_aff, u_m_x_αΔ_aff = convert(Array{T}, x_m_l_αΔ_aff), convert(Array{T}, u_m_x_αΔ_aff)
    diag_Q, tmp_diag = convert(Array{T}, diag_Q), convert(Array{T}, tmp_diag)
    ρ_min, δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+
    return  x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
                 rcNorm, rbNorm, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
                 dual_obj, pdd, l_pdd, mean_pdd, n_Δx, μ, ρ, δ, J_augm, J_P,
                 J_fact, Δ_aff, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
                 s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag,
                 ρ_min, δ_min
+end
+
+function transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0, Qrows, Qcols, Qvals,
+                    Arows, Acols, Avals, x_m_lvar, uvar_m_x, μ, tmp_diag,
+                    J_augm, J_fact, J_P, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx,
+                    xTQx_2, cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc,
+                    rcNorm, rbNorm, ρ, δ, diagind_J, diag_Q, n_rows, n_cols,
+                    ilow, iupp, n_low, n_upp, k)
+
+    # transition (centering)
+    T = eltype(x)
+    tmp_diag .= -ρ
+    tmp_diag[ilow] .-= @views s_l[ilow] ./ x_m_lvar
+    tmp_diag[iupp] .-= @views s_u[iupp] ./ uvar_m_x
+    J_augm.nzval[view(diagind_J,1:n_cols)] .= @views tmp_diag .- diag_Q
+    J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= δ
+    J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_P)
+    Δ = solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,0.95, μ, x_m_lvar, uvar_m_x,
+                                        rxs_l, rxs_u, s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
+    α_pri = @views compute_α_primal(x, Δ_cc[1:n_cols], lvar, uvar)
+    α_dual_l = @views compute_α_dual(s_l[ilow], Δ_cc[n_rows+n_cols+1: n_rows+n_cols+n_low])
+    α_dual_u = @views compute_α_dual(s_u[iupp], Δ_cc[n_rows+n_cols+n_low+1: end])
+    α_dual_final = min(α_dual_l, α_dual_u)
+    x .= @views x .+ α_pri .* Δ[1:n_cols]
+    λ .= @views λ .+ α_dual_final .* Δ[n_cols+1: n_rows+n_cols]
+    s_l[ilow] .= @views s_l[ilow] .+ α_dual_final .* Δ[n_rows+n_cols+1: n_rows+n_cols+n_low]
+    s_u[iupp] .= @views s_u[iupp] .+ α_dual_final .* Δ[n_rows+n_cols+n_low+1: end]
+    n_Δx = @views α_pri * norm(Δ[1:n_cols])
+    x_m_lvar .= @views x[ilow] .- lvar[ilow]
+    uvar_m_x .= @views uvar[iupp] .- x[iupp]
+    μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp],
+                         n_low, n_upp)
+    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
+    xTQx_2 =  x' * Qx / 2
+    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
+    Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
+    cTx = c' * x
+    pri_obj = xTQx_2 + cTx + c0
+    dual_obj = b' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar,ilow) -
+                view(s_u,iupp)'*view(uvar,iupp) +c0
+    rb .= Ax .- b
+    rc .= ATλ .-Qx .+ s_l .- s_u .- c
+    rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
+    pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
+    k += 2 # 1/2 step cc
+
+    return x, λ, s_l, s_u, x_m_lvar, uvar_m_x, μ, tmp_diag,
+    J_augm, J_fact, J_P, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx, xTQx_2,
+    cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc, rcNorm, rbNorm, k
 end

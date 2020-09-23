@@ -145,8 +145,27 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
                                                     Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
                                                     s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff,
                                                     diag_Q, tmp_diag, ρ_min, δ_min)
+
+        optimal = pdd < ϵ_pdd && rbNorm < tol_rb && rcNorm < tol_rc
+        small_Δx, small_μ = n_Δx < tol_Δx, μ < ϵ_μ
         ρ /= 10
         δ /= 10
+        if !optimal
+            x, λ, s_l, s_u, x_m_lvar,
+            uvar_m_x, μ, tmp_diag,
+            J_augm, J_fact, J_P, Δ_cc,
+            Δ, Δ_xλ, rxs_l, rxs_u, n_Δx,
+            Qx, xTQx_2,cTx, ATλ, Ax,
+            pri_obj, dual_obj, pdd,
+            rb, rc, rcNorm, rbNorm, k = transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0,
+                                                    Qrows, Qcols, Qvals, Arows, Acols, Avals,
+                                                    x_m_lvar, uvar_m_x, μ, tmp_diag,J_augm,
+                                                    J_fact, J_P, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u,
+                                                    n_Δx, Qx, xTQx_2, cTx, ATλ, Ax, pri_obj,
+                                                    dual_obj, pdd, rb, rc, rcNorm, rbNorm,
+                                                    ρ, δ,diagind_J,diag_Q, n_rows, n_cols,
+                                                    ilow, iupp, n_low, n_upp, k)
+        end
         optimal = pdd < ϵ_pdd && rbNorm < tol_rb && rcNorm < tol_rc
     end
 
