@@ -1,23 +1,22 @@
 
-function starting_points(Qrows, Qcols, Qvals, Arows, Acols, Avals, b, c,
-                         lvar, uvar, ilow, iupp, irng, J_augm, n_rows, n_cols, Δ_xλ)
+function starting_points(FloatData, IntData, ilow, iupp, irng, J_augm , n_rows, n_cols, Δ_xλ)
 
-    T = eltype(Avals)
+    T = eltype(FloatData.Avals)
     J_P = ldl_analyze(Symmetric(J_augm, :U))
     J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_P)
-    Δ_xλ[n_cols+1: end] = b
+    Δ_xλ[n_cols+1: end] = FloatData.b
     Δ_xλ = ldiv!(J_fact, Δ_xλ)
     x0 = Δ_xλ[1:n_cols]
     λ0 = Δ_xλ[n_cols+1:end]
     s0_l, s0_u = zeros(T, n_cols), zeros(T, n_cols)
     Qx, ATλ = zeros(T, n_cols), zeros(T, n_cols)
-    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x0)
-    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ0)
-    dual_val = Qx - ATλ + c
+    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, x0)
+    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, λ0)
+    dual_val = Qx - ATλ + FloatData.c
     s0_l[ilow] = @views dual_val[ilow]
     s0_u[iupp] = @views -dual_val[iupp]
-    x0_m_lvar = @views x0[ilow] - lvar[ilow]
-    uvar_m_x0 = @views uvar[iupp] - x0[iupp]
+    x0_m_lvar = @views x0[ilow] - FloatData.lvar[ilow]
+    uvar_m_x0 = @views FloatData.uvar[iupp] - x0[iupp]
     if length(ilow) == 0
         δx_l1, δs_l1 = zero(T), zero(T)
     else
@@ -57,21 +56,21 @@ function starting_points(Qrows, Qcols, Qvals, Arows, Acols, Avals, b, c,
     s0_u[iupp] = @views s0_u[iupp] .+ δs
 
     @inbounds @simd for i in irng
-        if lvar[i] >= x0[i]
-            x0[i] = lvar[i] + T(1e-4)
+        if FloatData.lvar[i] >= x0[i]
+            x0[i] = FloatData.lvar[i] + T(1e-4)
         end
-        if x0[i] >= uvar[i]
-            x0[i] = uvar[i] - T(1e-4)
+        if x0[i] >= FloatData.uvar[i]
+            x0[i] = FloatData.uvar[i] - T(1e-4)
         end
-        if (lvar[i] < x0[i] < uvar[i]) == false
-            x0[i] = (lvar[i] + uvar[i]) / 2
+        if (FloatData.lvar[i] < x0[i] < FloatData.uvar[i]) == false
+            x0[i] = (FloatData.lvar[i] + FloatData.uvar[i]) / 2
         end
     end
 
-    x0_m_lvar .= @views x0[ilow] .- lvar[ilow]
-    uvar_m_x0 .= @views uvar[iupp] .- x0[iupp]
+    x0_m_lvar .= @views x0[ilow] .- FloatData.lvar[ilow]
+    uvar_m_x0 .= @views FloatData.uvar[iupp] .- x0[iupp]
 
-    @assert all(x0 .> lvar) && all(x0 .< uvar)
+    @assert all(x0 .> FloatData.lvar) && all(x0 .< FloatData.uvar)
     @assert @views all(s0_l[ilow] .> zero(T)) && all(s0_u[iupp] .> zero(T))
 
     return x0, λ0, s0_l, s0_u, J_fact, J_P, Qx, ATλ, x0_m_lvar, uvar_m_x0, Δ_xλ

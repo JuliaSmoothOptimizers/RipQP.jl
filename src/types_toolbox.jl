@@ -1,14 +1,26 @@
-function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
-                     lvar, uvar, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc, n_rows, n_cols,
-                     ilow, iupp, irng, n_low, n_upp)
+mutable struct QM_FloatData{T}
+    Qvals :: Vector{T}
+    Avals :: Vector{T}
+    b     :: Vector{T}
+    c     :: Vector{T}
+    c0    :: T
+    lvar  :: Vector{T}
+    uvar  :: Vector{T}
+end
 
-    Qvals_T = Array{T}(Qvals)
-    Avals_T = Array{T}(Avals)
-    c_T = Array{T}(c)
-    c0_T = T(c0)
-    b_T = Array{T}(b)
-    lvar_T = Array{T}(lvar)
-    uvar_T = Array{T}(uvar)
+mutable struct QM_IntData
+    Qrows :: Vector{Int}
+    Qcols :: Vector{Int}
+    Arows :: Vector{Int}
+    Acols :: Vector{Int}
+end
+
+function init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc,
+                     n_rows, n_cols, ilow, iupp, irng, n_low, n_upp)
+
+    FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
+                               Array{T}(FloatData_T0.b), Array{T}(FloatData_T0.c), T(FloatData_T0.c0),
+                               Array{T}(FloatData_T0.lvar), Array{T}(FloatData_T0.uvar))
     ϵ_pdd_T = T(1e-3)
     ϵ_rb_T = T(1e-4)
     ϵ_rc_T = T(1e-4)
@@ -18,19 +30,12 @@ function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     ρ, δ = T(sqrt(eps())*1e5), T(sqrt(eps())*1e5)
     ρ_min, δ_min = T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0)
     tmp_diag = -T(1.0e-2) .* ones(T, n_cols)
-    J_augmvals = vcat(-Qvals_T, Avals_T, δ.*ones(T, n_rows), tmp_diag)
-    J_augmrows = vcat(Qcols, Acols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmcols = vcat(Qrows, Arows.+n_cols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmvals = vcat(-Qvals_T, Avals_T, δ.*ones(T, n_rows), tmp_diag)
+    J_augmrows = vcat(IntData.Qcols, IntData.Acols, n_cols+1:n_cols+n_rows, 1:n_cols)
+    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+n_cols, n_cols+1:n_cols+n_rows, 1:n_cols)
+    J_augmvals = vcat(-FloatData_T.Qvals, FloatData_T.Avals, δ.*ones(T, n_rows), tmp_diag)
     J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     diagind_J = get_diag_sparseCSC(J_augm)
-    diag_Q = get_diag_sparseCOO(Qrows, Qcols, Qvals_T, n_cols)
-    J_augmrows = vcat(Qcols, Acols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmcols = vcat(Qrows, Arows.+n_cols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmvals = vcat(-Qvals_T, Avals_T, δ.*ones(T, n_rows), tmp_diag)
-    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
-    diagind_J = get_diag_sparseCSC(J_augm)
-    diag_Q = get_diag_sparseCOO(Qrows, Qcols, Qvals_T, n_cols)
+    diag_Q = get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, n_cols)
     x_m_l_αΔ_aff = zeros(T, n_low) # x-lvar + αΔ_aff
     u_m_x_αΔ_aff = zeros(T, n_upp) # uvar-x + αΔ_aff
     s_l_αΔ_aff = zeros(T, n_low) # s_l + αΔ_aff
@@ -42,24 +47,23 @@ function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     Δ_xλ = zeros(T, n_cols+n_rows)
 
     x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ,
-    x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(Qrows, Qcols, Qvals_T, Arows, Acols, Avals_T,
-                                                      b_T, c_T, lvar_T, uvar_T, ilow, iupp, irng,
+    x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T, IntData, ilow, iupp, irng,
                                                       J_augm , n_rows, n_cols, Δ_xλ)
-    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals_T, x)
-    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals_T, λ)
-    Ax = zeros(T,  n_rows)
-    Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals_T, x)
-    rb = Ax - b_T
-    rc = -Qx + ATλ + s_l - s_u - c_T
-    x_m_lvar .= @views x[ilow] .- lvar_T[ilow]
-    uvar_m_x .= @views uvar_T[iupp] .- x[iupp]
+    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, x)
+    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T.Avals, λ)
+    Ax = zeros(T, n_rows)
+    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T.Avals, x)
+    rb = Ax - FloatData_T.b
+    rc = -Qx + ATλ + s_l - s_u - FloatData_T.c
+    x_m_lvar .= @views x[ilow] .- FloatData_T.lvar[ilow]
+    uvar_m_x .= @views FloatData_T.uvar[iupp] .- x[iupp]
 
     # stopping criterion
     xTQx_2 = x' * Qx / 2
-    cTx = c_T' * x
-    pri_obj = xTQx_2 + cTx + c0_T
-    dual_obj = b_T' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar_T,ilow) -
-    view(s_u,iupp)'*view(uvar_T,iupp) +c0_T
+    cTx = FloatData_T.c' * x
+    pri_obj = xTQx_2 + cTx + FloatData_T.c0
+    dual_obj = FloatData_T.b' * λ - xTQx_2 + view(s_l,ilow)'*view(FloatData_T.lvar,ilow) -
+                    view(s_u,iupp)'*view(FloatData_T.uvar,iupp) + FloatData_T.c0
     μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp], n_low, n_upp)
     pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
     #     rcNorm, rbNorm = norm(rc), norm(rb)
@@ -73,29 +77,27 @@ function init_params(T, Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     mean_pdd = one(T)
     n_Δx = zero(T)
 
-    return Qvals_T, Avals_T, c_T, c0_T, b_T, lvar_T, uvar_T, ϵ_pdd_T, ϵ_rb_T, ϵ_rc_T,
-                tol_Δx_T, ϵ_μ_T, ρ, δ, ρ_min, δ_min, tmp_diag, J_augm, diagind_J, diag_Q,
-                x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff,
-                Δ_cc, Δ, Δ_xλ, x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x,
-                xTQx_2,  cTx, pri_obj, dual_obj, μ, pdd, rc, rb, rcNorm, rbNorm, tol_rb_T, tol_rc_T,
-                tol_rb, tol_rc, optimal, small_Δx, small_μ, l_pdd, mean_pdd, n_Δx
+    return FloatData_T, ϵ_pdd_T, ϵ_rb_T, ϵ_rc_T, tol_Δx_T, ϵ_μ_T, ρ, δ, ρ_min,
+                δ_min, tmp_diag, J_augm, diagind_J, diag_Q, x_m_l_αΔ_aff, u_m_x_αΔ_aff,
+                s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ, x, λ, s_l, s_u,
+                J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x, xTQx_2,  cTx, pri_obj, dual_obj,
+                μ, pdd, rc, rb, rcNorm, rbNorm, tol_rb_T, tol_rc_T,tol_rb, tol_rc,
+                optimal, small_Δx, small_μ, l_pdd, mean_pdd, n_Δx
 end
 
-function init_params_mono(Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
-                          lvar, uvar, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, ϵ_rc, n_rows, n_cols,
+function init_params_mono(FloatData_T0, IntData, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, ϵ_rc, n_rows, n_cols,
                           ilow, iupp, irng, n_low, n_upp)
-    T = eltype(Avals)
+    T = eltype(FloatData_T0.Avals)
     # init regularization values
     ρ, δ = T(sqrt(eps())*1e5), T(sqrt(eps())*1e5)
     ρ_min, δ_min =  1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T))
     tmp_diag = -T(1.0e0)/2 .* ones(T, n_cols)
-    J_augmvals = vcat(-Qvals, Avals, δ.*ones(T, n_rows), tmp_diag)
-    J_augmrows = vcat(Qcols, Acols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmcols = vcat(Qrows, Arows.+n_cols, n_cols+1:n_cols+n_rows, 1:n_cols)
-    J_augmvals = vcat(-Qvals, Avals, δ.*ones(T, n_rows), tmp_diag)
+    J_augmrows = vcat(IntData.Qcols, IntData.Acols, n_cols+1:n_cols+n_rows, 1:n_cols)
+    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+n_cols, n_cols+1:n_cols+n_rows, 1:n_cols)
+    J_augmvals = vcat(-FloatData_T0.Qvals, FloatData_T0.Avals, δ.*ones(T, n_rows), tmp_diag)
     J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     diagind_J = get_diag_sparseCSC(J_augm)
-    diag_Q = get_diag_sparseCOO(Qrows, Qcols, Qvals, n_cols)
+    diag_Q = get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals, n_cols)
     x_m_l_αΔ_aff = zeros(T, n_low) # x-lvar + αΔ_aff
     u_m_x_αΔ_aff = zeros(T, n_upp) # uvar-x + αΔ_aff
     s_l_αΔ_aff = zeros(T, n_low) # s_l + αΔ_aff
@@ -107,24 +109,23 @@ function init_params_mono(Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
     Δ_xλ = zeros(T, n_cols+n_rows)
 
     x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ,
-        x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(Qrows, Qcols, Qvals, Arows, Acols, Avals,
-                                                          b, c, lvar, uvar, ilow, iupp, irng,
+        x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T0, IntData, ilow, iupp, irng,
                                                           J_augm , n_rows, n_cols, Δ_xλ)
-    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
-    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
+    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals, x)
+    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T0.Avals, λ)
     Ax = zeros(T, n_rows)
-    Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
-    rb = Ax - b
-    rc = -Qx + ATλ + s_l - s_u - c
-    x_m_lvar .= @views x[ilow] .- lvar[ilow]
-    uvar_m_x .= @views uvar[iupp] .- x[iupp]
+    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T0.Avals, x)
+    rb = Ax - FloatData_T0.b
+    rc = -Qx + ATλ + s_l - s_u - FloatData_T0.c
+    x_m_lvar .= @views x[ilow] .- FloatData_T0.lvar[ilow]
+    uvar_m_x .= @views FloatData_T0.uvar[iupp] .- x[iupp]
 
     # stopping criterion
     xTQx_2 = x' * Qx / 2
-    cTx = c' * x
-    pri_obj = xTQx_2 + cTx + c0
-    dual_obj = b' * λ - xTQx_2 + view(s_l, ilow)'*view(lvar, ilow) -
-                    view(s_u, iupp)'*view(uvar,iupp) +c0
+    cTx = FloatData_T0.c' * x
+    pri_obj = xTQx_2 + cTx + FloatData_T0.c0
+    dual_obj = FloatData_T0.b' * λ - xTQx_2 + view(s_l, ilow)'*view(FloatData_T0.lvar, ilow) -
+                    view(s_u, iupp)'*view(FloatData_T0.uvar,iupp) + FloatData_T0.c0
     μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp], n_low, n_upp)
     pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
     #     rcNorm, rbNorm = norm(rc), norm(rb)
@@ -141,23 +142,6 @@ function init_params_mono(Qrows, Qcols, Qvals,  Arows, Acols, Avals, c, c0, b,
                 Δ_cc, Δ, Δ_xλ, x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x,
                 xTQx_2,  cTx, pri_obj, dual_obj, μ, pdd, rc, rb, rcNorm, rbNorm,
                 tol_rb, tol_rc, optimal, small_Δx, small_μ, l_pdd, mean_pdd, n_Δx
-end
-
-
-function solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,σ, μ, x_m_lvar, uvar_m_x,
-                                    rxs_l, rxs_u, s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
-
-    rxs_l .= -σ*μ
-    rxs_u .= σ*μ
-    Δ_xλ .= zero(eltype(Δ_xλ))
-    Δ_xλ[ilow] .+= rxs_l./x_m_lvar
-    Δ_xλ[iupp] .+= rxs_u./uvar_m_x
-
-    Δ_xλ = ldiv!(J_fact, Δ_xλ)
-    Δ_cc[1:n_cols+n_rows] = Δ_xλ
-    Δ_cc[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-(rxs_l.+s_l[ilow].*Δ_xλ[1:n_cols][ilow])./x_m_lvar
-    Δ_cc[n_cols+n_rows+n_low+1:end] .= @views (rxs_u.+s_u[iupp].*Δ_xλ[1:n_cols][iupp])./uvar_m_x
-    return Δ_cc
 end
 
 function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
@@ -199,54 +183,4 @@ function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
                 J_fact, Δ_aff, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
                 s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag,
                 ρ_min, δ_min
-end
-
-function transition!(x, λ, s_l, s_u, lvar, uvar, b, c, c0, Qrows, Qcols, Qvals,
-                    Arows, Acols, Avals, x_m_lvar, uvar_m_x, μ, tmp_diag,
-                    J_augm, J_fact, J_P, Δ_cc, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx,
-                    xTQx_2, cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc,
-                    rcNorm, rbNorm, ρ, δ, diagind_J, diag_Q, n_rows, n_cols,
-                    ilow, iupp, n_low, n_upp, k)
-
-    # transition (centering)
-    T = eltype(x)
-    tmp_diag .= -ρ
-    tmp_diag[ilow] .-= @views s_l[ilow] ./ x_m_lvar
-    tmp_diag[iupp] .-= @views s_u[iupp] ./ uvar_m_x
-    J_augm.nzval[view(diagind_J,1:n_cols)] .= @views tmp_diag .- diag_Q
-    J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= δ
-    J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_P)
-    Δ_cc = solve_augmented_system_transition!(J_fact, Δ_cc, Δ_xλ ,0.95, μ, x_m_lvar,
-                                              uvar_m_x, rxs_l, rxs_u, s_l, s_u,
-                                              ilow, iupp, n_cols, n_rows, n_low)
-    α_pri = @views compute_α_primal(x, Δ_cc[1:n_cols], lvar, uvar)
-    α_dual_l = @views compute_α_dual(s_l[ilow], Δ_cc[n_rows+n_cols+1: n_rows+n_cols+n_low])
-    α_dual_u = @views compute_α_dual(s_u[iupp], Δ_cc[n_rows+n_cols+n_low+1: end])
-    α_dual_final = min(α_dual_l, α_dual_u)
-    x .= @views x .+ α_pri .* Δ_cc[1:n_cols]
-    λ .= @views λ .+ α_dual_final .* Δ_cc[n_cols+1: n_rows+n_cols]
-    s_l[ilow] .= @views s_l[ilow] .+ α_dual_final .* Δ_cc[n_rows+n_cols+1: n_rows+n_cols+n_low]
-    s_u[iupp] .= @views s_u[iupp] .+ α_dual_final .* Δ_cc[n_rows+n_cols+n_low+1: end]
-    n_Δx = @views α_pri * norm(Δ_cc[1:n_cols])
-    x_m_lvar .= @views x[ilow] .- lvar[ilow]
-    uvar_m_x .= @views uvar[iupp] .- x[iupp]
-    μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp],
-                         n_low, n_upp)
-    Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
-    xTQx_2 =  x' * Qx / 2
-    ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
-    Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
-    cTx = c' * x
-    pri_obj = xTQx_2 + cTx + c0
-    dual_obj = b' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar,ilow) -
-                view(s_u,iupp)'*view(uvar,iupp) +c0
-    rb .= Ax .- b
-    rc .= ATλ .-Qx .+ s_l .- s_u .- c
-    rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
-    pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
-    k += 4
-
-    return x, λ, s_l, s_u, x_m_lvar, uvar_m_x, μ, tmp_diag,
-    J_augm, J_fact, J_P, Δ_cc, Δ_xλ, rxs_l, rxs_u, n_Δx, Qx, xTQx_2,
-    cTx, ATλ, Ax, pri_obj, dual_obj, pdd, rb, rc, rcNorm, rbNorm, k
 end

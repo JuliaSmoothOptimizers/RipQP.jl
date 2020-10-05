@@ -71,19 +71,14 @@ function solve_augmented_system_cc!(J_fact, Δ_cc, Δ_xλ ,Δ_aff, σ, μ, x_m_l
     return Δ_cc
 end
 
-function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
-                          ilow, iupp, n_rows, n_cols,n_low, n_upp,
-                          Arows, Acols, Avals, Qrows, Qcols, Qvals, c0,
-                          c, b, rc, rb, rcNorm, rbNorm, tol_rb, tol_rc,
-                          Qx, ATλ, Ax, xTQx_2, cTx, pri_obj, dual_obj,
-                          pdd, l_pdd, mean_pdd, n_Δx, small_Δx, small_μ,
-                          Δt, tired, optimal, μ, k, ρ, δ, ρ_min, δ_min,
-                          J_augm, J_fact, J_P, diagind_J, diag_Q, tmp_diag,
-                          Δ_aff, Δ_cc, Δ, Δ_xλ, s_l_αΔ_aff, s_u_αΔ_aff,
-                          x_m_l_αΔ_aff, u_m_x_αΔ_aff, rxs_l, rxs_u,
-                          max_iter, ϵ_pdd, ϵ_μ, ϵ_rc, ϵ_rb, tol_Δx,
+function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, n_rows, n_cols,n_low, n_upp,
+                          FloatData, IntData, rc, rb, rcNorm, rbNorm, tol_rb, tol_rc,Qx, ATλ, Ax,
+                          xTQx_2, cTx, pri_obj, dual_obj, pdd, l_pdd, mean_pdd, n_Δx, small_Δx, small_μ,
+                          Δt, tired, optimal, μ, k, ρ, δ, ρ_min, δ_min, J_augm, J_fact, J_P, diagind_J,
+                          diag_Q, tmp_diag, Δ_aff, Δ_cc, Δ, Δ_xλ, s_l_αΔ_aff, s_u_αΔ_aff,
+                          x_m_l_αΔ_aff, u_m_x_αΔ_aff, rxs_l, rxs_u, max_iter, ϵ_pdd, ϵ_μ, ϵ_rc, ϵ_rb, tol_Δx,
                           start_time, max_time, c_catch, c_pdd, display)
-    T = eltype(Avals)
+    T = eltype(x)
 
     while k<max_iter && !optimal && !tired # && !small_μ && !small_μ
 
@@ -135,8 +130,8 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
         end
 
         Δ_aff = solve_augmented_system_aff!(J_fact, Δ_aff, Δ_xλ, rc, rb, x_m_lvar, uvar_m_x,
-                                            s_l, s_u, ilow, iupp,  n_cols, n_rows, n_low)
-        α_aff_pri = @views compute_α_primal(x, Δ_aff[1:n_cols], lvar, uvar)
+                                            s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
+        α_aff_pri = @views compute_α_primal(x, Δ_aff[1:n_cols], FloatData.lvar, FloatData.uvar)
         α_aff_dual_l = @views compute_α_dual(s_l[ilow], Δ_aff[n_rows+n_cols+1: n_rows+n_cols+n_low])
         α_aff_dual_u = @views compute_α_dual(s_u[iupp], Δ_aff[n_rows+n_cols+n_low+1:end])
         # alpha_aff_dual_final is the min of the 2 alpha_aff_dual
@@ -145,9 +140,7 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
         u_m_x_αΔ_aff .= @views uvar_m_x .- α_aff_pri .* Δ_aff[1:n_cols][iupp]
         s_l_αΔ_aff .= @views s_l[ilow] .+ α_aff_dual_final .* Δ_aff[n_rows+n_cols+1: n_rows+n_cols+n_low]
         s_u_αΔ_aff .= @views s_u[iupp] .+ α_aff_dual_final .*  Δ_aff[n_rows+n_cols+n_low+1: end]
-        μ_aff = compute_μ(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff,
-                          n_low, n_upp)
-
+        μ_aff = compute_μ(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, n_low, n_upp)
         σ = (μ_aff / μ)^3
 
         # corrector and centering step
@@ -155,7 +148,7 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
                                           rxs_l, rxs_u, s_l, s_u, ilow, iupp, n_cols, n_rows, n_low)
 
         Δ .= Δ_aff .+ Δ_cc # final direction
-        α_pri = @views compute_α_primal(x, Δ[1:n_cols], lvar, uvar)
+        α_pri = @views compute_α_primal(x, Δ[1:n_cols], FloatData.lvar, FloatData.uvar)
         α_dual_l = @views compute_α_dual(s_l[ilow], Δ[n_rows+n_cols+1: n_rows+n_cols+n_low])
         α_dual_u = @views compute_α_dual(s_u[iupp], Δ[n_rows+n_cols+n_low+1: end])
         α_dual_final = min(α_dual_l, α_dual_u)
@@ -166,8 +159,8 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
         s_l[ilow] .= @views s_l[ilow] .+ α_dual_final .* Δ[n_rows+n_cols+1: n_rows+n_cols+n_low]
         s_u[iupp] .= @views s_u[iupp] .+ α_dual_final .* Δ[n_rows+n_cols+n_low+1: end]
         n_Δx = @views α_pri * norm(Δ[1:n_cols])
-        x_m_lvar .= @views x[ilow] .- lvar[ilow]
-        uvar_m_x .= @views uvar[iupp] .- x[iupp]
+        x_m_lvar .= @views x[ilow] .- FloatData.lvar[ilow]
+        uvar_m_x .= @views FloatData.uvar[iupp] .- x[iupp]
 
         if zero(T) in x_m_lvar # "security" if x is too close from lvar ou uvar
             for i=1:n_low
@@ -186,16 +179,16 @@ function iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, lvar, uvar,
 
         μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[ilow], s_u[iupp],
                              n_low, n_upp)
-        Qx = mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
+        Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, x)
         xTQx_2 =  x' * Qx / 2
-        ATλ = mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
-        Ax = mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
-        cTx = c' * x
-        pri_obj = xTQx_2 + cTx + c0
-        dual_obj = b' * λ - xTQx_2 + view(s_l,ilow)'*view(lvar,ilow) -
-                    view(s_u,iupp)'*view(uvar,iupp) +c0
-        rb .= Ax .- b
-        rc .= ATλ .-Qx .+ s_l .- s_u .- c
+        ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, λ)
+        Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData.Avals, x)
+        cTx = FloatData.c' * x
+        pri_obj = xTQx_2 + cTx + FloatData.c0
+        dual_obj = FloatData.b' * λ - xTQx_2 + view(s_l,ilow)'*view(FloatData.lvar, ilow) -
+                    view(s_u,iupp)'*view(FloatData.uvar,iupp) + FloatData.c0
+        rb .= Ax .- FloatData.b
+        rc .= ATλ .-Qx .+ s_l .- s_u .- FloatData.c
 
         # update stopping criterion values:
         pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
