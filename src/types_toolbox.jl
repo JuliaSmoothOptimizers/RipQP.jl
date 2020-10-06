@@ -22,6 +22,26 @@ mutable struct QM_IntData
     n_upp  :: Int
 end
 
+function get_QM_data(QM)
+    T = eltype(QM.meta.lvar)
+    IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], length(QM.meta.lcon),
+                         length(QM.meta.lvar), 0, 0)
+    Oc = zeros(T, IntData.n_cols)
+    IntData.ilow, IntData.iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
+    IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
+    IntData.irng = QM.meta.irng
+    @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
+    A = jac(QM, Oc)
+    A = dropzeros!(A)
+    Q = hess(QM, Oc)  # lower triangular
+    Q = dropzeros!(Q)
+    FloatData_T0 = QM_FloatData(T[], T[], QM.meta.lcon, grad(QM, Oc), obj(QM, Oc), QM.meta.lvar, QM.meta.uvar)
+    IntData.Arows, IntData.Acols, FloatData_T0.Avals = findnz(A)
+    IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals = findnz(Q)
+    return FloatData_T0, IntData, T
+end
+
+
 function init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc)
 
     FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
