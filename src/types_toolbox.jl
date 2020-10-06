@@ -1,27 +1,3 @@
-mutable struct QM_FloatData{T}
-    Qvals :: Vector{T}
-    Avals :: Vector{T}
-    b     :: Vector{T}
-    c     :: Vector{T}
-    c0    :: T
-    lvar  :: Vector{T}
-    uvar  :: Vector{T}
-end
-
-mutable struct QM_IntData
-    Qrows  :: Vector{Int}
-    Qcols  :: Vector{Int}
-    Arows  :: Vector{Int}
-    Acols  :: Vector{Int}
-    ilow   :: Vector{Int}
-    iupp   :: Vector{Int}
-    irng   :: Vector{Int}
-    n_rows :: Int
-    n_cols :: Int
-    n_low  :: Int
-    n_upp  :: Int
-end
-
 function get_QM_data(QM)
     T = eltype(QM.meta.lvar)
     IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], length(QM.meta.lcon),
@@ -41,26 +17,21 @@ function get_QM_data(QM)
     return FloatData_T0, IntData, T
 end
 
-
-function init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc)
+function init_params(T, FloatData_T0, IntData, ϵ_μ, ϵ_Δx)
 
     FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
                                Array{T}(FloatData_T0.b), Array{T}(FloatData_T0.c), T(FloatData_T0.c0),
                                Array{T}(FloatData_T0.lvar), Array{T}(FloatData_T0.uvar))
-    ϵ_pdd_T = T(1e-3)
-    ϵ_rb_T = T(1e-4)
-    ϵ_rc_T = T(1e-4)
-    tol_Δx_T = T(tol_Δx)
-    ϵ_μ_T = T(ϵ_μ)
+    res = residuals(T[], T[], T, T)
+    ϵ_T = tolerances(T(1e-3), T(1e-4), T(1e-4), T(ϵ_μ), T(ϵ_Δx))
     # init regularization values
-    ρ, δ = T(sqrt(eps())*1e5), T(sqrt(eps())*1e5)
-    ρ_min, δ_min = T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0)
+    regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0))
     tmp_diag = -T(1.0e-2) .* ones(T, IntData.n_cols)
     J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
-    J_augmvals = vcat(-FloatData_T.Qvals, FloatData_T.Avals, δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augmvals = vcat(-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
     J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     diagind_J = get_diag_sparseCSC(J_augm)
     diag_Q = get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols)
@@ -74,55 +45,53 @@ function init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc)
     Δ = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
     Δ_xλ = zeros(T, IntData.n_cols+IntData.n_rows)
 
-    x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ,
-    x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T, IntData, J_augm , Δ_xλ)
-    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, x)
-    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T.Avals, λ)
+    pt, J_fact, J_P, Qx, ATλ, x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T, IntData, J_augm , Δ_xλ)
+    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, pt.x)
+    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T.Avals, pt.λ)
     Ax = zeros(T, IntData.n_rows)
-    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T.Avals, x)
-    rb = Ax - FloatData_T.b
-    rc = -Qx + ATλ + s_l - s_u - FloatData_T.c
-    x_m_lvar .= @views x[IntData.ilow] .- FloatData_T.lvar[IntData.ilow]
-    uvar_m_x .= @views FloatData_T.uvar[IntData.iupp] .- x[IntData.iupp]
+    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T.Avals, pt.x)
+    res.rb = Ax - FloatData_T.b
+    res.rc = -Qx + ATλ + pt.s_l - pt.s_u - FloatData_T.c
+    x_m_lvar .= @views pt.x[IntData.ilow] .- FloatData_T.lvar[IntData.ilow]
+    uvar_m_x .= @views FloatData_T.uvar[IntData.iupp] .- pt.x[IntData.iupp]
 
     # stopping criterion
-    xTQx_2 = x' * Qx / 2
-    cTx = FloatData_T.c' * x
+    xTQx_2 = pt.x' * Qx / 2
+    cTx = FloatData_T.c' * pt.x
     pri_obj = xTQx_2 + cTx + FloatData_T.c0
-    dual_obj = FloatData_T.b' * λ - xTQx_2 + view(s_l, IntData.ilow)'*view(FloatData_T.lvar, IntData.ilow) -
-                    view(s_u, IntData.iupp)'*view(FloatData_T.uvar, IntData.iupp) + FloatData_T.c0
-    μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[IntData.ilow], s_u[IntData.iupp], IntData.n_low, IntData.n_upp)
+    dual_obj = FloatData_T.b' * pt.λ - xTQx_2 + view(pt.s_l, IntData.ilow)'*view(FloatData_T.lvar, IntData.ilow) -
+                    view(pt.s_u, IntData.iupp)'*view(FloatData_T.uvar, IntData.iupp) + FloatData_T.c0
+    μ = @views compute_μ(x_m_lvar, uvar_m_x, pt.s_l[IntData.ilow], pt.s_u[IntData.iupp], IntData.n_low, IntData.n_upp)
     pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
-    tol_rb_T, tol_rc_T = ϵ_rb_T*(one(T) + rbNorm), ϵ_rc_T*(one(T) + rcNorm)
-    tol_rb, tol_rc = ϵ_rb*(one(Float64) + Float64(rbNorm)), ϵ_rc*(one(Float64) + Float64(rcNorm))
-    optimal = pdd < ϵ_pdd_T && rbNorm < tol_rb_T && rcNorm < tol_rc_T
-    small_Δx, small_μ = false, μ < ϵ_μ_T
+    res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
+    tol_rb_T, tol_rc_T = ϵ_T.rb*(one(T) + res.rbNorm), ϵ_T.rc*(one(T) + res.rcNorm)
+    tol_rb, tol_rc = ϵ_T.rb*(one(Float64) + Float64(res.rbNorm)), ϵ_T.rc*(one(Float64) + Float64(res.rcNorm))
+    optimal = pdd < ϵ_T.pdd && res.rbNorm < tol_rb_T && res.rcNorm < tol_rc_T
+    small_Δx, small_μ = false, μ < ϵ_T.μ
     l_pdd = zeros(T, 6)
     mean_pdd = one(T)
     n_Δx = zero(T)
 
-    return FloatData_T, ϵ_pdd_T, ϵ_rb_T, ϵ_rc_T, tol_Δx_T, ϵ_μ_T, ρ, δ, ρ_min,
-                δ_min, tmp_diag, J_augm, diagind_J, diag_Q, x_m_l_αΔ_aff, u_m_x_αΔ_aff,
-                s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ, x, λ, s_l, s_u,
+    return FloatData_T, ϵ_T, regu, tmp_diag, J_augm, diagind_J, diag_Q, x_m_l_αΔ_aff, u_m_x_αΔ_aff,
+                s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ, pt,
                 J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x, xTQx_2,  cTx, pri_obj, dual_obj,
-                μ, pdd, rc, rb, rcNorm, rbNorm, tol_rb_T, tol_rc_T,tol_rb, tol_rc,
+                μ, pdd, res, tol_rb_T, tol_rc_T,tol_rb, tol_rc,
                 optimal, small_Δx, small_μ, l_pdd, mean_pdd, n_Δx
 end
 
-function init_params_mono(FloatData_T0, IntData, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, ϵ_rc)
+function init_params_mono(FloatData_T0, IntData, ϵ)
     T = eltype(FloatData_T0.Avals)
+    res = residuals(T[], T[], T, T)
     # init regularization values
-    ρ, δ = T(sqrt(eps())*1e5), T(sqrt(eps())*1e5)
-    ρ_min, δ_min =  1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T))
+    regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
     tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
     J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
-    J_augmvals = vcat(-FloatData_T0.Qvals, FloatData_T0.Avals, δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augmvals = vcat(-FloatData_T0.Qvals, FloatData_T0.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
     J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     diagind_J = get_diag_sparseCSC(J_augm)
     diag_Q = get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals, IntData.n_cols)
@@ -136,58 +105,57 @@ function init_params_mono(FloatData_T0, IntData, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, 
     Δ = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
     Δ_xλ = zeros(T, IntData.n_cols+IntData.n_rows)
 
-    x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ,
-        x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T0, IntData, J_augm, Δ_xλ)
-    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals, x)
-    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T0.Avals, λ)
+    pt, J_fact, J_P, Qx, ATλ, x_m_lvar, uvar_m_x, Δ_xλ = @views starting_points(FloatData_T0, IntData, J_augm, Δ_xλ)
+    Qx = mul_Qx_COO!(Qx, IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals, pt.x)
+    ATλ = mul_ATλ_COO!(ATλ, IntData.Arows, IntData.Acols, FloatData_T0.Avals, pt.λ)
     Ax = zeros(T, IntData.n_rows)
-    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T0.Avals, x)
-    rb = Ax - FloatData_T0.b
-    rc = -Qx + ATλ + s_l - s_u - FloatData_T0.c
-    x_m_lvar .= @views x[IntData.ilow] .- FloatData_T0.lvar[IntData.ilow]
-    uvar_m_x .= @views FloatData_T0.uvar[IntData.iupp] .- x[IntData.iupp]
+    Ax = mul_Ax_COO!(Ax, IntData.Arows, IntData.Acols, FloatData_T0.Avals, pt.x)
+    res.rb = Ax - FloatData_T0.b
+    res.rc = -Qx + ATλ + pt.s_l - pt.s_u - FloatData_T0.c
+    x_m_lvar .= @views pt.x[IntData.ilow] .- FloatData_T0.lvar[IntData.ilow]
+    uvar_m_x .= @views FloatData_T0.uvar[IntData.iupp] .- pt.x[IntData.iupp]
 
     # stopping criterion
-    xTQx_2 = x' * Qx / 2
-    cTx = FloatData_T0.c' * x
+    xTQx_2 = pt.x' * Qx / 2
+    cTx = FloatData_T0.c' * pt.x
     pri_obj = xTQx_2 + cTx + FloatData_T0.c0
-    dual_obj = FloatData_T0.b' * λ - xTQx_2 + view(s_l, IntData.ilow)'*view(FloatData_T0.lvar, IntData.ilow) -
-                    view(s_u, IntData.iupp)'*view(FloatData_T0.uvar, IntData.iupp) + FloatData_T0.c0
-    μ = @views compute_μ(x_m_lvar, uvar_m_x, s_l[IntData.ilow], s_u[IntData.iupp], IntData.n_low, IntData.n_upp)
+    dual_obj = FloatData_T0.b' * pt.λ - xTQx_2 + view(pt.s_l, IntData.ilow)'*view(FloatData_T0.lvar, IntData.ilow) -
+                    view(pt.s_u, IntData.iupp)'*view(FloatData_T0.uvar, IntData.iupp) + FloatData_T0.c0
+    μ = @views compute_μ(x_m_lvar, uvar_m_x, pt.s_l[IntData.ilow], pt.s_u[IntData.iupp], IntData.n_low, IntData.n_upp)
     pdd = abs(pri_obj - dual_obj ) / (one(T) + abs(pri_obj))
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    rcNorm, rbNorm = norm(rc, Inf), norm(rb, Inf)
-    tol_rb, tol_rc = ϵ_rb*(one(T) + rbNorm), ϵ_rc*(one(T) + rcNorm)
-    optimal = pdd < ϵ_pdd && rbNorm < tol_rb && rcNorm < tol_rc
-    small_Δx, small_μ = false, μ < ϵ_μ
+    res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
+    tol_rb, tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
+    optimal = pdd < ϵ.pdd && res.rbNorm < tol_rb && res.rcNorm < tol_rc
+    small_Δx, small_μ = false, μ < ϵ.μ
     l_pdd = zeros(T, 6)
     mean_pdd = one(T)
     n_Δx = zero(T)
-    return ρ, δ, ρ_min, δ_min, tmp_diag, J_augm, diagind_J, diag_Q,
+    return regu, tmp_diag, J_augm, diagind_J, diag_Q,
                 x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff,
-                Δ_cc, Δ, Δ_xλ, x, λ, s_l, s_u, J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x,
-                xTQx_2,  cTx, pri_obj, dual_obj, μ, pdd, rc, rb, rcNorm, rbNorm,
+                Δ_cc, Δ, Δ_xλ, pt, J_fact, J_P, Qx, ATλ, Ax, x_m_lvar, uvar_m_x,
+                xTQx_2,  cTx, pri_obj, dual_obj, μ, pdd, res,
                 tol_rb, tol_rc, optimal, small_Δx, small_μ, l_pdd, mean_pdd, n_Δx
 end
 
-function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
-                        rcNorm, rbNorm, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
-                        dual_obj, pdd, l_pdd, mean_pdd, n_Δx, μ, ρ, δ, J_augm, J_P,
+function convert_types!(T, pt, x_m_lvar, uvar_m_x, res, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
+                        dual_obj, pdd, l_pdd, mean_pdd, n_Δx, μ, regu, J_augm, J_P,
                         J_fact, Δ_aff, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
-                        s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag,
-                        ρ_min, δ_min)
+                        s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag)
 
-   x, λ, s_l, s_u = convert(Array{T}, x), convert(Array{T}, λ), convert(Array{T}, s_l), convert(Array{T}, s_u)
+   pt.x, pt.λ, pt.s_l, pt.s_u = convert(Array{T}, pt.x), convert(Array{T}, pt.λ),
+                                    convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u)
    x_m_lvar, uvar_m_x = convert(Array{T}, x_m_lvar), convert(Array{T}, uvar_m_x)
-   rc, rb = convert(Array{T}, rc), convert(Array{T}, rb)
-   rcNorm, rbNorm = convert(T, rcNorm), convert(T, rbNorm)
+   res.rc, res.rb = convert(Array{T}, res.rc), convert(Array{T}, res.rb)
+   res.rcNorm, res.rbNorm = convert(T, res.rcNorm), convert(T, res.rbNorm)
    Qx, ATλ, Ax = convert(Array{T}, Qx), convert(Array{T}, ATλ), convert(Array{T}, Ax)
    xTQx_2, cTx = convert(T, xTQx_2), convert(T, cTx)
    pri_obj, dual_obj = convert(T, pri_obj), convert(T, dual_obj)
    pdd, l_pdd, mean_pdd = convert(T, pdd), convert(Array{T}, l_pdd), convert(T, mean_pdd)
    n_Δx, μ = convert(T, n_Δx), convert(T, μ)
-   ρ, δ = convert(T, ρ), convert(T, δ)
+   regu.ρ, regu.δ = convert(T, regu.ρ), convert(T, regu.δ)
+   regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
    J_augm = convert(SparseMatrixCSC{T,Int64}, J_augm)
    J_P = LDLFactorizations.LDLFactorization(J_P.__analyzed, J_P.__factorized, J_P.__upper,
                                             J_P.n, J_P.parent, J_P.Lnz, J_P.flag, J_P.P,
@@ -202,12 +170,9 @@ function convert_types!(T, x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
    s_l_αΔ_aff, s_u_αΔ_aff = convert(Array{T}, s_l_αΔ_aff), convert(Array{T}, s_u_αΔ_aff)
    x_m_l_αΔ_aff, u_m_x_αΔ_aff = convert(Array{T}, x_m_l_αΔ_aff), convert(Array{T}, u_m_x_αΔ_aff)
    diag_Q, tmp_diag = convert(Array{T}, diag_Q), convert(Array{T}, tmp_diag)
-   ρ_min, δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
 
-   return  x, λ, s_l, s_u, x_m_lvar, uvar_m_x, rc, rb,
-                rcNorm, rbNorm, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
-                dual_obj, pdd, l_pdd, mean_pdd, n_Δx, μ, ρ, δ, J_augm, J_P,
+   return  pt, x_m_lvar, uvar_m_x, res, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj,
+                dual_obj, pdd, l_pdd, mean_pdd, n_Δx, μ, regu, J_augm, J_P,
                 J_fact, Δ_aff, Δ_cc, Δ, Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
-                s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag,
-                ρ_min, δ_min
+                s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff, diag_Q, tmp_diag
 end
