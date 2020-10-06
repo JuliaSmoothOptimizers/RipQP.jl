@@ -24,25 +24,23 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
 
     # get variables from QuadraticModel
     T = eltype(QM.meta.lvar)
-    n_cols = length(QM.meta.lvar)
-    Oc = zeros(T, n_cols)
-    ilow, iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
-    n_low, n_upp = length(ilow), length(iupp) # number of finite constraints
-    irng = QM.meta.irng
-    ifix = QM.meta.ifix
+    IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], length(QM.meta.lcon),
+                         length(QM.meta.lvar), 0, 0)
+    Oc = zeros(T, IntData.n_cols)
+    IntData.ilow, IntData.iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
+    IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
+    IntData.irng = QM.meta.irng
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
     A = jac(QM, Oc)
     A = dropzeros!(A)
-    n_rows, n_cols = size(A)
     Q = hess(QM, Oc)  # lower triangular
     Q = dropzeros!(Q)
     FloatData_T0 = QM_FloatData(T[], T[], QM.meta.lcon, grad(QM, Oc), obj(QM, Oc), QM.meta.lvar, QM.meta.uvar)
-    IntData = QM_IntData(Int[], Int[], Int[], Int[])
     IntData.Arows, IntData.Acols, FloatData_T0.Avals = findnz(A)
     IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals = findnz(Q)
 
     if scaling
-        FloatData_T0, d1, d2, d3 = scaling_Ruiz!(FloatData_T0, IntData, n_rows, n_cols, T(1.0e-3))
+        FloatData_T0, d1, d2, d3 = scaling_Ruiz!(FloatData_T0, IntData, T(1.0e-3))
     end
     # cNorm = norm(c)
     # bNorm = norm(b)
@@ -61,8 +59,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
             xTQx_2,  cTx, pri_obj, dual_obj, μ, pdd,
             rc, rb, rcNorm, rbNorm, tol_rb32, tol_rc32,
             tol_rb, tol_rc, optimal, small_Δx, small_μ,
-            l_pdd, mean_pdd, n_Δx = init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc,
-                                                n_rows, n_cols, ilow, iupp, irng, n_low, n_upp)
+            l_pdd, mean_pdd, n_Δx = init_params(T, FloatData_T0, IntData, tol_Δx, ϵ_μ, ϵ_rb, ϵ_rc)
 
     elseif mode == :mono
         # init regularization values
@@ -75,8 +72,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
             pri_obj, dual_obj, μ, pdd, rc, rb,
             rcNorm, rbNorm, tol_rb, tol_rc, optimal,
             small_Δx, small_μ,
-            l_pdd, mean_pdd, n_Δx = init_params_mono(FloatData_T0, IntData, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, ϵ_rc,
-                                                     n_rows, n_cols, ilow, iupp, irng, n_low, n_upp)
+            l_pdd, mean_pdd, n_Δx = init_params_mono(FloatData_T0, IntData, tol_Δx, ϵ_pdd, ϵ_μ, ϵ_rb, ϵ_rc)
     end
 
     Δt = time() - start_time
@@ -103,8 +99,8 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
             pdd, l_pdd, mean_pdd, n_Δx, Δt,
             tired, optimal, μ, k, ρ, δ,
             ρ_min, δ_min, J_augm, J_fact,
-            c_catch, c_pdd  = iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, n_rows,
-                                               n_cols,n_low, n_upp, FloatData32, IntData, rc, rb, rcNorm, rbNorm,
+            c_catch, c_pdd  = iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, FloatData32, IntData, rc, rb,
+                                               rcNorm, rbNorm,
                                                tol_rb32, tol_rc32, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj, dual_obj,
                                                pdd, l_pdd, mean_pdd, n_Δx, small_Δx, small_μ, Δt, tired, optimal,
                                                μ, k, ρ, δ, ρ_min, δ_min, J_augm, J_fact, J_P, diagind_J, diag_Q, tmp_diag,
@@ -148,8 +144,8 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
         pdd, l_pdd, mean_pdd, n_Δx, Δt,
         tired, optimal, μ, k, ρ, δ,
         ρ_min, δ_min, J_augm, J_fact,
-        c_catch, c_pdd  = iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, n_rows, n_cols,
-                                           n_low, n_upp, FloatData_T0, IntData, rc, rb, rcNorm, rbNorm,
+        c_catch, c_pdd  = iter_mehrotraPC!(x, λ, s_l, s_u, x_m_lvar, uvar_m_x, FloatData_T0, IntData,
+                                           rc, rb, rcNorm, rbNorm,
                                            tol_rb, tol_rc, Qx, ATλ, Ax, xTQx_2, cTx, pri_obj, dual_obj,
                                            pdd, l_pdd, mean_pdd, n_Δx, small_Δx, small_μ, Δt, tired, optimal,
                                            μ, k, ρ, δ, ρ_min, δ_min, J_augm, J_fact, J_P, diagind_J, diag_Q,
@@ -170,7 +166,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     if scaling
         x, λ, s_l, s_u, pri_obj,
             rcNorm, rbNorm = post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm,
-                                        rbNorm, ilow, iupp, FloatData_T0, IntData,
+                                        rbNorm, FloatData_T0, IntData,
                                         Qx, ATλ, Ax, cTx, pri_obj, dual_obj, xTQx_2)
     end
 

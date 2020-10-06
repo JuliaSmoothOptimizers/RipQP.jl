@@ -34,26 +34,26 @@ function mul_Q_D!(Qrows, Qcols, Qvals, d, c, n_cols, n)
     return Qrows, Qcols, Qvals, d
 end
 
-function scaling_Ruiz!(FloatData_T0, IntData, n_rows, n_cols, ϵ; max_iter = 100)
+function scaling_Ruiz!(FloatData_T0, IntData, ϵ; max_iter = 100)
     n = length(IntData.Arows)
     T = eltype(FloatData_T0.Avals)
-    d1, d2 = ones(T, n_rows), ones(T, n_cols)
-    r_k, c_k = zeros(T, n_rows), zeros(T, n_cols)
+    d1, d2 = ones(T, IntData.n_rows), ones(T, IntData.n_cols)
+    r_k, c_k = zeros(T, IntData.n_rows), zeros(T, IntData.n_cols)
 
-    r_k = get_norm_rc!(r_k, IntData.Arows, FloatData_T0.Avals, n_rows, n)
-    c_k = get_norm_rc!(c_k, IntData.Acols, FloatData_T0.Avals, n_cols, n)
+    r_k = get_norm_rc!(r_k, IntData.Arows, FloatData_T0.Avals, IntData.n_rows, n)
+    c_k = get_norm_rc!(c_k, IntData.Acols, FloatData_T0.Avals, IntData.n_cols, n)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
     IntData.Arows, IntData.Acols,
         FloatData_T0.Avals, d1, d2 = mul_A_D1_D2!(IntData.Arows, IntData.Acols, FloatData_T0.Avals,
-                                                  d1, d2, r_k, c_k, n_rows, n_cols, n)
+                                                  d1, d2, r_k, c_k, IntData.n_rows, IntData.n_cols, n)
     k = 1
     while !convergence && k < max_iter
-        r_k = get_norm_rc!(r_k, IntData.Arows, FloatData_T0.Avals, n_rows, n)
-        c_k = get_norm_rc!(c_k, IntData.Acols, FloatData_T0.Avals, n_cols, n)
+        r_k = get_norm_rc!(r_k, IntData.Arows, FloatData_T0.Avals, IntData.n_rows, n)
+        c_k = get_norm_rc!(c_k, IntData.Acols, FloatData_T0.Avals, IntData.n_cols, n)
         convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
         IntData.Arows, IntData.Acols,
             FloatData_T0.Avals, d1, d2 = mul_A_D1_D2!(IntData.Arows, IntData.Acols, FloatData_T0.Avals,
-                                                      d1, d2, r_k, c_k, n_rows, n_cols, n)
+                                                      d1, d2, r_k, c_k, IntData.n_rows, IntData.n_cols, n)
         k += 1
     end
 
@@ -67,20 +67,20 @@ function scaling_Ruiz!(FloatData_T0, IntData, n_rows, n_cols, ϵ; max_iter = 100
     FloatData_T0.uvar ./= d2
 
     # scaling Q (symmetric)
-    d3 = ones(T, n_cols)
+    d3 = ones(T, IntData.n_cols)
     c_k .= zero(T)
-    c_k = get_norm_rc!(c_k, IntData.Qcols, FloatData_T0.Qvals, n_cols, n_Q)
+    c_k = get_norm_rc!(c_k, IntData.Qcols, FloatData_T0.Qvals, IntData.n_cols, n_Q)
     convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
     IntData.Qrows, IntData.Qcols,
         FloatData_T0.Qvals, d3 = mul_Q_D!(IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals,
-                                          d3, c_k, n_cols, n_Q)
+                                          d3, c_k, IntData.n_cols, n_Q)
     k = 1
     while !convergence && k < max_iter
-        c_k = get_norm_rc!(c_k, IntData.Qcols, FloatData_T0.Qvals, n_cols, n_Q)
+        c_k = get_norm_rc!(c_k, IntData.Qcols, FloatData_T0.Qvals, IntData.n_cols, n_Q)
         convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
         IntData.Qrows, IntData.Qcols,
             FloatData_T0.Qvals, d3 = mul_Q_D!(IntData.Qrows, IntData.Qcols, FloatData_T0.Qvals,
-                                              d3, c_k, n_cols, n_Q)
+                                              d3, c_k, IntData.n_cols, n_Q)
         k += 1
     end
 
@@ -94,7 +94,7 @@ function scaling_Ruiz!(FloatData_T0, IntData, n_rows, n_cols, ϵ; max_iter = 100
     return FloatData_T0, d1, d2, d3
 end
 
-function post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm, rbNorm, ilow, iupp,
+function post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm, rbNorm,
                     FloatData_T0, IntData, Qx, ATλ, Ax, cTx, pri_obj, dual_obj, xTQx_2)
     x .*= d2 .* d3
     for i=1:length(IntData.Qrows)
@@ -114,8 +114,8 @@ function post_scale(d1, d2, d3, x, λ, s_l, s_u, rb, rc, rcNorm, rbNorm, ilow, i
     pri_obj = xTQx_2 + cTx + FloatData_T0.c0
     FloatData_T0.lvar .*= d2 .* d3
     FloatData_T0.uvar .*= d2 .* d3
-    dual_obj = FloatData_T0.b' * λ - xTQx_2 + view(s_l,ilow)'*view(FloatData_T0.lvar,ilow) -
-                    view(s_u,iupp)'*view(FloatData_T0.uvar,iupp) + FloatData_T0.c0
+    dual_obj = FloatData_T0.b' * λ - xTQx_2 + view(s_l, IntData.ilow)'*view(FloatData_T0.lvar, IntData.ilow) -
+                    view(s_u, IntData.iupp)'*view(FloatData_T0.uvar, IntData.iupp) + FloatData_T0.c0
     s_l ./= d2 .* d3
     s_u ./= d2 .* d3
     rb .= Ax .- FloatData_T0.b
