@@ -95,3 +95,8 @@ mutable struct stop_crit
     small_μ   :: Bool
     tired     :: Bool
 end
+
+mutable struct safety_compt
+    c_catch  :: Int
+    c_pdd    :: Int
+end

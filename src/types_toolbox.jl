@@ -180,5 +180,8 @@ function convert_types!(T, pt, itd, res, regu, pad)
    pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff = convert(Array{T}, pad.x_m_l_αΔ_aff), convert(Array{T}, pad.u_m_x_αΔ_aff)
    itd.diag_Q, itd.tmp_diag = convert(Array{T}, itd.diag_Q), convert(Array{T}, itd.tmp_diag)
 
+   regu.ρ /= 10
+   regu.δ /= 10
+   
    return pt, itd, res, regu, pad
 end

@@ -73,7 +73,7 @@ end
 
 function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
                           Δt, k, regu, pad, max_iter, ϵ,
-                          start_time, max_time, c_catch, c_pdd, display)
+                          start_time, max_time, safe, display)
     T = eltype(pt.x)
 
     while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
@@ -91,17 +91,17 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
                 break
                 break
             end
-            if c_pdd == 0 && c_catch==0
+            if safe.c_pdd == 0 && safe.c_catch==0
                 regu.δ *= T(1e2)
                 regu.δ_min *= T(1e2)
                 regu.ρ *= T(1e5)
                 regu.ρ_min *= T(1e5)
-            elseif c_pdd == 0 && c_catch != 0
+            elseif safe.c_pdd == 0 && safe.c_catch != 0
                 regu.δ *= T(1e1)
                 regu.δ_min *= T(1e1)
                 regu.ρ *= T(1e0)
                 regu.ρ_min *= T(1e0)
-            elseif c_pdd != 0 && c_catch==0
+            elseif safe.c_pdd != 0 && safe.c_catch==0
                 regu.δ *= T(1e5)
                 regu.δ_min *= T(1e5)
                 regu.ρ *= T(1e5)
@@ -112,7 +112,7 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
                 regu.ρ *= T(1e1)
                 regu.ρ_min *= T(1e1)
             end
-            c_catch += 1
+            safe.c_catch += 1
             itd.tmp_diag .= -regu.ρ
             itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
             itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
@@ -121,7 +121,7 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
             itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P)
         end
 
-        if c_catch >= 4
+        if safe.c_catch >= 4
             break
         end
 
@@ -218,18 +218,18 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
         itd.l_pdd[k%6+1] = itd.pdd
         itd.mean_pdd = mean(itd.l_pdd)
 
-        if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && c_pdd < 5
+        if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
             regu.δ_min /= 10
             regu.δ /= 10
-            c_pdd += 1
+            safe.c_pdd += 1
         end
-        if T == Float64 && k>10 && c_catch <= 1 &&
+        if T == Float64 && k>10 && safe.c_catch <= 1 &&
                 @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
             regu.δ /= 10
             regu.δ_min /= 10
-            c_pdd += 1
+            safe.c_pdd += 1
         end
-        if T == Float32 && c_pdd < 2 &&
+        if T == Float32 && safe.c_pdd < 2 &&
                 minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
             break
         end
@@ -249,5 +249,5 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
         end
     end
 
-    return pt, res, itd, Δt, sc, k, regu, c_catch, c_pdd
+    return pt, res, itd, Δt, sc, k, regu, safe
 end

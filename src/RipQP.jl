@@ -42,8 +42,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     Δt = time() - start_time
     sc.tired = Δt > max_time
     k = 0
-    c_catch = zero(Int) # to avoid endless loop
-    c_pdd = zero(Int) # avoid too small δ_min
+    safe = safety_compt(zero(Int), zero(Int)) # c_catch to avoid endless loop, c_pdd avoid too small δ_min
 
     # display
     if display == true
@@ -57,24 +56,20 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
 
     if mode == :multi
         # iters Float 32
-        pt, res, itd,  Δt, sc, k, regu,
-            c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData32, IntData, res, sc, Δt,
-                                               k, regu, pad, 30, ϵ32, start_time, max_time, c_catch, c_pdd, display)
+        pt, res, itd,  Δt, sc, k, regu, safe  = iter_mehrotraPC!(pt, itd, FloatData32, IntData, res, sc, Δt, k,
+                                                                 regu, pad, 30, ϵ32, start_time, max_time,
+                                                                 safe, display)
         # conversions to Float64
         T = Float64
         pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad)
         sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
-        regu.ρ /= 10
-        regu.δ /= 10
     end
 
     # iters T0
-    pt, res, itd, Δt, sc, k, regu,
-        c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res, sc,
-                                           Δt, k, regu, pad, max_iter, ϵ,
-                                           start_time, max_time, c_catch, c_pdd, display)
-
+    pt, res, itd, Δt, sc, k, regu, safe  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res, sc, Δt, k,
+                                                            regu, pad, max_iter, ϵ, start_time, max_time,
+                                                            safe, display)
     if k>= max_iter
         status = :max_iter
     elseif sc.tired
