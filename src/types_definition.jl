@@ -23,11 +23,13 @@ mutable struct QM_IntData
 end
 
 mutable struct tolerances{T}
-    pdd  :: T
-    rb   :: T
-    rc   :: T
-    μ    :: T
-    Δx   :: T
+    pdd    :: T
+    rb     :: T
+    rc     :: T
+    tol_rb :: T
+    tol_rc :: T
+    μ      :: T
+    Δx     :: T
 end
 
 mutable struct point
@@ -42,6 +44,7 @@ mutable struct residuals
     rc   :: Vector
     rbNorm
     rcNorm
+    n_Δx
 end
 
 mutable struct regularization
@@ -51,4 +54,24 @@ mutable struct regularization
     δ_min
 end
 
-  
+mutable struct iter_data
+    tmp_diag    :: Vector
+    diag_Q      :: Vector
+    J_augm      :: AbstractMatrix
+    J_fact
+    J_P
+    diagind_J   :: Vector{Int}
+    x_m_lvar    :: Vector
+    uvar_m_x    :: Vector
+    Qx          :: Vector
+    ATλ         :: Vector
+    Ax          :: Vector
+    xTQx_2
+    cTx
+    pri_obj
+    dual_obj
+    μ
+    pdd
+    l_pdd       :: Vector
+    mean_pdd
+end
