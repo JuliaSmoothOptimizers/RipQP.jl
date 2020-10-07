@@ -71,13 +71,12 @@ function solve_augmented_system_cc!(J_fact, Δ_cc, Δ_xλ ,Δ_aff, σ, μ, x_m_l
     return Δ_cc
 end
 
-function iter_mehrotraPC!(pt, itd, FloatData, IntData, res,
-                          small_Δx, small_μ,
-                          Δt, tired, optimal, k, regu, pad, max_iter, ϵ,
+function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
+                          Δt, k, regu, pad, max_iter, ϵ,
                           start_time, max_time, c_catch, c_pdd, display)
     T = eltype(pt.x)
 
-    while k<max_iter && !optimal && !tired # && !small_μ && !small_μ
+    while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
             # Affine scaling direction
         itd.tmp_diag .= -regu.ρ
@@ -207,8 +206,8 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res,
 #         optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb * max(1, bNorm + ANorm * xNorm) &&
 #                     rcNorm < ϵ_rc * max(1, cNorm + QNorm * xNorm + ANorm * λNorm)
         res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-        optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-        small_Δx, small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
+        sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
+        sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
 
         if T == Float32
             k += 1
@@ -243,12 +242,12 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res,
         end
 
         Δt = time() - start_time
-        tired = Δt > max_time
+        sc.tired = Δt > max_time
 
         if display == true
             @info log_row(Any[k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual_final, itd.μ])
         end
     end
 
-    return pt, res, itd, Δt, tired, optimal, k, regu, c_catch, c_pdd
+    return pt, res, itd, Δt, sc, k, regu, c_catch, c_pdd
 end

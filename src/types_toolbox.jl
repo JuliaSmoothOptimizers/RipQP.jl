@@ -76,10 +76,13 @@ function init_params(T, FloatData_T0, IntData, ϵ)
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ_T.tol_rb, ϵ_T.tol_rc = ϵ_T.rb*(one(T) + res.rbNorm), ϵ_T.rc*(one(T) + res.rcNorm)
     ϵ.tol_rb, ϵ.tol_rc = ϵ_T.rb*(one(Float64) + Float64(res.rbNorm)), ϵ_T.rc*(one(Float64) + Float64(res.rcNorm))
-    optimal = itd.pdd < ϵ_T.pdd && res.rbNorm < ϵ_T.tol_rb && res.rcNorm < ϵ_T.tol_rc
-    small_Δx, small_μ = false, itd.μ < ϵ_T.μ
+    sc = stop_crit(itd.pdd < ϵ_T.pdd && res.rbNorm < ϵ_T.tol_rb && res.rcNorm < ϵ_T.tol_rc, # optimal
+                   false, # small_Δx
+                   itd.μ < ϵ_T.μ, # small_μ
+                   false # tired
+                   )
 
-    return FloatData_T, ϵ_T, ϵ, regu, itd, pad, pt, res, optimal, small_Δx, small_μ
+    return FloatData_T, ϵ_T, ϵ, regu, itd, pad, pt, res, sc
 end
 
 function init_params_mono(FloatData_T, IntData, ϵ)
@@ -88,7 +91,7 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     res = residuals(T[], T[], zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
-    itd = iter_data(-T(1.0e-2) .* ones(T, IntData.n_cols), # tmp diag
+    itd = iter_data(-T(1.0e0)/2 .* ones(T, IntData.n_cols), # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
                     spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_augm
                     spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
@@ -137,10 +140,13 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     res.rc = -itd.Qx + itd.ATλ + pt.s_l - pt.s_u - FloatData_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
-    optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-    small_Δx, small_μ = false, itd.μ < ϵ.μ
+    sc = stop_crit(itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc, # optimal
+                   false, # small_Δx
+                   itd.μ < ϵ.μ, # small_μ
+                   false # tired
+                   )
 
-    return regu, itd, ϵ, pad, pt, res,optimal, small_Δx, small_μ
+    return regu, itd, ϵ, pad, pt, res, sc
 end
 
 function convert_types!(T, pt, itd, res, regu, pad)

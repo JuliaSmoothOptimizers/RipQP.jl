@@ -24,7 +24,6 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     QM = SlackModel(QM0)
     FloatData_T0, IntData, T = get_QM_data(QM)
     ϵ = tolerances(ϵ_pdd, ϵ_rb, ϵ_rc, one(T), one(T), ϵ_μ, ϵ_Δx)
-
     if scaling
         FloatData_T0, d1, d2, d3 = scaling_Ruiz!(FloatData_T0, IntData, T(1.0e-3))
     end
@@ -34,19 +33,14 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     # QNorm = norm(Qvals)
 
     if mode == :multi
-        #change types
         T = Float32
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,
-            res, optimal, small_Δx, small_μ = init_params(T, FloatData_T0, IntData, ϵ)
-
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(T, FloatData_T0, IntData, ϵ)
     elseif mode == :mono
-        # init regularization values
-        regu, itd, ϵ, pad, pt, res, optimal,
-            small_Δx, small_μ = init_params_mono(FloatData_T0, IntData, ϵ)
+        regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ)
     end
 
     Δt = time() - start_time
-    tired = Δt > max_time
+    sc.tired = Δt > max_time
     k = 0
     c_catch = zero(Int) # to avoid endless loop
     c_pdd = zero(Int) # avoid too small δ_min
@@ -63,34 +57,29 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
 
     if mode == :multi
         # iters Float 32
-        pt, res, itd,  Δt,
-            tired, optimal, k, regu,
-            c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData32, IntData, res,
-                                               small_Δx, small_μ, Δt, tired, optimal,
+        pt, res, itd,  Δt, sc, k, regu,
+            c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData32, IntData, res, sc, Δt,
                                                k, regu, pad, 30, ϵ32, start_time, max_time, c_catch, c_pdd, display)
-
         # conversions to Float64
         T = Float64
         pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad)
-        optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-        small_Δx, small_μ = res.n_Δx < ϵ_Δx, itd.μ < ϵ_μ
+        sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
+        sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
         regu.ρ /= 10
         regu.δ /= 10
     end
 
     # iters T0
-    pt, res, itd, Δt,
-        tired, optimal, k, regu,
-        c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res,
-                                           small_Δx, small_μ, Δt, tired, optimal,
-                                           k, regu, pad, max_iter, ϵ,
+    pt, res, itd, Δt, sc, k, regu,
+        c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res, sc,
+                                           Δt, k, regu, pad, max_iter, ϵ,
                                            start_time, max_time, c_catch, c_pdd, display)
 
     if k>= max_iter
         status = :max_iter
-    elseif tired
+    elseif sc.tired
         status = :max_time
-    elseif optimal
+    elseif sc.optimal
         status = :acceptable
     else
         status = :unknown

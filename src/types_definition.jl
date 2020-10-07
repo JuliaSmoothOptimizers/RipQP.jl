@@ -88,3 +88,10 @@ mutable struct preallocated_data
     rxs_l            :: Vector
     rxs_u            :: Vector
 end
+
+mutable struct stop_crit
+    optimal   :: Bool
+    small_Δx  :: Bool
+    small_μ   :: Bool
+    tired     :: Bool
+end
