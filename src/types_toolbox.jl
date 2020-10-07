@@ -54,17 +54,19 @@ function init_params(T, FloatData_T0, IntData, ϵ)
     itd.J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
 
-    x_m_l_αΔ_aff = zeros(T, IntData.n_low) # x-lvar + αΔ_aff
-    u_m_x_αΔ_aff = zeros(T, IntData.n_upp) # uvar-x + αΔ_aff
-    s_l_αΔ_aff = zeros(T, IntData.n_low) # s_l + αΔ_aff
-    s_u_αΔ_aff = zeros(T, IntData.n_upp) # s_l + αΔ_aff
-    rxs_l, rxs_u = zeros(T, IntData.n_low), zeros(T, IntData.n_upp)
-    Δ_aff = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ_cc = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ_xλ = zeros(T, IntData.n_cols+IntData.n_rows)
+    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
+                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
+                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, IntData.n_low), # s_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
+                            zeros(T, IntData.n_low), # rxs_l
+                            zeros(T, IntData.n_upp) #rxs_u
+                            )
 
-    pt, itd, Δ_xλ = @views starting_points(FloatData_T, IntData, itd, Δ_xλ)
+    pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
 
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
@@ -77,9 +79,7 @@ function init_params(T, FloatData_T0, IntData, ϵ)
     optimal = itd.pdd < ϵ_T.pdd && res.rbNorm < ϵ_T.tol_rb && res.rcNorm < ϵ_T.tol_rc
     small_Δx, small_μ = false, itd.μ < ϵ_T.μ
 
-    return FloatData_T, ϵ_T, ϵ, regu, itd, x_m_l_αΔ_aff, u_m_x_αΔ_aff,
-                s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ, pt,
-                res, optimal, small_Δx, small_μ
+    return FloatData_T, ϵ_T, ϵ, regu, itd, pad, pt, res, optimal, small_Δx, small_μ
 end
 
 function init_params_mono(FloatData_T, IntData, ϵ)
@@ -116,17 +116,19 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     itd.J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
     itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
 
-    x_m_l_αΔ_aff = zeros(T, IntData.n_low) # x-lvar + αΔ_aff
-    u_m_x_αΔ_aff = zeros(T, IntData.n_upp) # uvar-x + αΔ_aff
-    s_l_αΔ_aff = zeros(T, IntData.n_low) # s_l + αΔ_aff
-    s_u_αΔ_aff = zeros(T, IntData.n_upp) # s_l + αΔ_aff
-    rxs_l, rxs_u = zeros(T, IntData.n_low), zeros(T, IntData.n_upp)
-    Δ_aff = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ_cc = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ = zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp)
-    Δ_xλ = zeros(T, IntData.n_cols+IntData.n_rows)
+    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
+                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
+                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, IntData.n_low), # s_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
+                            zeros(T, IntData.n_low), # rxs_l
+                            zeros(T, IntData.n_upp) #rxs_u
+                            )
 
-    pt, itd, Δ_xλ = @views starting_points(FloatData_T, IntData, itd, Δ_xλ)
+    pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
 
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
@@ -138,12 +140,10 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
     small_Δx, small_μ = false, itd.μ < ϵ.μ
 
-    return regu, itd, ϵ, x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, rxs_l, rxs_u, Δ_aff,
-                Δ_cc, Δ, Δ_xλ, pt, res,optimal, small_Δx, small_μ
+    return regu, itd, ϵ, pad, pt, res,optimal, small_Δx, small_μ
 end
 
-function convert_types!(T, pt, itd, res, regu, Δ_aff, Δ_cc, Δ, Δ_xλ,
-                        rxs_l, rxs_u, s_l_αΔ_aff, s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff)
+function convert_types!(T, pt, itd, res, regu, pad)
 
    pt.x, pt.λ, pt.s_l, pt.s_u = convert(Array{T}, pt.x), convert(Array{T}, pt.λ),
                                     convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u)
@@ -168,12 +168,11 @@ function convert_types!(T, pt, itd, res, regu, Δ_aff, Δ_cc, Δ, Δ_xλ,
                                                    itd.J_fact.pinv, itd.J_fact.Lp, itd.J_fact.Cp, itd.J_fact.Ci, itd.J_fact.Li,
                                                    Array{T}(itd.J_fact.Lx), Array{T}(itd.J_fact.d), Array{T}(itd.J_fact.Y),
                                                    itd.J_fact.pattern)
-   Δ_aff, Δ_cc, Δ = convert(Array{T}, Δ_aff), convert(Array{T}, Δ_cc), convert(Array{T}, Δ)
-   Δ_xλ, rxs_l, rxs_u = convert(Array{T}, Δ_xλ), convert(Array{T}, rxs_l), convert(Array{T}, rxs_u)
-   s_l_αΔ_aff, s_u_αΔ_aff = convert(Array{T}, s_l_αΔ_aff), convert(Array{T}, s_u_αΔ_aff)
-   x_m_l_αΔ_aff, u_m_x_αΔ_aff = convert(Array{T}, x_m_l_αΔ_aff), convert(Array{T}, u_m_x_αΔ_aff)
+   pad.Δ_aff, pad.Δ_cc, pad.Δ = convert(Array{T}, pad.Δ_aff), convert(Array{T}, pad.Δ_cc), convert(Array{T}, pad.Δ)
+   pad.Δ_xλ, pad.rxs_l, pad.rxs_u = convert(Array{T}, pad.Δ_xλ), convert(Array{T}, pad.rxs_l), convert(Array{T}, pad.rxs_u)
+   pad.s_l_αΔ_aff, pad.s_u_αΔ_aff = convert(Array{T}, pad.s_l_αΔ_aff), convert(Array{T}, pad.s_u_αΔ_aff)
+   pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff = convert(Array{T}, pad.x_m_l_αΔ_aff), convert(Array{T}, pad.u_m_x_αΔ_aff)
    itd.diag_Q, itd.tmp_diag = convert(Array{T}, itd.diag_Q), convert(Array{T}, itd.tmp_diag)
 
-   return pt, itd, res, regu, Δ_aff, Δ_cc, Δ, Δ_xλ, rxs_l,
-                rxs_u, s_l_αΔ_aff, s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff
+   return pt, itd, res, regu, pad
 end

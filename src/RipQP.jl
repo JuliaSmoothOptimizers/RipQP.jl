@@ -36,17 +36,12 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     if mode == :multi
         #change types
         T = Float32
-        FloatData32, ϵ32, ϵ, regu, itd, x_m_l_αΔ_aff,
-            u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, rxs_l,
-            rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ, pt,
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,
             res, optimal, small_Δx, small_μ = init_params(T, FloatData_T0, IntData, ϵ)
 
     elseif mode == :mono
         # init regularization values
-        regu, itd, ϵ, x_m_l_αΔ_aff,
-            u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff,
-            rxs_l, rxs_u, Δ_aff, Δ_cc, Δ, Δ_xλ,
-            pt, res, optimal,
+        regu, itd, ϵ, pad, pt, res, optimal,
             small_Δx, small_μ = init_params_mono(FloatData_T0, IntData, ϵ)
     end
 
@@ -69,22 +64,14 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     if mode == :multi
         # iters Float 32
         pt, res, itd,  Δt,
-            tired, optimal,  k, regu,
+            tired, optimal, k, regu,
             c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData32, IntData, res,
                                                small_Δx, small_μ, Δt, tired, optimal,
-                                               k, regu, Δ_aff, Δ_cc, Δ, Δ_xλ, s_l_αΔ_aff, s_u_αΔ_aff,
-                                               x_m_l_αΔ_aff, u_m_x_αΔ_aff, rxs_l, rxs_u, 30, ϵ32,
-                                               start_time, max_time, c_catch, c_pdd, display)
+                                               k, regu, pad, 30, ϵ32, start_time, max_time, c_catch, c_pdd, display)
 
         # conversions to Float64
         T = Float64
-        pt, itd, res,
-            regu, Δ_aff, Δ_cc, Δ,
-            Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff,
-            s_u_αΔ_aff, x_m_l_αΔ_aff,
-            u_m_x_αΔ_aff = convert_types!(T, pt, itd, res, regu, Δ_aff, Δ_cc, Δ,
-                                          Δ_xλ, rxs_l, rxs_u, s_l_αΔ_aff, s_u_αΔ_aff, x_m_l_αΔ_aff, u_m_x_αΔ_aff)
-
+        pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad)
         optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         small_Δx, small_μ = res.n_Δx < ϵ_Δx, itd.μ < ϵ_μ
         regu.ρ /= 10
@@ -96,8 +83,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
         tired, optimal, k, regu,
         c_catch, c_pdd  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res,
                                            small_Δx, small_μ, Δt, tired, optimal,
-                                           k, regu, Δ_aff, Δ_cc, Δ, Δ_xλ, s_l_αΔ_aff, s_u_αΔ_aff,
-                                           x_m_l_αΔ_aff, u_m_x_αΔ_aff, rxs_l, rxs_u, max_iter, ϵ,
+                                           k, regu, pad, max_iter, ϵ,
                                            start_time, max_time, c_catch, c_pdd, display)
 
     if k>= max_iter

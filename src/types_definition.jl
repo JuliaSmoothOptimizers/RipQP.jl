@@ -75,3 +75,16 @@ mutable struct iter_data
     l_pdd       :: Vector
     mean_pdd
 end
+
+mutable struct preallocated_data
+    Δ_aff            :: Vector
+    Δ_cc             :: Vector
+    Δ                :: Vector
+    Δ_xλ             :: Vector
+    x_m_l_αΔ_aff     :: Vector
+    u_m_x_αΔ_aff     :: Vector
+    s_l_αΔ_aff       :: Vector
+    s_u_αΔ_aff       :: Vector
+    rxs_l            :: Vector
+    rxs_u            :: Vector
+end
