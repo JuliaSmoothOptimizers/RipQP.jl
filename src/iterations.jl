@@ -245,7 +245,7 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc,
         sc.tired = Δt > max_time
 
         if display == true
-            @info log_row(Any[k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual_final, itd.μ])
+            @info log_row(Any[k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual_final, itd.μ, regu.ρ, regu.δ])
         end
     end
 

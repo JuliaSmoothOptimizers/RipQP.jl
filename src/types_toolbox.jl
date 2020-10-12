@@ -17,11 +17,16 @@ function get_QM_data(QM)
     return FloatData_T, IntData, T
 end
 
-function init_params(T, FloatData_T0, IntData, ϵ)
-
+function convert_FloatData(T, FloatData_T0)
     FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
                                Array{T}(FloatData_T0.b), Array{T}(FloatData_T0.c), T(FloatData_T0.c0),
                                Array{T}(FloatData_T0.lvar), Array{T}(FloatData_T0.uvar))
+    return FloatData_T
+end
+
+function init_params(T, FloatData_T0, IntData, ϵ)
+
+    FloatData_T = convert_FloatData(T, FloatData_T0)
     res = residuals(T[], T[], zero(T), zero(T), zero(T))
     ϵ_T = tolerances(T(1e-3), T(1e-4), T(1e-4), one(T), one(T), T(ϵ.μ), T(ϵ.Δx))
     # init regularization values
@@ -182,6 +187,6 @@ function convert_types!(T, pt, itd, res, regu, pad)
 
    regu.ρ /= 10
    regu.δ /= 10
-   
+
    return pt, itd, res, regu, pad
 end
