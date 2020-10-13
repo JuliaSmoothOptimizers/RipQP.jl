@@ -65,7 +65,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
                                                                 max_iter32, ϵ32, start_time, max_time, safe, T0, display)
         # conversions to Float64
         T = Float64
-        pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad)
+        pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad, T0)
         sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
 
@@ -73,11 +73,10 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
             FloatData64 = convert_FloatData(T, FloatData_T0)
             ϵ64 = tolerances(T(ϵ_pdd64), T(ϵ_rb64), T(ϵ_rc64), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
             ϵ64.tol_rb, ϵ64.tol_rc = ϵ64.rb*(one(T) + res.rbNorm), ϵ64.rc*(one(T) + res.rcNorm)
-            regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0)
             pt, res, itd,  Δt, sc, k, regu, safe  = iter_mehrotraPC!(pt, itd, FloatData64, IntData, res, sc, Δt, k, regu, pad,
                                                                      max_iter64, ϵ64, start_time, max_time, safe, T0, display)
             T = Float128
-            pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad)
+            pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad, T0)
             sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
             sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
         end

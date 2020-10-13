@@ -153,7 +153,7 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     return regu, itd, ϵ, pad, pt, res, sc
 end
 
-function convert_types!(T, pt, itd, res, regu, pad)
+function convert_types!(T, pt, itd, res, regu, pad, T0)
 
    pt.x, pt.λ, pt.s_l, pt.s_u = convert(Array{T}, pt.x), convert(Array{T}, pt.λ),
                                     convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u)
@@ -166,7 +166,11 @@ function convert_types!(T, pt, itd, res, regu, pad)
    itd.pdd, itd.l_pdd, itd.mean_pdd = convert(T, itd.pdd), convert(Array{T}, itd.l_pdd), convert(T, itd.mean_pdd)
    res.n_Δx, itd.μ = convert(T, res.n_Δx), convert(T, itd.μ)
    regu.ρ, regu.δ = convert(T, regu.ρ), convert(T, regu.δ)
-   regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+   if T == Float64 && T0 == Float64
+       regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+   else
+       regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
+   end
    itd.J_augm = convert(SparseMatrixCSC{T,Int64}, itd.J_augm)
    itd.J_P = LDLFactorizations.LDLFactorization(itd.J_P.__analyzed, itd.J_P.__factorized, itd.J_P.__upper,
                                                 itd.J_P.n, itd.J_P.parent, itd.J_P.Lnz, itd.J_P.flag, itd.J_P.P,
