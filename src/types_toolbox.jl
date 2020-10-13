@@ -24,11 +24,10 @@ function convert_FloatData(T, FloatData_T0)
     return FloatData_T
 end
 
-function init_params(T, T0, FloatData_T0, IntData, ϵ)
+function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
 
     FloatData_T = convert_FloatData(T, FloatData_T0)
     res = residuals(T[], T[], zero(T), zero(T), zero(T))
-    ϵ_T = tolerances(T(1e-3), T(1e-4), T(1e-4), one(T), one(T), T(ϵ.μ), T(ϵ.Δx))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0))
     itd = iter_data(-T(1.0e-2) .* ones(T, IntData.n_cols), # tmp diag
