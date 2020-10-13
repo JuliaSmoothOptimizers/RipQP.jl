@@ -14,7 +14,7 @@ include("types_toolbox.jl")
 include("types_definition.jl")
 
 function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
-               max_iter32 = 10, max_iter64 = 40,
+               max_iter32 = 40, max_iter64 = 600,
                ϵ_pdd32=1e-2, ϵ_rb32=1e-4, ϵ_rc32=1e-4, ϵ_pdd64=1e-4, ϵ_rb64=1e-5, ϵ_rc64=1e-5, # params for the itermediate ϵ in :multi mode
                ϵ_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., scaling=true, display=true)
 
