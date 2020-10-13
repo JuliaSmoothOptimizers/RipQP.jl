@@ -24,7 +24,7 @@ function convert_FloatData(T, FloatData_T0)
     return FloatData_T
 end
 
-function init_params(T, FloatData_T0, IntData, ϵ)
+function init_params(T, T0, FloatData_T0, IntData, ϵ)
 
     FloatData_T = convert_FloatData(T, FloatData_T0)
     res = residuals(T[], T[], zero(T), zero(T), zero(T))
@@ -80,7 +80,7 @@ function init_params(T, FloatData_T0, IntData, ϵ)
     res.rc = -itd.Qx + itd.ATλ + pt.s_l - pt.s_u - FloatData_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ_T.tol_rb, ϵ_T.tol_rc = ϵ_T.rb*(one(T) + res.rbNorm), ϵ_T.rc*(one(T) + res.rcNorm)
-    ϵ.tol_rb, ϵ.tol_rc = ϵ_T.rb*(one(Float64) + Float64(res.rbNorm)), ϵ_T.rc*(one(Float64) + Float64(res.rcNorm))
+    ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T0) + T0(res.rbNorm)), ϵ.rc*(one(T0) + T0(res.rcNorm))
     sc = stop_crit(itd.pdd < ϵ_T.pdd && res.rbNorm < ϵ_T.tol_rb && res.rcNorm < ϵ_T.tol_rc, # optimal
                    false, # small_Δx
                    itd.μ < ϵ_T.μ, # small_μ

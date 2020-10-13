@@ -36,7 +36,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     # initialization
     if mode == :multi
         T = Float32
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(T, FloatData_T0, IntData, ϵ)
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(T, T0, FloatData_T0, IntData, ϵ)
     elseif mode == :mono
         regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ)
     end
