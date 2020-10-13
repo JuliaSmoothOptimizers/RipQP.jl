@@ -222,20 +222,24 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         itd.l_pdd[k%6+1] = itd.pdd
         itd.mean_pdd = mean(itd.l_pdd)
 
-        if T == T0 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
+        if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
             regu.δ_min /= 10
             regu.δ /= 10
             safe.c_pdd += 1
         end
-        if T == T0 && k>10 && safe.c_catch <= 1 &&
+        if T == Float64 && k>10 && safe.c_catch <= 1 &&
                 @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
             regu.δ /= 10
             regu.δ_min /= 10
             safe.c_pdd += 1
-        end
-        if T != T0 && safe.c_pdd < 2 &&
-                minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
+        elseif T != T0 && safe.c_pdd < 2 &&
+                @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
             break
+        elseif T == Float128 && k>10 && safe.c_catch <= 1 &&
+                @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-15)
+            regu.δ /= 10
+            regu.δ_min /= 10
+            safe.c_pdd += 1
         end
 
         if regu.δ >= regu.δ_min

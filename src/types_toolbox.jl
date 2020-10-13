@@ -169,7 +169,7 @@ function convert_types!(T, pt, itd, res, regu, pad, T0)
    if T == Float64 && T0 == Float64
        regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
    else
-       regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e-3), T(sqrt(eps(T))*1e2)
+       regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
    end
    itd.J_augm = convert(SparseMatrixCSC{T,Int64}, itd.J_augm)
    itd.J_P = LDLFactorizations.LDLFactorization(itd.J_P.__analyzed, itd.J_P.__factorized, itd.J_P.__upper,
