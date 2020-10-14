@@ -1,7 +1,7 @@
 function get_QM_data(QM)
     T = eltype(QM.meta.lvar)
-    IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], length(QM.meta.lcon),
-                         length(QM.meta.lvar), 0, 0)
+    IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], QM.meta.ncon,
+                         QM.meta.nvar, 0, 0)
     Oc = zeros(T, IntData.n_cols)
     IntData.ilow, IntData.iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
     IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
@@ -27,12 +27,18 @@ end
 function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
 
     FloatData_T = convert_FloatData(T, FloatData_T0)
-    res = residuals(T[], T[], zero(T), zero(T), zero(T))
+    res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0))
-    itd = iter_data(-T(1.0e-2) .* ones(T, IntData.n_cols), # tmp diag
+    tmp_diag = -T(1.0e-2) .* ones(T, IntData.n_cols)
+    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
+                      1:IntData.n_cols)
+    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
+                      1:IntData.n_cols)
+    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_augm
+                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
                     spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
                     Int[],  #J_P
                     zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
@@ -50,14 +56,8 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
                     zeros(T, 6), #l_pdd
                     one(T) #mean_pdd
                     )
-    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                      1:IntData.n_cols)
-    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                      1:IntData.n_cols)
-    J_augmvals = vcat(-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), itd.tmp_diag)
-    itd.J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
 
+    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
     pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
@@ -75,8 +75,8 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    res.rb = itd.Ax - FloatData_T.b
-    res.rc = -itd.Qx + itd.ATλ + pt.s_l - pt.s_u - FloatData_T.c
+    res.rb .= itd.Ax .- FloatData_T.b
+    res.rc .= itd.ATλ .-itd.Qx .+ pt.s_l .- pt.s_u .- FloatData_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ_T.tol_rb, ϵ_T.tol_rc = ϵ_T.rb*(one(T) + res.rbNorm), ϵ_T.rc*(one(T) + res.rcNorm)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T0) + T0(res.rbNorm)), ϵ.rc*(one(T0) + T0(res.rcNorm))
@@ -92,12 +92,18 @@ end
 function init_params_mono(FloatData_T, IntData, ϵ)
 
     T = eltype(FloatData_T.Avals)
-    res = residuals(T[], T[], zero(T), zero(T), zero(T))
+    res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
-    itd = iter_data(-T(1.0e0)/2 .* ones(T, IntData.n_cols), # tmp diag
+    tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
+    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
+                      1:IntData.n_cols)
+    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
+                      1:IntData.n_cols)
+    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_augm
+                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
                     spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
                     Int[],  #J_P
                     zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
@@ -115,14 +121,8 @@ function init_params_mono(FloatData_T, IntData, ϵ)
                     zeros(T, 6), #l_pdd
                     one(T) #mean_pdd
                     )
-    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                      1:IntData.n_cols)
-    J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                      1:IntData.n_cols)
-    J_augmvals = vcat(-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), itd.tmp_diag)
-    itd.J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
 
+    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
     pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
@@ -140,8 +140,8 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    res.rb = itd.Ax - FloatData_T.b
-    res.rc = -itd.Qx + itd.ATλ + pt.s_l - pt.s_u - FloatData_T.c
+    res.rb .= itd.Ax .- FloatData_T.b
+    res.rc .= itd.ATλ .-itd.Qx .+ pt.s_l .- pt.s_u .- FloatData_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
     sc = stop_crit(itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc, # optimal

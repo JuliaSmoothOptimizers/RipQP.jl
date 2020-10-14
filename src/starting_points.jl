@@ -9,11 +9,11 @@ function starting_points(FloatData, IntData, itd, Δ_xλ)
     pt0 = point(Δ_xλ[1:IntData.n_cols], Δ_xλ[IntData.n_cols+1:end], zeros(T, IntData.n_cols), zeros(T, IntData.n_cols))
     itd.Qx = mul_Qx_COO!(itd.Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, pt0.x)
     itd.ATλ = mul_ATλ_COO!(itd.ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, pt0.λ)
-    dual_val = itd.Qx - itd.ATλ + FloatData.c
+    dual_val = itd.Qx .- itd.ATλ .+ FloatData.c
     pt0.s_l[IntData.ilow] = @views dual_val[IntData.ilow]
     pt0.s_u[IntData.iupp] = @views -dual_val[IntData.iupp]
-    itd.x_m_lvar = @views pt0.x[IntData.ilow] - FloatData.lvar[IntData.ilow]
-    itd.uvar_m_x = @views FloatData.uvar[IntData.iupp] - pt0.x[IntData.iupp]
+    itd.x_m_lvar .= @views pt0.x[IntData.ilow] .- FloatData.lvar[IntData.ilow]
+    itd.uvar_m_x .= @views FloatData.uvar[IntData.iupp] .- pt0.x[IntData.iupp]
     if IntData.n_low == 0
         δx_l1, δs_l1 = zero(T), zero(T)
     else
@@ -49,8 +49,8 @@ function starting_points(FloatData, IntData, itd, Δ_xλ)
     δs = max(δs_l2, δs_u2)
     pt0.x[IntData.ilow] .+= δx
     pt0.x[IntData.iupp] .-= δx
-    pt0.s_l[IntData.ilow] = @views pt0.s_l[IntData.ilow] .+ δs
-    pt0.s_u[IntData.iupp] = @views pt0.s_u[IntData.iupp] .+ δs
+    pt0.s_l[IntData.ilow] .= @views pt0.s_l[IntData.ilow] .+ δs
+    pt0.s_u[IntData.iupp] .= @views pt0.s_u[IntData.iupp] .+ δs
 
     @inbounds @simd for i in IntData.irng
         if FloatData.lvar[i] >= pt0.x[i]
