@@ -85,8 +85,11 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
         Amax = norm(itd.J_augm.nzval[itd.diagind_J], Inf)
         if Amax > one(T) * T(1e6) / regu.δ
+            if T == Float32
+                break
+            end
             regu.δ /= 10
-            regu.ρ /= 10
+            # regu.ρ /= 10
         end
         # itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
         itd.J_fact= LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P,
