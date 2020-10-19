@@ -95,12 +95,12 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
-    tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
+    tmp_diag = -T(1.0e-2)/2 .* ones(T, IntData.n_cols)
     J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
-    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ*ones(T, IntData.n_rows), tmp_diag)
     itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
                     sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm

@@ -2,10 +2,13 @@
 function starting_points(FloatData, IntData, itd, Δ_xλ)
 
     T = eltype(FloatData.Avals)
-    itd.J_P = ldl_analyze(Symmetric(itd.J_augm, :U))
-    itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P)
+    itd.J_P = LDLFactorizations.ldl_analyze(Symmetric(itd.J_augm, :U))
+    Amax = norm(itd.J_augm.nzval[itd.diagind_J], Inf)
+    itd.J_fact = LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P, Amax, eps(T)^(3/4),
+                                                  sqrt(eps(T)), IntData.n_cols)
+    itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= zero(T)
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
-    Δ_xλ = ldiv!(itd.J_fact, Δ_xλ)
+    Δ_xλ = LDLFactorizations.ldiv!(itd.J_fact, Δ_xλ)
     pt0 = point(Δ_xλ[1:IntData.n_cols], Δ_xλ[IntData.n_cols+1:end], zeros(T, IntData.n_cols), zeros(T, IntData.n_cols))
     itd.Qx = mul_Qx_COO!(itd.Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, pt0.x)
     itd.ATλ = mul_ATλ_COO!(itd.ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, pt0.λ)
