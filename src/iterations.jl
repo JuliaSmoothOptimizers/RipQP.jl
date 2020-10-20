@@ -74,7 +74,7 @@ end
 function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pad,
                           max_iter, ϵ, start_time, max_time, safe, T0, display)
     T = eltype(pt.x)
-    regu.ρ, regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))
+    regu.ρ, regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))*10
     while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
             # Affine scaling direction
