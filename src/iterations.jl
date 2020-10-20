@@ -83,11 +83,12 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
-        Amax = norm(itd.J_augm.nzval[itd.diagind_J], Inf)
-        if Amax > one(T) * T(1e6) / regu.δ
+        Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
+        if length(IntData.Qrows) > 0 &&  Amax > T(1e6) / regu.δ && safe.c_pdd < 8
             if T == Float32
                 break
             end
+            safe.c_pdd += 1
             regu.δ /= 10
             # regu.ρ /= 10
         end
@@ -256,11 +257,11 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         #     safe.c_pdd += 1
         # end
         #
-        # if regu.δ >= regu.δ_min
-        #     regu.δ /= 10
+        # if regu.δ > regu.δ_min
+        #     regu.δ /= 5
         # end
-        # if regu.ρ >= regu.ρ_min
-        #     regu.ρ /= 10
+        # if regu.ρ > regu.ρ_min
+        #     regu.ρ /= 5
         # end
 
         Δt = time() - start_time
