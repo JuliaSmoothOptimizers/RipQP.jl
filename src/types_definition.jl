@@ -58,8 +58,8 @@ mutable struct iter_data
     tmp_diag    :: Vector
     diag_Q      :: Vector
     J_augm      :: AbstractMatrix
+    J_augm_sym
     J_fact
-    J_P
     diagind_J   :: Vector{Int}
     x_m_lvar    :: Vector
     uvar_m_x    :: Vector

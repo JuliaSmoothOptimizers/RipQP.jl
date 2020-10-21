@@ -74,7 +74,8 @@ end
 function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pad,
                           max_iter, ϵ, start_time, max_time, safe, T0, display)
     T = eltype(pt.x)
-    regu.ρ, regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))*10
+    regu.ρ = T(eps(T)^(3/4))
+    length(IntData.Qrows) > 0 ? regu.δ = T(eps(T)^(1/2)) : T(eps(T)^(1/2))*10
     while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
             # Affine scaling direction
@@ -84,17 +85,19 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
         Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
-        if length(IntData.Qrows) > 0 &&  Amax > T(1e6) / regu.δ && safe.c_pdd < 8
+        if Amax > T(1e6) / regu.δ && safe.c_pdd < 7
             if T == Float32
                 break
-            end
-            safe.c_pdd += 1
-            regu.δ /= 10
+            elseif length(IntData.Qrows) > 0 || safe.c_pdd < 4
+                safe.c_pdd += 1
+                regu.δ /= 10
             # regu.ρ /= 10
+            end
         end
         # itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
-        itd.J_fact= LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P,
-                                                     Amax,regu.ρ, regu.δ, IntData.n_cols)
+        itd.J_augm_sym = Symmetric(itd.J_augm, :U)
+        itd.J_fact = LDLFactorizations.ldl_factorize!(itd.J_augm_sym, itd.J_fact,
+                                                      Amax, regu.ρ, regu.δ, IntData.n_cols)
         # itd.J_fact = try LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P,
         #                                                     Amax, regu.ρ, regu.δ, IntData.n_cols))
         # catch

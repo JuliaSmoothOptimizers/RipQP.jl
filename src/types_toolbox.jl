@@ -36,12 +36,20 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
+    diagind_J = get_diag_sparseCSC(J_augm)
+    J_augm_sym = Symmetric(J_augm, :U)
+    J_fact = LDLFactorizations.ldl_analyze(J_augm_sym)
+    Amax = @views norm(J_augm.nzval[diagind_J], Inf)
+    J_fact = LDLFactorizations.ldl_factorize!(J_augm_sym, J_fact, Amax, T(eps(T)^(3/4)),
+                                              T(sqrt(eps(T))), IntData.n_cols)
+    J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
-                    Int[],  #J_P
-                    zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
+                    J_augm, #J_augm
+                    J_augm_sym,
+                    J_fact, #J_fact
+                    diagind_J, #diagind_J
                     zeros(T, IntData.n_low), # x_m_lvar
                     zeros(T, IntData.n_upp), # uvar_m_x
                     zeros(T, IntData.n_cols), # init Qx
@@ -57,7 +65,6 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
                     one(T) #mean_pdd
                     )
 
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
     pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
@@ -101,12 +108,20 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ*ones(T, IntData.n_rows), tmp_diag)
+    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
+    diagind_J = get_diag_sparseCSC(J_augm)
+    J_augm_sym = Symmetric(J_augm, :U)
+    J_fact = LDLFactorizations.ldl_analyze(J_augm_sym)
+    Amax = @views norm(J_augm.nzval[diagind_J], Inf)
+    J_fact = LDLFactorizations.ldl_factorize!(J_augm_sym, J_fact, Amax, T(eps(T)^(3/4)),
+                                              T(sqrt(eps(T))), IntData.n_cols)
+    J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
-                    Int[],  #J_P
-                    zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
+                    J_augm, #J_augm
+                    J_augm_sym,
+                    J_fact,
+                    diagind_J, #diagind_J
                     zeros(T, IntData.n_low), # x_m_lvar
                     zeros(T, IntData.n_upp), # uvar_m_x
                     zeros(T, IntData.n_cols), # init Qx
@@ -122,7 +137,6 @@ function init_params_mono(FloatData_T, IntData, ϵ)
                     one(T) #mean_pdd
                     )
 
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
     pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
                             zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
@@ -134,7 +148,6 @@ function init_params_mono(FloatData_T, IntData, ϵ)
                             zeros(T, IntData.n_low), # rxs_l
                             zeros(T, IntData.n_upp) #rxs_u
                             )
-
     pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
 
     # stopping criterion
@@ -172,11 +185,7 @@ function convert_types!(T, pt, itd, res, regu, pad, T0)
        regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
    end
    itd.J_augm = convert(SparseMatrixCSC{T,Int64}, itd.J_augm)
-   itd.J_P = LDLFactorizations.LDLFactorization(itd.J_P.__analyzed, itd.J_P.__factorized, itd.J_P.__upper,
-                                                itd.J_P.n, itd.J_P.parent, itd.J_P.Lnz, itd.J_P.flag, itd.J_P.P,
-                                                itd.J_P.pinv, itd.J_P.Lp, itd.J_P.Cp, itd.J_P.Ci, itd.J_P.Li,
-                                                Array{T}(itd.J_P.Lx), Array{T}(itd.J_P.d), Array{T}(itd.J_P.Y),
-                                                itd.J_P.pattern)
+   itd.J_augm_sym = convert(Symmetric{T, SparseMatrixCSC{T,Int64}}, itd.J_augm_sym)
    itd.J_fact = LDLFactorizations.LDLFactorization(itd.J_fact.__analyzed, itd.J_fact.__factorized, itd.J_fact.__upper,
                                                    itd.J_fact.n, itd.J_fact.parent, itd.J_fact.Lnz, itd.J_fact.flag, itd.J_fact.P,
                                                    itd.J_fact.pinv, itd.J_fact.Lp, itd.J_fact.Cp, itd.J_fact.Ci, itd.J_fact.Li,

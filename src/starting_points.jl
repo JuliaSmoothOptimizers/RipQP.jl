@@ -2,10 +2,6 @@
 function starting_points(FloatData, IntData, itd, Δ_xλ)
 
     T = eltype(FloatData.Avals)
-    itd.J_P = LDLFactorizations.ldl_analyze(Symmetric(itd.J_augm, :U))
-    Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
-    itd.J_fact = LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P, Amax, T(eps(T)^(3/4)),
-                                                  T(sqrt(eps(T))), IntData.n_cols)
     itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= zero(T)
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
     Δ_xλ = LDLFactorizations.ldiv!(itd.J_fact, Δ_xλ)
