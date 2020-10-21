@@ -8,7 +8,7 @@ using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
 
 export ripqp
 
-include(raw"C:\Users\Geoffroy Leconte\.julia\dev\LDLFactorizations\src\LDLFactorizations.jl")
+# include(raw"C:\Users\Geoffroy Leconte\.julia\dev\LDLFactorizations\src\LDLFactorizations.jl")
 include("types_definition.jl")
 include("starting_points.jl")
 include("scaling.jl")
