@@ -1,7 +1,6 @@
+function starting_points(FloatData :: QM_FloatData{T}, IntData:: QM_IntData, itd :: iter_data{T},
+                         Δ_xλ :: Vector{T}) where {T<:Real}
 
-function starting_points(FloatData, IntData, itd, Δ_xλ)
-
-    T = eltype(FloatData.Avals)
     itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= zero(T)
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
     Δ_xλ = LDLFactorizations.ldiv!(itd.J_fact, Δ_xλ)

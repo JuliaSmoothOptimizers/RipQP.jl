@@ -71,9 +71,11 @@ function solve_augmented_system_cc!(J_fact, Δ_cc, Δ_xλ ,Δ_aff, σ, μ, x_m_l
     return Δ_cc
 end
 
-function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pad,
-                          max_iter, ϵ, start_time, max_time, safe, T0, display)
-    T = eltype(pt.x)
+function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_FloatData{T}, IntData :: QM_IntData,
+                          res :: residuals{T}, sc :: stop_crit, Δt :: Real, k :: Int, regu :: regularization{T},
+                          pad :: preallocated_data{T}, max_iter :: Int, ϵ :: tolerances{T}, start_time :: Real,
+                          max_time :: Real, safe :: safety_compt, T0 :: DataType, display :: Bool) where {T<:Real}
+
     regu.ρ = T(eps(T)^(3/4))
     length(IntData.Qrows) > 0 ? regu.δ = T(eps(T)^(1/2)) : T(eps(T)^(1/2))*10
     while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
@@ -85,7 +87,7 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
         Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
-        if Amax > T(1e6) / regu.δ && safe.c_pdd < 7
+        if Amax > T(1e6) / regu.δ && safe.c_pdd < 8
             if T == Float32
                 break
             elseif length(IntData.Qrows) > 0 || safe.c_pdd < 4
@@ -95,8 +97,7 @@ function iter_mehrotraPC!(pt, itd, FloatData, IntData, res, sc, Δt, k, regu, pa
             end
         end
         # itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
-        itd.J_augm_sym = Symmetric(itd.J_augm, :U)
-        itd.J_fact = LDLFactorizations.ldl_factorize!(itd.J_augm_sym, itd.J_fact,
+        itd.J_fact = LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
                                                       Amax, regu.ρ, regu.δ, IntData.n_cols)
         # itd.J_fact = try LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P,
         #                                                     Amax, regu.ρ, regu.δ, IntData.n_cols))
