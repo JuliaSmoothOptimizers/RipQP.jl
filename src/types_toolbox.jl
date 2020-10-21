@@ -100,7 +100,7 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
     res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
-    tmp_diag = -T(1.0e-6)/2 .* ones(T, IntData.n_cols)
+    tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
     J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,

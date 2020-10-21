@@ -77,7 +77,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                           max_time :: Real, safe :: safety_compt, T0 :: DataType, display :: Bool) where {T<:Real}
 
     regu.ρ = T(eps(T)^(3/4))
-    length(IntData.Qrows) > 0 ? regu.δ = T(eps(T)^(1/2)) : T(eps(T)^(1/2))*10
+    regu.δ = T(eps(T)^(1/2))*10
     while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
             # Affine scaling direction
