@@ -182,3 +182,35 @@ function convert_types!(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_ol
 
    return pt, itd, res, regu, pad
 end
+
+function FloatData_zoom(σ_z :: T, FloatData :: QM_FloatData{T}, IntData :: QM_IntData, res :: residuals{T},
+                        pt :: point{T}, Δ_xλ :: Vector{T}, itd :: iter_data{T}) where {T<:Real}
+    FloatData_z = QM_FloatData(FloatData.Qvals, FloatData.Avals, .-res.rb * σ_z, (FloatData.c .- itd.ATλ) * σ_z, zero(T),
+                               σ_z * (FloatData.lvar .- pt.x), σ_z * (FloatData.uvar - pt.x))
+    pt2, itd, Δ_xλ = @views starting_points(FloatData_z, IntData, itd, Δ_xλ)
+    return FloatData_z, pt2, itd
+end
+
+function update_pt_zoom!(σ_z :: T, pt1 :: point{T}, pt2 :: point{T}, res :: residuals{T}, IntData :: QM_IntData,
+                         FloatData :: QM_FloatData{T}, itd) where {T<:Real}
+    pt1.x .+= pt2.x ./ σ_z
+    pt1.λ .+= pt2.λ ./ σ_z
+    pt1.s_l .= pt2.s_l ./ σ_z
+    pt1.s_u .= pt2.s_u ./ σ_z
+
+    itd.Qx = mul_Qx_COO!(itd.Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, pt1.x)
+    itd.xTQx_2 =  pt1.x' * itd.Qx / 2
+    itd.ATλ = mul_ATλ_COO!(itd.ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, pt1.λ)
+    itd.Ax = mul_Ax_COO!(itd.Ax, IntData.Arows, IntData.Acols, FloatData.Avals, pt1.x)
+    itd.cTx = FloatData.c' * pt1.x
+
+    itd.pri_obj = itd.xTQx_2 + itd.cTx + FloatData.c0
+    itd.dual_obj = FloatData.b' * pt1.λ - itd.xTQx_2 + view(pt1.s_l,IntData.ilow)'*view(FloatData.lvar, IntData.ilow) -
+                    view(pt1.s_u, IntData.iupp)'*view(FloatData.uvar, IntData.iupp) + FloatData.c0
+    itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))
+    println(itd.pdd)
+    res.rb .= itd.Ax .- FloatData.b
+    res.rc .= itd.ATλ .- itd.Qx .+ pt1.s_l .- pt1.s_u .- FloatData.c
+
+    return pt1, res, itd
+end

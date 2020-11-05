@@ -96,48 +96,8 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
             # regu.ρ /= 10
             end
         end
-        # itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
         itd.J_fact = LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
                                                       Amax, regu.ρ, regu.δ, IntData.n_cols)
-        # itd.J_fact = try LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P,
-        #                                                     Amax, regu.ρ, regu.δ, IntData.n_cols))
-        # catch
-        #     if T == Float32
-        #         break
-        #         break
-        #     elseif T0 == Float128 && T == Float64
-        #         break
-        #         break
-        #     end
-        #     if safe.c_pdd == 0 && safe.c_catch==0
-        #         regu.δ *= T(1e2)
-        #         regu.δ_min *= T(1e2)
-        #         regu.ρ *= T(1e5)
-        #         regu.ρ_min *= T(1e5)
-        #     elseif safe.c_pdd == 0 && safe.c_catch != 0
-        #         regu.δ *= T(1e1)
-        #         regu.δ_min *= T(1e1)
-        #         regu.ρ *= T(1e0)
-        #         regu.ρ_min *= T(1e0)
-        #     elseif safe.c_pdd != 0 && safe.c_catch==0
-        #         regu.δ *= T(1e5)
-        #         regu.δ_min *= T(1e5)
-        #         regu.ρ *= T(1e5)
-        #         regu.ρ_min *= T(1e5)
-        #     else
-        #         regu.δ *= T(1e1)
-        #         regu.δ_min *= T(1e1)
-        #         regu.ρ *= T(1e1)
-        #         regu.ρ_min *= T(1e1)
-        #     end
-        #     safe.c_catch += 1
-        #     itd.tmp_diag .= -regu.ρ
-        #     itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
-        #     itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
-        #     itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
-        #     itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
-        #     itd.J_fact = LDLFactorizations.ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P)
-        # end
 
         if safe.c_catch >= 4
             break
@@ -147,8 +107,6 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                                                 itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
                                                 IntData.ilow, IntData.iupp, IntData.n_cols, IntData.n_rows,
                                                 IntData.n_low)
-        # r = norm((Symmetric(itd.J_augm,:U) + Diagonal(regu.R)) * pad.Δ_xλ - Δ_xλ2, Inf)
-        # if r > sqrt(eps(T)) println("residu grand iter cc ", k, "residu = ", r) end
         α_aff_pri = @views compute_α_primal(pt.x, pad.Δ_aff[1:IntData.n_cols], FloatData.lvar, FloatData.uvar)
         α_aff_dual_l = @views compute_α_dual(pt.s_l[IntData.ilow],
                                              pad.Δ_aff[IntData.n_rows+IntData.n_cols+1:IntData.n_rows+IntData.n_cols+IntData.n_low])
@@ -171,8 +129,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                                               itd.x_m_lvar, itd.uvar_m_x, pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u,
                                               IntData.ilow, IntData.iupp, IntData.n_cols, IntData.n_rows,
                                               IntData.n_low)
-        # r = norm((Symmetric(itd.J_augm,:U) + Diagonal(regu.R)) * pad.Δ_xλ - Δ_xλ2, Inf)
-        # if r > sqrt(eps(T)) println("residu grand iter ", k, "residu = ", r) end
+
         pad.Δ .= pad.Δ_aff .+ pad.Δ_cc # final direction
         α_pri = @views compute_α_primal(pt.x, pad.Δ[1:IntData.n_cols], FloatData.lvar, FloatData.uvar)
         α_dual_l = @views compute_α_dual(pt.s_l[IntData.ilow],
@@ -238,35 +195,16 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
             k += 16
         end
 
+        ############ ZOOM #################
+        if safe.c_zoom == 0 && res.rbNorm <= T(1e-4)
+            safe.c_zoom += 1
+            println("break iter ", k)
+            break
+        end
+        #################################
+
         itd.l_pdd[k%6+1] = itd.pdd
         itd.mean_pdd = mean(itd.l_pdd)
-
-        # if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
-        #     regu.δ_min /= 10
-        #     regu.δ /= 10
-        #     safe.c_pdd += 1
-        # end
-        # if T == Float64 && k>10 && safe.c_catch <= 1 &&
-        #         @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
-        #     regu.δ /= 10
-        #     regu.δ_min /= 10
-        #     safe.c_pdd += 1
-        # elseif T != T0 && safe.c_pdd < 2 &&
-        #         @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
-        #     break
-        # elseif T == Float128 && k>10 && safe.c_catch <= 1 &&
-        #         @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-15)
-        #     regu.δ /= 10
-        #     regu.δ_min /= 10
-        #     safe.c_pdd += 1
-        # end
-        #
-        # if regu.δ > regu.δ_min
-        #     regu.δ /= 5
-        # end
-        # if regu.ρ > regu.ρ_min
-        #     regu.ρ /= 5
-        # end
 
         Δt = time() - start_time
         sc.tired = Δt > max_time

@@ -53,7 +53,7 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
     Δt = time() - start_time
     sc.tired = Δt > max_time
     k = 0
-    safe = safety_compt(zero(Int), zero(Int)) # c_catch to avoid endless loop, c_pdd avoid too small δ_min
+    safe = safety_compt(zero(Int), zero(Int), zero(Int)) # c_catch to avoid endless loop, c_pdd avoid too small δ_min
 
     # display
     if display == true
@@ -91,6 +91,14 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
     # iters T0
     pt, res, itd, Δt, sc, k, regu, safe  = iter_mehrotraPC!(pt, itd, FloatData_T0, IntData, res, sc, Δt, k, regu, pad,
                                                             max_iter, ϵ, start_time, max_time, safe, T0, display)
+
+    # zoom
+    σ_z = one(T) / res.rbNorm
+    FloatData_z, pt2, itd = FloatData_zoom(σ_z, FloatData_T0, IntData, res, pt, pad.Δ_xλ, itd)
+    pt2, res, itd, Δt, sc, k, regu, safe  = iter_mehrotraPC!(pt2, itd, FloatData_z, IntData, res, sc, Δt, k, regu, pad,
+                                                             max_iter, ϵ, start_time, max_time, safe, T0, display)
+    pt, res, itd = update_pt_zoom!(σ_z, pt, pt2, res, IntData, FloatData_T0, itd)
+
     if k>= max_iter
         status = :max_iter
     elseif sc.tired
