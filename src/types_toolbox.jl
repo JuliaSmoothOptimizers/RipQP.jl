@@ -1,4 +1,4 @@
-function get_QM_data(QM)
+function get_QM_data(QM :: AbstractNLPModel)
     T = eltype(QM.meta.lvar)
     IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], QM.meta.ncon,
                          QM.meta.nvar, 0, 0)
@@ -17,31 +17,46 @@ function get_QM_data(QM)
     return FloatData_T, IntData, T
 end
 
-function convert_FloatData(T, FloatData_T0)
+function convert_FloatData(T :: DataType, FloatData_T0 :: QM_FloatData{T0}) where {T0<:Real}
     FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
                                Array{T}(FloatData_T0.b), Array{T}(FloatData_T0.c), T(FloatData_T0.c0),
                                Array{T}(FloatData_T0.lvar), Array{T}(FloatData_T0.uvar))
     return FloatData_T
 end
 
-function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
+function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
+                     ϵ_T :: tolerances{T}, ϵ :: tolerances{T0}) where{T<:Real, T0<:Real}
 
     FloatData_T = convert_FloatData(T, FloatData_T0)
     res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0))
+    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
+                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
+                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, IntData.n_low), # s_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
+                            zeros(T, IntData.n_low), # rxs_l
+                            zeros(T, IntData.n_upp) #rxs_u
+                            )
     tmp_diag = -T(1.0e-2) .* ones(T, IntData.n_cols)
-    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                      1:IntData.n_cols)
+    J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows, 1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
+    diagind_J = get_diag_sparseCSC(J_augm)
+    J_fact = ldl_analyze(Symmetric(J_augm, :U))
+    J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+    J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
-                    Int[],  #J_P
-                    zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
+                    J_augm, #J_augm
+                    J_fact, #J_fact
+                    diagind_J, #diagind_J
                     zeros(T, IntData.n_low), # x_m_lvar
                     zeros(T, IntData.n_upp), # uvar_m_x
                     zeros(T, IntData.n_cols), # init Qx
@@ -56,19 +71,6 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
                     zeros(T, 6), #l_pdd
                     one(T) #mean_pdd
                     )
-
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
-    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
-                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
-                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
-                            zeros(T, IntData.n_low), # s_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
-                            zeros(T, IntData.n_low), # rxs_l
-                            zeros(T, IntData.n_upp) #rxs_u
-                            )
 
     pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
 
@@ -89,24 +91,39 @@ function init_params(T, T0, FloatData_T0, IntData, ϵ_T, ϵ)
     return FloatData_T, ϵ_T, ϵ, regu, itd, pad, pt, res, sc
 end
 
-function init_params_mono(FloatData_T, IntData, ϵ)
+function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData, ϵ :: tolerances{T}) where {T<:Real}
 
-    T = eltype(FloatData_T.Avals)
     res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)))
+    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
+                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
+                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
+                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, IntData.n_low), # s_l_αΔ_aff
+                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
+                            zeros(T, IntData.n_low), # rxs_l
+                            zeros(T, IntData.n_upp) #rxs_u
+                            )
+
     tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
     J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
     J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                       1:IntData.n_cols)
-    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    J_augmvals = vcat(.-FloatData_T.Qvals, FloatData_T.Avals, regu.δ*ones(T, IntData.n_rows), tmp_diag)
+    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals)
+    diagind_J = get_diag_sparseCSC(J_augm)
+    J_fact = ldl_analyze(Symmetric(J_augm, :U))
+    J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+    J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
                     get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
-                    sparse(J_augmrows, J_augmcols, J_augmvals), #J_augm
-                    spzeros(IntData.n_cols+IntData.n_rows, IntData.n_cols+IntData.n_rows), #J_fact
-                    Int[],  #J_P
-                    zeros(Int, IntData.n_cols+IntData.n_rows), #diagind_J
+                    J_augm, #J_augm
+                    J_fact,
+                    diagind_J, #diagind_J
                     zeros(T, IntData.n_low), # x_m_lvar
                     zeros(T, IntData.n_upp), # uvar_m_x
                     zeros(T, IntData.n_cols), # init Qx
@@ -121,19 +138,6 @@ function init_params_mono(FloatData_T, IntData, ϵ)
                     zeros(T, 6), #l_pdd
                     one(T) #mean_pdd
                     )
-
-    itd.diagind_J = get_diag_sparseCSC(itd.J_augm)
-    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
-                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
-                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
-                            zeros(T, IntData.n_low), # s_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
-                            zeros(T, IntData.n_low), # rxs_l
-                            zeros(T, IntData.n_upp) #rxs_u
-                            )
 
     pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
 
@@ -153,43 +157,23 @@ function init_params_mono(FloatData_T, IntData, ϵ)
     return regu, itd, ϵ, pad, pt, res, sc
 end
 
-function convert_types!(T, pt, itd, res, regu, pad, T0)
+function convert_types!(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old}, res :: residuals{T_old},
+                        regu :: regularization{T_old}, pad :: preallocated_data{T_old}, T0 :: DataType) where {T_old<:Real}
 
-   pt.x, pt.λ, pt.s_l, pt.s_u = convert(Array{T}, pt.x), convert(Array{T}, pt.λ),
-                                    convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u)
-   itd.x_m_lvar, itd.uvar_m_x = convert(Array{T}, itd.x_m_lvar), convert(Array{T}, itd.uvar_m_x)
-   res.rc, res.rb = convert(Array{T}, res.rc), convert(Array{T}, res.rb)
-   res.rcNorm, res.rbNorm = convert(T, res.rcNorm), convert(T, res.rbNorm)
-   itd.Qx, itd.ATλ, itd.Ax = convert(Array{T}, itd.Qx), convert(Array{T}, itd.ATλ), convert(Array{T}, itd.Ax)
-   itd.xTQx_2, itd.cTx = convert(T, itd.xTQx_2), convert(T, itd.cTx)
-   itd.pri_obj, itd.dual_obj = convert(T, itd.pri_obj), convert(T, itd.dual_obj)
-   itd.pdd, itd.l_pdd, itd.mean_pdd = convert(T, itd.pdd), convert(Array{T}, itd.l_pdd), convert(T, itd.mean_pdd)
-   res.n_Δx, itd.μ = convert(T, res.n_Δx), convert(T, itd.μ)
-   regu.ρ, regu.δ = convert(T, regu.ρ), convert(T, regu.δ)
-   if T == Float64 && T0 == Float64
-       regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
-   else
-       regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
-   end
-   itd.J_augm = convert(SparseMatrixCSC{T,Int64}, itd.J_augm)
-   itd.J_P = LDLFactorizations.LDLFactorization(itd.J_P.__analyzed, itd.J_P.__factorized, itd.J_P.__upper,
-                                                itd.J_P.n, itd.J_P.parent, itd.J_P.Lnz, itd.J_P.flag, itd.J_P.P,
-                                                itd.J_P.pinv, itd.J_P.Lp, itd.J_P.Cp, itd.J_P.Ci, itd.J_P.Li,
-                                                Array{T}(itd.J_P.Lx), Array{T}(itd.J_P.d), Array{T}(itd.J_P.Y),
-                                                itd.J_P.pattern)
-   itd.J_fact = LDLFactorizations.LDLFactorization(itd.J_fact.__analyzed, itd.J_fact.__factorized, itd.J_fact.__upper,
-                                                   itd.J_fact.n, itd.J_fact.parent, itd.J_fact.Lnz, itd.J_fact.flag, itd.J_fact.P,
-                                                   itd.J_fact.pinv, itd.J_fact.Lp, itd.J_fact.Cp, itd.J_fact.Ci, itd.J_fact.Li,
-                                                   Array{T}(itd.J_fact.Lx), Array{T}(itd.J_fact.d), Array{T}(itd.J_fact.Y),
-                                                   itd.J_fact.pattern)
-   pad.Δ_aff, pad.Δ_cc, pad.Δ = convert(Array{T}, pad.Δ_aff), convert(Array{T}, pad.Δ_cc), convert(Array{T}, pad.Δ)
-   pad.Δ_xλ, pad.rxs_l, pad.rxs_u = convert(Array{T}, pad.Δ_xλ), convert(Array{T}, pad.rxs_l), convert(Array{T}, pad.rxs_u)
-   pad.s_l_αΔ_aff, pad.s_u_αΔ_aff = convert(Array{T}, pad.s_l_αΔ_aff), convert(Array{T}, pad.s_u_αΔ_aff)
-   pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff = convert(Array{T}, pad.x_m_l_αΔ_aff), convert(Array{T}, pad.u_m_x_αΔ_aff)
-   itd.diag_Q, itd.tmp_diag = convert(Array{T}, itd.diag_Q), convert(Array{T}, itd.tmp_diag)
+    pt = convert(point{T}, pt)
+    itd.x_m_lvar, itd.uvar_m_x = convert(Array{T}, itd.x_m_lvar), convert(Array{T}, itd.uvar_m_x)
+    res = convert(residuals{T}, res)
+    itd = convert(iter_data{T}, itd)
+    regu = convert(regularization{T}, regu)
+    if T == Float64 && T0 == Float64
+        regu.ρ_min, regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+    else
+        regu.ρ_min, regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
+    end
+    pad = convert(preallocated_data{T}, pad)
 
-   regu.ρ /= 10
-   regu.δ /= 10
+    regu.ρ /= 10
+    regu.δ /= 10
 
-   return pt, itd, res, regu, pad
+    return pt, itd, res, regu, pad
 end

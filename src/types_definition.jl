@@ -1,4 +1,6 @@
-mutable struct QM_FloatData{T}
+import Base: convert
+
+mutable struct QM_FloatData{T<:Real}
     Qvals :: Vector{T}
     Avals :: Vector{T}
     b     :: Vector{T}
@@ -22,7 +24,7 @@ mutable struct QM_IntData
     n_upp  :: Int
 end
 
-mutable struct tolerances{T}
+mutable struct tolerances{T<:Real}
     pdd    :: T
     rb     :: T
     rc     :: T
@@ -32,62 +34,110 @@ mutable struct tolerances{T}
     Δx     :: T
 end
 
-mutable struct point
-    x    :: Vector
-    λ    :: Vector
-    s_l  :: Vector
-    s_u  :: Vector
+mutable struct point{T<:Real}
+    x    :: Vector{T}
+    λ    :: Vector{T}
+    s_l  :: Vector{T}
+    s_u  :: Vector{T}
 end
 
-mutable struct residuals
-    rb   :: Vector
-    rc   :: Vector
-    rbNorm
-    rcNorm
-    n_Δx
+convert(::Type{point{T}}, pt) where {T<:Real} = point(convert(Array{T}, pt.x), convert(Array{T}, pt.λ),
+                                                      convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u))
+
+mutable struct residuals{T<:Real}
+    rb      :: Vector{T}
+    rc      :: Vector{T}
+    rbNorm  :: T
+    rcNorm  :: T
+    n_Δx    :: T
 end
 
-mutable struct regularization
-    ρ
-    δ
-    ρ_min
-    δ_min
+convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T}, res.rb), convert(Array{T}, res.rc),
+                                                               convert(T, res.rbNorm), convert(T, res.rcNorm),
+                                                               convert(T, res.n_Δx))
+
+mutable struct regularization{T<:Real}
+    ρ      :: T
+    δ      :: T
+    ρ_min  :: T
+    δ_min  :: T
 end
 
-mutable struct iter_data
-    tmp_diag    :: Vector
-    diag_Q      :: Vector
-    J_augm      :: AbstractMatrix
-    J_fact
-    J_P
+convert(::Type{regularization{T}}, regu) where {T<:Real} = regularization(T(regu.ρ), T(regu.δ),
+                                                                          T(regu.ρ_min), T(regu.δ_min))
+
+mutable struct iter_data{T<:Real}
+    tmp_diag    :: Vector{T}
+    diag_Q      :: Vector{T}
+    J_augm      :: SparseMatrixCSC{T,Int}
+    J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}
     diagind_J   :: Vector{Int}
-    x_m_lvar    :: Vector
-    uvar_m_x    :: Vector
-    Qx          :: Vector
-    ATλ         :: Vector
-    Ax          :: Vector
-    xTQx_2
-    cTx
-    pri_obj
-    dual_obj
-    μ
-    pdd
-    l_pdd       :: Vector
-    mean_pdd
+    x_m_lvar    :: Vector{T}
+    uvar_m_x    :: Vector{T}
+    Qx          :: Vector{T}
+    ATλ         :: Vector{T}
+    Ax          :: Vector{T}
+    xTQx_2      :: T
+    cTx         :: T
+    pri_obj     :: T
+    dual_obj    :: T
+    μ           :: T
+    pdd         :: T
+    l_pdd       :: Vector{T}
+    mean_pdd    :: T
 end
 
-mutable struct preallocated_data
-    Δ_aff            :: Vector
-    Δ_cc             :: Vector
-    Δ                :: Vector
-    Δ_xλ             :: Vector
-    x_m_l_αΔ_aff     :: Vector
-    u_m_x_αΔ_aff     :: Vector
-    s_l_αΔ_aff       :: Vector
-    s_u_αΔ_aff       :: Vector
-    rxs_l            :: Vector
-    rxs_u            :: Vector
+createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_fact.__factorized, J_fact.__upper,
+                                                          J_fact.n, J_fact.parent, J_fact.Lnz, J_fact.flag,
+                                                          J_fact.P, J_fact.pinv, J_fact.Lp, J_fact.Cp,
+                                                          J_fact.Ci, J_fact.Li, Array{T}(J_fact.Lx),
+                                                          Array{T}(J_fact.d), Array{T}(J_fact.Y),
+                                                          J_fact.pattern)
+
+convert(::Type{iter_data{T}}, itd) where {T<:Real} = iter_data(convert(Array{T}, itd.tmp_diag),
+                                                                convert(Array{T}, itd.diag_Q),
+                                                                convert(SparseMatrixCSC{T,Int}, itd.J_augm),
+                                                                createldl(T, itd.J_fact),
+                                                                itd.diagind_J,
+                                                                convert(Array{T}, itd.x_m_lvar),
+                                                                convert(Array{T}, itd.uvar_m_x),
+                                                                convert(Array{T}, itd.Qx),
+                                                                convert(Array{T}, itd.ATλ),
+                                                                convert(Array{T}, itd.Ax),
+                                                                convert(T, itd.xTQx_2),
+                                                                convert(T, itd.cTx),
+                                                                convert(T, itd.pri_obj),
+                                                                convert(T, itd.dual_obj),
+                                                                convert(T, itd.μ),
+                                                                convert(T, itd.pdd),
+                                                                convert(Array{T}, itd.l_pdd),
+                                                                convert(T, itd.mean_pdd)
+                                                                    )
+
+mutable struct preallocated_data{T<:Real}
+    Δ_aff            :: Vector{T}
+    Δ_cc             :: Vector{T}
+    Δ                :: Vector{T}
+    Δ_xλ             :: Vector{T}
+    x_m_l_αΔ_aff     :: Vector{T}
+    u_m_x_αΔ_aff     :: Vector{T}
+    s_l_αΔ_aff       :: Vector{T}
+    s_u_αΔ_aff       :: Vector{T}
+    rxs_l            :: Vector{T}
+    rxs_u            :: Vector{T}
 end
+
+convert(::Type{preallocated_data{T}}, pad) where {T<:Real} = preallocated_data(convert(Array{T}, pad.Δ_aff),
+                                                                               convert(Array{T}, pad.Δ_cc),
+                                                                               convert(Array{T}, pad.Δ),
+                                                                               convert(Array{T}, pad.Δ_xλ),
+                                                                               convert(Array{T}, pad.x_m_l_αΔ_aff),
+                                                                               convert(Array{T}, pad.u_m_x_αΔ_aff),
+                                                                               convert(Array{T}, pad.s_l_αΔ_aff),
+                                                                               convert(Array{T}, pad.s_u_αΔ_aff),
+                                                                               convert(Array{T}, pad.rxs_l),
+                                                                               convert(Array{T}, pad.rxs_u)
+                                                                               )
 
 mutable struct stop_crit
     optimal   :: Bool

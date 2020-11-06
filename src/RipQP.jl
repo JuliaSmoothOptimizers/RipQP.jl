@@ -6,17 +6,20 @@ using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
 
 export ripqp
 
+include("types_definition.jl")
+include("types_toolbox.jl")
 include("starting_points.jl")
 include("scaling.jl")
 include("sparse_toolbox.jl")
 include("iterations.jl")
-include("types_toolbox.jl")
-include("types_definition.jl")
 
-function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
-               max_iter32 = 40, max_iter64 = 600,
-               ϵ_pdd32=1e-2, ϵ_rb32=1e-4, ϵ_rc32=1e-4, ϵ_pdd64=1e-4, ϵ_rb64=1e-5, ϵ_rc64=1e-5, # params for the itermediate ϵ in :multi mode
-               ϵ_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., scaling=true, display=true)
+function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
+               max_iter :: Int = 800, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
+               max_iter32 :: Int = 40, max_iter64 :: Int = 600,
+               ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
+               ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
+               ϵ_Δx :: Real = 1e-16, ϵ_μ :: Real = 1e-9, max_time :: Real = 1200.,
+               scaling :: Bool = true, display :: Bool = true)
 
     if mode ∉ [:mono, :multi]
         error("mode should be :mono or :multi")
@@ -39,7 +42,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
     if mode == :multi
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(T, T0, FloatData_T0, IntData, ϵ32, ϵ)
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ)
     elseif mode == :mono
         regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ)
     end
@@ -102,7 +105,7 @@ function ripqp(QM0; mode = :mono, max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1
 
     elapsed_time = time() - start_time
 
-    stats = GenericExecutionStats(status, QM, solution = pt.x[1:QM.meta.nvar],
+    stats = GenericExecutionStats(status, QM, solution = pt.x[1:QM0.meta.nvar],
                                   objective = itd.pri_obj,
                                   dual_feas = res.rcNorm,
                                   primal_feas = res.rbNorm,

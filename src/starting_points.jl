@@ -1,9 +1,6 @@
+function starting_points(FloatData :: QM_FloatData{T}, IntData:: QM_IntData, itd :: iter_data{T},
+                         Δ_xλ :: Vector{T}) where {T<:Real}
 
-function starting_points(FloatData, IntData, itd, Δ_xλ)
-
-    T = eltype(FloatData.Avals)
-    itd.J_P = ldl_analyze(Symmetric(itd.J_augm, :U))
-    itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_P)
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
     Δ_xλ = ldiv!(itd.J_fact, Δ_xλ)
     pt0 = point(Δ_xλ[1:IntData.n_cols], Δ_xλ[IntData.n_cols+1:end], zeros(T, IntData.n_cols), zeros(T, IntData.n_cols))

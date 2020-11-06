@@ -34,9 +34,9 @@ function mul_Q_D!(Qrows, Qcols, Qvals, d, c, n_cols, n)
     return Qrows, Qcols, Qvals, d
 end
 
-function scaling_Ruiz!(FloatData_T0, IntData, ϵ; max_iter = 100)
+function scaling_Ruiz!(FloatData_T0 :: QM_FloatData{T}, IntData :: QM_IntData, ϵ :: T;
+                       max_iter :: Int = 100) where {T<:Real}
     n = length(IntData.Arows)
-    T = eltype(FloatData_T0.Avals)
     d1, d2 = ones(T, IntData.n_rows), ones(T, IntData.n_cols)
     r_k, c_k = zeros(T, IntData.n_rows), zeros(T, IntData.n_cols)
 
@@ -94,7 +94,9 @@ function scaling_Ruiz!(FloatData_T0, IntData, ϵ; max_iter = 100)
     return FloatData_T0, d1, d2, d3
 end
 
-function post_scale(d1, d2, d3, pt, res, FloatData_T0, IntData, Qx, ATλ, Ax, cTx, pri_obj, dual_obj, xTQx_2)
+function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: point{T}, res :: residuals{T},
+                    FloatData_T0 :: QM_FloatData{T}, IntData :: QM_IntData, Qx :: Vector{T}, ATλ :: Vector{T},
+                    Ax :: Vector{T}, cTx :: T, pri_obj :: T, dual_obj :: T, xTQx_2 :: T) where {T<:Real}
     pt.x .*= d2 .* d3
     for i=1:length(IntData.Qrows)
         FloatData_T0.Qvals[i] /= d2[IntData.Qrows[i]] * d2[IntData.Qcols[i]] * d3[IntData.Qrows[i]] * d3[IntData.Qcols[i]]
