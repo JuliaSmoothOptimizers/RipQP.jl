@@ -36,5 +36,5 @@ jobs:
 
 after_success:
   - julia -e 'if Sys.islinux()
-      using Pkg; cd(Pkg.dir("SolverTools")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())
+      using Pkg; cd(Pkg.dir("RipQP")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())
     end'
