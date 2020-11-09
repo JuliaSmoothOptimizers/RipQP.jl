@@ -13,6 +13,11 @@ include("scaling.jl")
 include("sparse_toolbox.jl")
 include("iterations.jl")
 
+"""
+    ripqp
+
+Minimize a convex quadratic problem.
+"""
 function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
                max_iter :: Int = 800, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
                max_iter32 :: Int = 40, max_iter64 :: Int = 600,
