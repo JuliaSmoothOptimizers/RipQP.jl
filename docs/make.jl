@@ -14,7 +14,7 @@ makedocs(
 )
 
 deploydocs(deps = nothing, make = nothing,
-  repo = "github.com/geoffroyleconte/RipQP.jl.git",
+  repo = "github.com/JuliaSmoothOptimizers/RipQP.jl.git",
   target = "build",
   devbranch = "master"
 )
