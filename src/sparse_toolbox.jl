@@ -76,3 +76,36 @@ function create_J_augm(IntData, tmp_diag, Qvals, Avals, regu, T)
                     IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols)
     return J_augm
 end
+
+function nb_corrector_steps(J :: SparseMatrixCSC{T,Int}, n_cols :: Int) where {T<:Real}
+    # number to determine the number of centrality corrections (Gondzio's procedure)
+    Ef, Es, rfs = 0, 14 * n_cols, zero(T) # 12n = ratio tests and vector initializations
+    for j=1:J.n
+        li = 0
+        for i=J.colptr[j]:(J.colptr[j+1]-1)
+            if j != i
+                li += 2 # J is upper tri
+            end
+        end
+        Ef += li^2 # J is upper tri
+        Es += 2 * li
+    end
+    rfs = T(Ef / Es)
+    # println(rfs)
+    if rfs <= 10
+        K = 0
+    elseif 10 < rfs <= 30
+        K = 1
+    elseif 30 < rfs <= 50
+        K = 2
+    elseif rfs > 50
+        K = 3
+    else
+        p = Int(rfs / 50)
+        K = p + 2
+        if K > 10
+            K = 10
+        end
+    end
+    return K
+end

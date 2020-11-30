@@ -16,7 +16,7 @@ include("sparse_toolbox.jl")
 include("iterations.jl")
 
 """
-    ripqp(QM0; mode=:mono, dynamic_regul=false, scaling=true,
+    ripqp(QM0; mode=:mono, dynamic_regul=false, scaling=true, K=0,
           max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
           max_iter32=40, ϵ_pdd32=1e-2, ϵ_rb32=1e-4, ϵ_rc32=1e-4,
           max_iter64=600, ϵ_pdd64=1e-4, ϵ_rb64=1e-5, ϵ_rc64=1e-5,
@@ -25,13 +25,14 @@ include("iterations.jl")
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a `GenericExecutionStats` containing information about the solved problem.
 
-- `QM0`: `QuadratricModel{T0}` to solve
+- `QM0`: `QuadraticModel{T0}` to solve
 - `mode`: `Symbol`, should be `:mono` to use the mono-precision mode, or `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
 - `dynamic_regul`: `Bool`, if `true`, then the regularization is performed during the
         factorization
 - `scaling`: `Bool`, activate/deactivate scaling of A and Q in `QM0`
+- `K`: `Union{Int, Symbol}`, number of centrality corrections (set to `:auto` for automatic computation)
 - `max_iter`: `Int`, maximum number of iterations
 - `ϵ_pdd`: `Float`, primal-dual difference tolerance
 - `ϵ_rb`: `Float`, primal tolerance
@@ -49,6 +50,7 @@ Returns a `GenericExecutionStats` containing information about the solved proble
 - `display`: `Bool`, activate/deactivate iteration data display
 """
 function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, dynamic_regul :: Bool = false, scaling :: Bool = true,
+               K :: Int = 0,
                max_iter :: Int = 800, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
                max_iter32 :: Int = 40, ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
                max_iter64 :: Int = 600, ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
@@ -83,7 +85,7 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, dynamic_regul ::
     Δt = time() - start_time
     sc.tired = Δt > max_time
     k = 0
-    safe = safety_compt(zero(Int), zero(Int)) # c_catch to avoid endless loop, c_pdd avoid too small δ_min
+    safe = safety_compt(zero(Int), zero(Int), K==-1 ? nb_corrector_steps(itd.J_augm, IntData.n_cols) : K) # c_catch to avoid endless loop, c_pdd avoid too small δ_min
 
     # display
     if display == true

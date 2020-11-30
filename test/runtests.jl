@@ -9,6 +9,12 @@ using Test
     stats1m = ripqp(QuadraticModel(qps1), mode=:multi)
     @test isapprox(stats1m.objective, -1.59078179, atol=1e-2)
     @test stats1m.status == :acceptable
+    # stats1_d = ripqp(QuadraticModel(qps1), mode=:mono, dynamic_regul=true) # dynamic regul
+    # @test isapprox(stats1_d.objective, -1.59078179, atol=1e-2)
+    # @test stats1_d.status == :acceptable
+    # stats1_c = ripqp(QuadraticModel(qps1), mode=:mono, K=2) # multiple centrality corrections
+    # @test isapprox(stats1_c.objective, -1.59078179, atol=1e-2)
+    # @test stats1_c.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(QuadraticModel(qps2))

@@ -151,4 +151,5 @@ end
 mutable struct safety_compt
     c_catch  :: Int
     c_pdd    :: Int
+    K        :: Int
 end
