@@ -35,11 +35,11 @@ function get_diag_sparseCSC(M; tri=:U)
     diagind = zeros(Int, M.m) # square matrix
     index = M.rowval[1] # 1
     if tri == :U
-        for i=1:M.m
+        @inbounds @simd for i=1:M.m
             diagind[i] = M.colptr[i+1] - 1
         end
     else
-        for i=1:M.m
+        @inbounds @simd for i=1:M.m
             diagind[i] = M.colptr[i]
         end
     end
@@ -52,10 +52,27 @@ function get_diag_sparseCOO(Qrows, Qcols, Qvals, n_cols)
     T = eltype(Qvals)
     n = length(Qrows)
     diagval = zeros(T, n_cols)
-    for i=1:n
+    @inbounds @simd for i=1:n
         if Qrows[i] == Qcols[i]
             diagval[Qrows[i]] = Qvals[i]
         end
     end
     return diagval
+end
+
+function create_J_augm(IntData, tmp_diag, Qvals, Avals, regu, T)
+    if regu.dynamic
+        J_augmrows = vcat(IntData.Qcols, IntData.Acols, 1:IntData.n_cols)
+        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, 1:IntData.n_cols)
+        J_augmvals = vcat(.-Qvals, Avals, tmp_diag)
+    else
+        J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
+                          1:IntData.n_cols)
+        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols,
+                          IntData.n_cols+1:IntData.n_cols+IntData.n_rows, 1:IntData.n_cols)
+        J_augmvals = vcat(.-Qvals, Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    end
+    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals,
+                    IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols)
+    return J_augm
 end

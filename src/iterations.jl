@@ -48,7 +48,7 @@ function solve_augmented_system_aff!(J_fact, Δ_aff, Δ_xλ, rc, rb, x_m_lvar, u
     Δ_xλ[ilow] += @views s_l[ilow]
     Δ_xλ[iupp] -= @views s_u[iupp]
 
-    Δ_xλ = ldiv!(J_fact, Δ_xλ)
+    Δ_xλ = LDLFactorizations.ldiv!(J_fact, Δ_xλ)
     Δ_aff[1:n_cols+n_rows] = Δ_xλ
     Δ_aff[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-s_l[ilow] .- s_l[ilow].*Δ_xλ[1:n_cols][ilow]./x_m_lvar
     Δ_aff[n_cols+n_rows+n_low+1:end] .= @views .-s_u[iupp] .+ s_u[iupp].*Δ_xλ[1:n_cols][iupp]./uvar_m_x
@@ -64,7 +64,7 @@ function solve_augmented_system_cc!(J_fact, Δ_cc, Δ_xλ ,Δ_aff, σ, μ, x_m_l
     Δ_xλ[ilow] .+= rxs_l./x_m_lvar
     Δ_xλ[iupp] .+= rxs_u./uvar_m_x
 
-    Δ_xλ = ldiv!(J_fact, Δ_xλ)
+    Δ_xλ = LDLFactorizations.ldiv!(J_fact, Δ_xλ)
     Δ_cc[1:n_cols+n_rows] = Δ_xλ
     Δ_cc[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-(rxs_l.+s_l[ilow].*Δ_xλ[1:n_cols][ilow])./x_m_lvar
     Δ_cc[n_cols+n_rows+n_low+1:end] .= @views (rxs_u.+s_u[iupp].*Δ_xλ[1:n_cols][iupp])./uvar_m_x
@@ -75,58 +75,80 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                           res :: residuals{T}, sc :: stop_crit, Δt :: Real, k :: Int, regu :: regularization{T},
                           pad :: preallocated_data{T}, max_iter :: Int, ϵ :: tolerances{T}, start_time :: Real,
                           max_time :: Real, safe :: safety_compt, T0 :: DataType, display :: Bool) where {T<:Real}
+    if regu.dynamic
+        regu.ρ, regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))
+    end
+    @inbounds while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
-    while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
-
-            # Affine scaling direction
-        itd.tmp_diag .= -regu.ρ
+        ################## J update and factorization ##################
+        if regu.dynamic
+            itd.tmp_diag .= zero(T)
+        else
+            itd.tmp_diag .= -regu.ρ
+            itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
+        end
         itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
-        itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
-
-        itd.J_fact = try ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
-        catch
-            if T == Float32
-                break
-                break
-            elseif T0 == Float128 && T == Float64
-                break
-                break
+        if regu.dynamic
+            Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
+            if Amax > T(1e6) / regu.δ && safe.c_pdd < 8
+                if T == Float32
+                    break
+                elseif length(IntData.Qrows) > 0 || safe.c_pdd < 4
+                    safe.c_pdd += 1
+                    regu.δ /= 10
+                # regu.ρ /= 10
+                end
             end
-            if safe.c_pdd == 0 && safe.c_catch==0
-                regu.δ *= T(1e2)
-                regu.δ_min *= T(1e2)
-                regu.ρ *= T(1e5)
-                regu.ρ_min *= T(1e5)
-            elseif safe.c_pdd == 0 && safe.c_catch != 0
-                regu.δ *= T(1e1)
-                regu.δ_min *= T(1e1)
-                regu.ρ *= T(1e0)
-                regu.ρ_min *= T(1e0)
-            elseif safe.c_pdd != 0 && safe.c_catch==0
-                regu.δ *= T(1e5)
-                regu.δ_min *= T(1e5)
-                regu.ρ *= T(1e5)
-                regu.ρ_min *= T(1e5)
-            else
-                regu.δ *= T(1e1)
-                regu.δ_min *= T(1e1)
-                regu.ρ *= T(1e1)
-                regu.ρ_min *= T(1e1)
+            itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
+                                        Amax=Amax, r1=-regu.ρ, r2=regu.δ, n_d=IntData.n_cols)
+        else # "classic regularization"
+            itd.J_fact = try ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
+            catch
+                if T == Float32
+                    break
+                    break
+                elseif T0 == Float128 && T == Float64
+                    break
+                    break
+                end
+                if safe.c_pdd == 0 && safe.c_catch==0
+                    regu.δ *= T(1e2)
+                    regu.δ_min *= T(1e2)
+                    regu.ρ *= T(1e5)
+                    regu.ρ_min *= T(1e5)
+                elseif safe.c_pdd == 0 && safe.c_catch != 0
+                    regu.δ *= T(1e1)
+                    regu.δ_min *= T(1e1)
+                    regu.ρ *= T(1e0)
+                    regu.ρ_min *= T(1e0)
+                elseif safe.c_pdd != 0 && safe.c_catch==0
+                    regu.δ *= T(1e5)
+                    regu.δ_min *= T(1e5)
+                    regu.ρ *= T(1e5)
+                    regu.ρ_min *= T(1e5)
+                else
+                    regu.δ *= T(1e1)
+                    regu.δ_min *= T(1e1)
+                    regu.ρ *= T(1e1)
+                    regu.ρ_min *= T(1e1)
+                end
+                safe.c_catch += 1
+                itd.tmp_diag .= -regu.ρ
+                itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
+                itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
+                itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
+                itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
+                itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
             end
-            safe.c_catch += 1
-            itd.tmp_diag .= -regu.ρ
-            itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
-            itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
-            itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
-            itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
-            itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
         end
 
         if safe.c_catch >= 4
             break
         end
+
+        #########################################################
 
         pad.Δ_aff = solve_augmented_system_aff!(itd.J_fact, pad.Δ_aff, pad.Δ_xλ, res.rc, res.rb,
                                                 itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
@@ -154,7 +176,6 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                                               itd.x_m_lvar, itd.uvar_m_x, pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u,
                                               IntData.ilow, IntData.iupp, IntData.n_cols, IntData.n_rows,
                                               IntData.n_low)
-
         pad.Δ .= pad.Δ_aff .+ pad.Δ_cc # final direction
         α_pri = @views compute_α_primal(pt.x, pad.Δ[1:IntData.n_cols], FloatData.lvar, FloatData.uvar)
         α_dual_l = @views compute_α_dual(pt.s_l[IntData.ilow],
@@ -174,14 +195,14 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
         itd.uvar_m_x .= @views FloatData.uvar[IntData.iupp] .- pt.x[IntData.iupp]
 
         if zero(T) in itd.x_m_lvar # "security" if x is too close from lvar ou uvar
-            for i=1:IntData.n_low
+            @inbounds @simd for i=1:IntData.n_low
                 if itd.x_m_lvar[i] == zero(T)
                     itd.x_m_lvar[i] = eps(T)^2
                 end
             end
         end
         if zero(T) in itd.uvar_m_x
-            for i=1:IntData.n_upp
+            @inbounds @simd for i=1:IntData.n_upp
                 if itd.uvar_m_x[i] == zero(T)
                     itd.uvar_m_x[i] = eps(T)^2
                 end
@@ -220,34 +241,36 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
             k += 16
         end
 
-        itd.l_pdd[k%6+1] = itd.pdd
-        itd.mean_pdd = mean(itd.l_pdd)
+        if !regu.dynamic  # update ρ and δ values, check J_augm diag magnitude
+            itd.l_pdd[k%6+1] = itd.pdd
+            itd.mean_pdd = mean(itd.l_pdd)
 
-        if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
-            regu.δ_min /= 10
-            regu.δ /= 10
-            safe.c_pdd += 1
-        end
-        if T == Float64 && k>10 && safe.c_catch <= 1 &&
-                @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
-            regu.δ /= 10
-            regu.δ_min /= 10
-            safe.c_pdd += 1
-        elseif T != T0 && safe.c_pdd < 2 &&
-                @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
-            break
-        elseif T == Float128 && k>10 && safe.c_catch <= 1 &&
-                @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-15)
-            regu.δ /= 10
-            regu.δ_min /= 10
-            safe.c_pdd += 1
-        end
+            if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
+                regu.δ_min /= 10
+                regu.δ /= 10
+                safe.c_pdd += 1
+            end
+            if T == Float64 && k>10 && safe.c_catch <= 1 &&
+                    @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
+                regu.δ /= 10
+                regu.δ_min /= 10
+                safe.c_pdd += 1
+            elseif T != T0 && safe.c_pdd < 2 &&
+                    @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
+                break
+            elseif T == Float128 && k>10 && safe.c_catch <= 1 &&
+                    @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-15)
+                regu.δ /= 10
+                regu.δ_min /= 10
+                safe.c_pdd += 1
+            end
 
-        if regu.δ >= regu.δ_min
-            regu.δ /= 10
-        end
-        if regu.ρ >= regu.ρ_min
-            regu.ρ /= 10
+            if regu.δ >= regu.δ_min
+                regu.δ /= 10
+            end
+            if regu.ρ >= regu.ρ_min
+                regu.ρ /= 10
+            end
         end
 
         Δt = time() - start_time

@@ -57,14 +57,16 @@ convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T},
                                                                convert(T, res.n_Δx))
 
 mutable struct regularization{T<:Real}
-    ρ      :: T
-    δ      :: T
-    ρ_min  :: T
-    δ_min  :: T
+    ρ        :: T
+    δ        :: T
+    ρ_min    :: T
+    δ_min    :: T
+    dynamic  :: Bool
 end
 
 convert(::Type{regularization{T}}, regu) where {T<:Real} = regularization(T(regu.ρ), T(regu.δ),
-                                                                          T(regu.ρ_min), T(regu.δ_min))
+                                                                          T(regu.ρ_min), T(regu.δ_min),
+                                                                          regu.dynamic)
 
 mutable struct iter_data{T<:Real}
     tmp_diag    :: Vector{T}

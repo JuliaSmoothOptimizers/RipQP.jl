@@ -3,9 +3,11 @@ module RipQP
 using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
 using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
+# using NLPModels, QuadraticModels, SolverTools
 
 export ripqp
 
+# include(raw"C:\Users\Geoffroy Leconte\.julia\dev\LDLFactorizations\src\LDLFactorizations.jl")
 include("types_definition.jl")
 include("types_toolbox.jl")
 include("starting_points.jl")
@@ -14,17 +16,43 @@ include("sparse_toolbox.jl")
 include("iterations.jl")
 
 """
-    ripqp
+    ripqp(QM0; mode=:mono, dynamic_regul=false, scaling=true,
+          max_iter=800, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
+          max_iter32=40, ϵ_pdd32=1e-2, ϵ_rb32=1e-4, ϵ_rc32=1e-4,
+          max_iter64=600, ϵ_pdd64=1e-4, ϵ_rb64=1e-5, ϵ_rc64=1e-5,
+          ϵ_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., display=true)
 
-Minimize a convex quadratic problem.
+Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
+Returns a `GenericExecutionStats` containing information about the solved problem.
+
+- `QM0`: `QuadratricModel{T0}` to solve
+- `mode`: `Symbol`, should be `:mono` to use the mono-precision mode, or `:multi` to use
+    the multi-precision mode (start in single precision and gradually transitions
+    to `T0`)
+- `dynamic_regul`: `Bool`, if `true`, then the regularization is performed during the
+        factorization
+- `scaling`: `Bool`, activate/deactivate scaling of A and Q in `QM0`
+- `max_iter`: `Int`, maximum number of iterations
+- `ϵ_pdd`: `Float`, primal-dual difference tolerance
+- `ϵ_rb`: `Float`, primal tolerance
+- `ϵ_rc`: `Float`, dual tolerance
+- `max_iter32`, `ϵ_pdd32`, `ϵ_rb32`, `ϵ_rc32`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
+    `ϵ_rc`, but used for switching from single precision to double precision. They are
+    only usefull when `mode=:multi`
+- `max_iter64`, `ϵ_pdd64`, `ϵ_rb64`, `ϵ_rc64`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
+    `ϵ_rc`, but used for switching from double precision to quadruple precision. They
+    are only usefull when `mode=:multi` and `T0=Float128`
+- `ϵ_Δx`: `Float`, step tolerance for the current point estimate (note: this criterion
+    is currently disabled)
+- `ϵ_μ`: `Float`, duality measure tolerance (note: this criterion is currently disabled)
+- `max_time`: `Float`, maximum time to solve `QM0`, in seconds
+- `display`: `Bool`, activate/deactivate iteration data display
 """
-function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
+function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, dynamic_regul :: Bool = false, scaling :: Bool = true,
                max_iter :: Int = 800, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
-               max_iter32 :: Int = 40, max_iter64 :: Int = 600,
-               ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
-               ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
-               ϵ_Δx :: Real = 1e-16, ϵ_μ :: Real = 1e-9, max_time :: Real = 1200.,
-               scaling :: Bool = true, display :: Bool = true)
+               max_iter32 :: Int = 40, ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
+               max_iter64 :: Int = 600, ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
+               ϵ_Δx :: Real = 1e-16, ϵ_μ :: Real = 1e-9, max_time :: Real = 1200., display :: Bool = true)
 
     if mode ∉ [:mono, :multi]
         error("mode should be :mono or :multi")
@@ -47,9 +75,9 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono,
     if mode == :multi
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ)
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ, dynamic_regul)
     elseif mode == :mono
-        regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ)
+        regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ, dynamic_regul)
     end
 
     Δt = time() - start_time
