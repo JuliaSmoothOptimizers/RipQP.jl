@@ -2,7 +2,7 @@ function starting_points(FloatData :: QM_FloatData{T}, IntData:: QM_IntData, itd
                          Δ_xλ :: Vector{T}) where {T<:Real}
 
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
-    Δ_xλ = LDLFactorizations.ldiv!(itd.J_fact, Δ_xλ)
+    Δ_xλ = ldiv!(itd.J_fact, Δ_xλ)
     pt0 = point(Δ_xλ[1:IntData.n_cols], Δ_xλ[IntData.n_cols+1:end], zeros(T, IntData.n_cols), zeros(T, IntData.n_cols))
     itd.Qx = mul_Qx_COO!(itd.Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, pt0.x)
     itd.ATλ = mul_ATλ_COO!(itd.ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, pt0.λ)

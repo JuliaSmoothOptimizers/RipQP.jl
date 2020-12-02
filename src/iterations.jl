@@ -86,8 +86,8 @@ function centrality_corr!(Δp, Δm, Δ, Δ_xλ, α_p, α_d, J_fact, x, λ, s_l, 
     Hmin, Hmax = βmin * σ * μ, βmax * σ * μ
 
     # compute Δm
-    rxs_l .= s_l_αΔp .* x_m_l_αΔp
     @inbounds @simd for i=1:n_low
+        rxs_l[i] = s_l_αΔp[i] * x_m_l_αΔp[i]
         if Hmin <= rxs_l[i] <= Hmax
             rxs_l[i] = zero(T)
         elseif rxs_l[i] < Hmin
@@ -99,8 +99,8 @@ function centrality_corr!(Δp, Δm, Δ, Δ_xλ, α_p, α_d, J_fact, x, λ, s_l, 
             rxs_l[i] = Hmax
         end
     end
-    rxs_u .= .-s_u_αΔp.*u_m_x_αΔp
     @inbounds @simd for i =1:n_upp
+        rxs_u[i] = -s_u_αΔp[i]*u_m_x_αΔp[i]
         if Hmin <= -rxs_u[i] <= Hmax
             rxs_u[i] = zero(T)
         elseif -rxs_u[i] < Hmin
@@ -138,38 +138,40 @@ function centrality_corr!(Δp, Δm, Δ, Δ_xλ, α_p, α_d, J_fact, x, λ, s_l, 
 end
 
 function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_FloatData{T}, IntData :: QM_IntData,
-                          res :: residuals{T}, sc :: stop_crit, Δt :: Real, k :: Int, regu :: regularization{T},
+                          res :: residuals{T}, sc :: stop_crit, Δt :: Real, regu :: regularization{T},
                           pad :: preallocated_data{T}, max_iter :: Int, ϵ :: tolerances{T}, start_time :: Real,
-                          max_time :: Real, safe :: safety_compt, T0 :: DataType, display :: Bool) where {T<:Real}
-    if regu.dynamic
+                          max_time :: Real, cnts :: counters, T0 :: DataType, display :: Bool) where {T<:Real}
+    if regu.regul == :dynamic
         regu.ρ, regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))
+    elseif regu.regul == :none
+        regu.ρ, regu.δ = zero(T), zero(T)
     end
-    @inbounds while k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
+    @inbounds while cnts.k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
-        ################## J update and factorization ##################
-        if regu.dynamic
-            itd.tmp_diag .= zero(T)
-        else
+        ###################### J update and factorization ######################
+        if regu.regul == :classic
             itd.tmp_diag .= -regu.ρ
             itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
+        else
+            itd.tmp_diag .= zero(T)
         end
         itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
         itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
-        if regu.dynamic
+        if regu.regul == :dynamic
             Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
-            if Amax > T(1e6) / regu.δ && safe.c_pdd < 8
+            if Amax > T(1e6) / regu.δ && cnts.c_pdd < 8
                 if T == Float32
                     break
-                elseif length(IntData.Qrows) > 0 || safe.c_pdd < 4
-                    safe.c_pdd += 1
+                elseif length(IntData.Qrows) > 0 || cnts.c_pdd < 4
+                    cnts.c_pdd += 1
                     regu.δ /= 10
                 # regu.ρ /= 10
                 end
             end
             itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
                                         Amax=Amax, r1=-regu.ρ, r2=regu.δ, n_d=IntData.n_cols)
-        else # "classic regularization"
+        elseif regu.regul == :classic
             itd.J_fact = try ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
             catch
                 if T == Float32
@@ -179,17 +181,17 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                     break
                     break
                 end
-                if safe.c_pdd == 0 && safe.c_catch==0
+                if cnts.c_pdd == 0 && cnts.c_catch==0
                     regu.δ *= T(1e2)
                     regu.δ_min *= T(1e2)
                     regu.ρ *= T(1e5)
                     regu.ρ_min *= T(1e5)
-                elseif safe.c_pdd == 0 && safe.c_catch != 0
+                elseif cnts.c_pdd == 0 && cnts.c_catch != 0
                     regu.δ *= T(1e1)
                     regu.δ_min *= T(1e1)
                     regu.ρ *= T(1e0)
                     regu.ρ_min *= T(1e0)
-                elseif safe.c_pdd != 0 && safe.c_catch==0
+                elseif cnts.c_pdd != 0 && cnts.c_catch==0
                     regu.δ *= T(1e5)
                     regu.δ_min *= T(1e5)
                     regu.ρ *= T(1e5)
@@ -200,7 +202,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                     regu.ρ *= T(1e1)
                     regu.ρ_min *= T(1e1)
                 end
-                safe.c_catch += 1
+                cnts.c_catch += 1
                 itd.tmp_diag .= -regu.ρ
                 itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
                 itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
@@ -208,13 +210,14 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                 itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
                 itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
             end
+        else # no regularization
+            itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
         end
 
-        if safe.c_catch >= 4
+        if cnts.c_catch >= 4
             break
         end
-
-        #########################################################
+        ########################################################################
 
         pad.Δ_aff = solve_augmented_system_aff!(itd.J_fact, pad.Δ_aff, pad.Δ_xλ, res.rc, res.rb,
                                                 itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
@@ -249,11 +252,11 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
         α_dual_u = @views compute_α_dual(pt.s_u[IntData.iupp], pad.Δ[IntData.n_rows+IntData.n_cols+IntData.n_low+1: end])
         α_dual = min(α_dual_l, α_dual_u)
         ############################### centrality corrections ###############################
-        if safe.K > 0
+        if cnts.K > 0
             k_corr = 0
             corr_flag = true #stop correction if false
             pad.Δ_aff .= pad.Δ # for storage issues Δ_aff = Δp  and Δ_cc = Δm
-            @inbounds while k_corr < safe.K && corr_flag
+            @inbounds while k_corr < cnts.K && corr_flag
                 pad.Δ_aff, pad.Δ, α_pri, α_dual, k_corr,
                     corr_flag = centrality_corr!(pad.Δ_aff, pad.Δ_cc, pad.Δ, pad.Δ_xλ, α_pri, α_dual,
                                                  itd.J_fact, pt.x, pt.λ, pt.s_l, pt.s_u, itd.μ, pad.rxs_l, pad.rxs_u,
@@ -313,36 +316,37 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
         sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
 
+        cnts.k += 1
         if T == Float32
-            k += 1
+            cnts.km += 1
         elseif T == Float64
-            k += 4
+            cnts.km += 4
         else
-            k += 16
+            cnts.km += 16
         end
 
-        if !regu.dynamic  # update ρ and δ values, check J_augm diag magnitude
-            itd.l_pdd[k%6+1] = itd.pdd
+        if regu.regul == :classic  # update ρ and δ values, check J_augm diag magnitude
+            itd.l_pdd[cnts.k%6+1] = itd.pdd
             itd.mean_pdd = mean(itd.l_pdd)
 
-            if T == Float64 && k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && safe.c_pdd < 5
+            if T == Float64 && cnts.k > 10  && itd.mean_pdd!=zero(T) && std(itd.l_pdd./itd.mean_pdd) < 1e-2 && cnts.c_pdd < 5
                 regu.δ_min /= 10
                 regu.δ /= 10
-                safe.c_pdd += 1
+                cnts.c_pdd += 1
             end
-            if T == Float64 && k>10 && safe.c_catch <= 1 &&
+            if T == Float64 && cnts.k>10 && cnts.c_catch <= 1 &&
                     @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-6)
                 regu.δ /= 10
                 regu.δ_min /= 10
-                safe.c_pdd += 1
-            elseif T != T0 && safe.c_pdd < 2 &&
+                cnts.c_pdd += 1
+            elseif T != T0 && cnts.c_pdd < 2 &&
                     @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-5)
                 break
-            elseif T == Float128 && k>10 && safe.c_catch <= 1 &&
+            elseif T == Float128 && cnts.k>10 && cnts.c_catch <= 1 &&
                     @views minimum(itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)]) < -one(T) / regu.δ / T(1e-15)
                 regu.δ /= 10
                 regu.δ_min /= 10
-                safe.c_pdd += 1
+                cnts.c_pdd += 1
             end
 
             if regu.δ >= regu.δ_min
@@ -357,9 +361,9 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
         sc.tired = Δt > max_time
 
         if display == true
-            @info log_row(Any[k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, regu.ρ, regu.δ])
+            @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, regu.ρ, regu.δ])
         end
     end
 
-    return pt, res, itd, Δt, sc, k, regu, safe
+    return pt, res, itd, Δt, sc, cnts, regu
 end

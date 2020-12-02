@@ -61,16 +61,16 @@ function get_diag_sparseCOO(Qrows, Qcols, Qvals, n_cols)
 end
 
 function create_J_augm(IntData, tmp_diag, Qvals, Avals, regu, T)
-    if regu.dynamic
-        J_augmrows = vcat(IntData.Qcols, IntData.Acols, 1:IntData.n_cols)
-        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, 1:IntData.n_cols)
-        J_augmvals = vcat(.-Qvals, Avals, tmp_diag)
-    else
+    if regu.regul == :classic
         J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
                           1:IntData.n_cols)
         J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols,
                           IntData.n_cols+1:IntData.n_cols+IntData.n_rows, 1:IntData.n_cols)
         J_augmvals = vcat(.-Qvals, Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
+    else
+        J_augmrows = vcat(IntData.Qcols, IntData.Acols, 1:IntData.n_cols)
+        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, 1:IntData.n_cols)
+        J_augmvals = vcat(.-Qvals, Avals, tmp_diag)
     end
     J_augm = sparse(J_augmrows, J_augmcols, J_augmvals,
                     IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols)
@@ -79,11 +79,11 @@ end
 
 function nb_corrector_steps(J :: SparseMatrixCSC{T,Int}, n_cols :: Int) where {T<:Real}
     # number to determine the number of centrality corrections (Gondzio's procedure)
-    Ef, Es, rfs = 0, 14 * n_cols, zero(T) # 12n = ratio tests and vector initializations
-    for j=1:J.n
+    Ef, Es, rfs = 0, 12 * n_cols, zero(T) # 12n = ratio tests and vector initializations
+    @inbounds @simd for j=1:J.n
         li = 0
-        for i=J.colptr[j]:(J.colptr[j+1]-1)
-            if j != i
+        @inbounds @simd for i=J.colptr[j]:(J.colptr[j+1]-1)
+            if j != J.rowval[i]
                 li += 2 # J is upper tri
             end
         end

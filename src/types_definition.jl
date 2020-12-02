@@ -61,12 +61,12 @@ mutable struct regularization{T<:Real}
     δ        :: T
     ρ_min    :: T
     δ_min    :: T
-    dynamic  :: Bool
+    regul    :: Symbol
 end
 
 convert(::Type{regularization{T}}, regu) where {T<:Real} = regularization(T(regu.ρ), T(regu.δ),
                                                                           T(regu.ρ_min), T(regu.δ_min),
-                                                                          regu.dynamic)
+                                                                          regu.regul)
 
 mutable struct iter_data{T<:Real}
     tmp_diag    :: Vector{T}
@@ -148,8 +148,10 @@ mutable struct stop_crit
     tired     :: Bool
 end
 
-mutable struct safety_compt
-    c_catch  :: Int
-    c_pdd    :: Int
-    K        :: Int
+mutable struct counters
+    c_catch  :: Int # safety try:cath
+    c_pdd    :: Int # maximum number of δ_min reductions when pdd does not change
+    k        :: Int # iter count
+    km       :: Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
+    K        :: Int # maximum corrector steps
 end
