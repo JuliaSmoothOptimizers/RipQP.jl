@@ -25,30 +25,30 @@ include("iterations.jl")
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a `GenericExecutionStats` containing information about the solved problem.
 
-- `QM0`: `QuadraticModel{T0}` to solve
-- `mode`: `Symbol`, should be `:mono` to use the mono-precision mode, or `:multi` to use
+- `QM0::QuadraticModel{T0}`: problem to solve
+- `mode::Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
-- `regul`: `Symbol`, if `:classic`, then the regularization is performed prior the factorization,
+- `regul::Symbol`: if `:classic`, then the regularization is performed prior the factorization,
     if `:dynamic`, then the regularization is performed during the factorization, and if `:none`,
     no regularization is used
-- `scaling`: `Bool`, activate/deactivate scaling of A and Q in `QM0`
-- `K`: `Union{Int, Symbol}`, number of centrality corrections (set to `:auto` for automatic computation)
-- `max_iter`: `Int`, maximum number of iterations
-- `ϵ_pdd`: `Float`, primal-dual difference tolerance
-- `ϵ_rb`: `Float`, primal tolerance
-- `ϵ_rc`: `Float`, dual tolerance
+- `scaling::Bool`: activate/deactivate scaling of A and Q in `QM0`
+- `K::Int`: number of centrality corrections (set to `-1` for automatic computation)
+- `max_iter::Int`: maximum number of iterations
+- `ϵ_pdd`: primal-dual difference tolerance
+- `ϵ_rb`: primal tolerance
+- `ϵ_rc`: dual tolerance
 - `max_iter32`, `ϵ_pdd32`, `ϵ_rb32`, `ϵ_rc32`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
     `ϵ_rc`, but used for switching from single precision to double precision. They are
     only usefull when `mode=:multi`
 - `max_iter64`, `ϵ_pdd64`, `ϵ_rb64`, `ϵ_rc64`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
     `ϵ_rc`, but used for switching from double precision to quadruple precision. They
     are only usefull when `mode=:multi` and `T0=Float128`
-- `ϵ_Δx`: `Float`, step tolerance for the current point estimate (note: this criterion
+- `ϵ_Δx`: step tolerance for the current point estimate (note: this criterion
     is currently disabled)
-- `ϵ_μ`: `Float`, duality measure tolerance (note: this criterion is currently disabled)
-- `max_time`: `Float`, maximum time to solve `QM0`, in seconds
-- `display`: `Bool`, activate/deactivate iteration data display
+- `ϵ_μ`: duality measure tolerance (note: this criterion is currently disabled)
+- `max_time`: maximum time to solve `QM0`, in seconds
+- `display::Bool`: activate/deactivate iteration data display
 """
 function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true,
                K :: Int = 0,

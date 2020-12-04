@@ -181,7 +181,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                     break
                     break
                 end
-                if cnts.c_pdd == 0 && cnts.c_catch==0
+                if cnts.c_pdd == 0 && cnts.c_catch == 0
                     regu.δ *= T(1e2)
                     regu.δ_min *= T(1e2)
                     regu.ρ *= T(1e5)

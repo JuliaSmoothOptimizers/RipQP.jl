@@ -79,19 +79,13 @@ end
 
 function nb_corrector_steps(J :: SparseMatrixCSC{T,Int}, n_cols :: Int) where {T<:Real}
     # number to determine the number of centrality corrections (Gondzio's procedure)
-    Ef, Es, rfs = 0, 12 * n_cols, zero(T) # 12n = ratio tests and vector initializations
-    @inbounds @simd for j=1:J.n
-        li = 0
-        @inbounds @simd for i=J.colptr[j]:(J.colptr[j+1]-1)
-            if j != J.rowval[i]
-                li += 2 # J is upper tri
-            end
-        end
-        Ef += li^2 # J is upper tri
-        Es += 2 * li
+    Ef, Es, rfs = 0, 12 * n_cols, zero(T) # 20n = ratio tests and vector initializations
+    @inbounds @simd for j=1:J.n-1
+        lj = (J.colptr[j+1]-J.colptr[j])
+        Ef += lj^2
+        Es += lj
     end
     rfs = T(Ef / Es)
-    # println(rfs)
     if rfs <= 10
         K = 0
     elseif 10 < rfs <= 30
