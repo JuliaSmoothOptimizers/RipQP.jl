@@ -1,7 +1,9 @@
 # RipQP
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4309783.svg)](https://doi.org/10.5281/zenodo.4309783)
 ![CI](https://github.com/JuliaSmoothOptimizers/RipQP.jl/workflows/CI/badge.svg?branch=master)
 [![Cirrus CI - Base Branch Build Status](https://img.shields.io/cirrus/github/JuliaSmoothOptimizers/RipQP.jl?logo=Cirrus%20CI)](https://cirrus-ci.com/github/JuliaSmoothOptimizers/RipQP.jl)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaSmoothOptimizers.github.io/RipQP.jl/dev)
 [![](https://img.shields.io/badge/docs-stable-3f51b5.svg)](https://JuliaSmoothOptimizers.github.io/RipQP.jl/stable)
 [![codecov](https://codecov.io/gh/JuliaSmoothOptimizers/RipQP.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaSmoothOptimizers/RipQP.jl)
 
