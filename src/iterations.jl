@@ -48,7 +48,7 @@ function solve_augmented_system_aff!(J_fact, Δ_aff, Δ_xλ, rc, rb, x_m_lvar, u
     Δ_xλ[ilow] += @views s_l[ilow]
     Δ_xλ[iupp] -= @views s_u[iupp]
 
-    Δ_xλ = LDLFactorizations.ldiv!(J_fact, Δ_xλ)
+    Δ_xλ = ldiv!(J_fact, Δ_xλ)
     Δ_aff[1:n_cols+n_rows] = Δ_xλ
     Δ_aff[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-s_l[ilow] .- s_l[ilow].*Δ_xλ[1:n_cols][ilow]./x_m_lvar
     Δ_aff[n_cols+n_rows+n_low+1:end] .= @views .-s_u[iupp] .+ s_u[iupp].*Δ_xλ[1:n_cols][iupp]./uvar_m_x
@@ -64,7 +64,7 @@ function solve_augmented_system_cc!(J_fact, Δ_cc, Δ_xλ ,Δ_aff, σ, μ, x_m_l
     Δ_xλ[ilow] .+= rxs_l./x_m_lvar
     Δ_xλ[iupp] .+= rxs_u./uvar_m_x
 
-    Δ_xλ = LDLFactorizations.ldiv!(J_fact, Δ_xλ)
+    Δ_xλ = ldiv!(J_fact, Δ_xλ)
     Δ_cc[1:n_cols+n_rows] = Δ_xλ
     Δ_cc[n_cols+n_rows+1:n_cols+n_rows+n_low] .= @views .-(rxs_l.+s_l[ilow].*Δ_xλ[1:n_cols][ilow])./x_m_lvar
     Δ_cc[n_cols+n_rows+n_low+1:end] .= @views (rxs_u.+s_u[iupp].*Δ_xλ[1:n_cols][iupp])./uvar_m_x
@@ -170,7 +170,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                 end
             end
             itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
-                                        Amax=Amax, r1=-regu.ρ, r2=regu.δ, n_d=IntData.n_cols)
+                                        tol=Amax*T(eps(T)), r1=-regu.ρ, r2=regu.δ, n_d=IntData.n_cols)
         elseif regu.regul == :classic
             itd.J_fact = try ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
             catch

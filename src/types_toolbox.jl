@@ -37,7 +37,7 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
         Amax = @views norm(J_augm.nzval[diagind_J], Inf)
-        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, Amax=Amax, r1=T(-eps(T)^(3/4)),
+        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, tol=Amax*T(eps(T)), r1=T(-eps(T)^(3/4)),
                                 r2=T(sqrt(eps(T))), n_d=IntData.n_cols)
     else
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
@@ -107,7 +107,7 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
         Amax = @views norm(J_augm.nzval[diagind_J], Inf)
-        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, Amax=Amax, r1=T(-eps(T)^(3/4)),
+        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, tol=Amax*T(eps(T)), r1=T(-eps(T)^(3/4)),
                                 r2=T(sqrt(eps(T))), n_d=IntData.n_cols)
     else
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
