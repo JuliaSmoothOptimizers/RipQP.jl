@@ -3,11 +3,9 @@ module RipQP
 using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
 using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
-# using NLPModels, QuadraticModels, SolverTools
 
 export ripqp
 
-# include(raw"C:\Users\Geoffroy Leconte\.julia\dev\LDLFactorizations\src\LDLFactorizations.jl")
 include("types_definition.jl")
 include("types_toolbox.jl")
 include("starting_points.jl")

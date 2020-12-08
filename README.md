@@ -15,9 +15,6 @@ mode (single precision, then double precision).
 Each iteration in single precision counts for 1 iteration, and each iteration in
 double precision counts for 4 iterations.
 
-See the [documentation](https://JuliaSmoothOptimizers.github.io/RipQP.jl/dev) for
-more details.
-
 # Usage
 
 In this example, we use QPSReader to read a quadratic problem (QAFIRO) from the
