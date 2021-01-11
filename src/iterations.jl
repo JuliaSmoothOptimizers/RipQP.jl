@@ -157,16 +157,16 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
         end
         itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
         itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
-        itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
+        itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= itd.tmp_diag .- itd.diag_Q
         if regu.regul == :dynamic
             Amax = @views norm(itd.J_augm.nzval[itd.diagind_J], Inf)
             if Amax > T(1e6) / regu.δ && cnts.c_pdd < 8
                 if T == Float32
                     break
-                elseif length(IntData.Qrows) > 0 || cnts.c_pdd < 4
+                elseif length(FloatData.Q.nzval) > 0 || cnts.c_pdd < 4
                     cnts.c_pdd += 1
                     regu.δ /= 10
-                # regu.ρ /= 10
+                    # regu.ρ /= 10
                 end
             end
             itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact,
@@ -206,7 +206,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                 itd.tmp_diag .= -regu.ρ
                 itd.tmp_diag[IntData.ilow] .-= @views pt.s_l[IntData.ilow] ./ itd.x_m_lvar
                 itd.tmp_diag[IntData.iupp] .-= @views pt.s_u[IntData.iupp] ./ itd.uvar_m_x
-                itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= @views itd.tmp_diag .- itd.diag_Q
+                itd.J_augm.nzval[view(itd.diagind_J,1:IntData.n_cols)] .= itd.tmp_diag .- itd.diag_Q
                 itd.J_augm.nzval[view(itd.diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= regu.δ
                 itd.J_fact = ldl_factorize!(Symmetric(itd.J_augm, :U), itd.J_fact)
             end
@@ -294,10 +294,10 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
 
         itd.μ = @views compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l[IntData.ilow], pt.s_u[IntData.iupp],
                                  IntData.n_low, IntData.n_upp)
-        itd.Qx = mul_Qx_COO!(itd.Qx, IntData.Qrows, IntData.Qcols, FloatData.Qvals, pt.x)
+        itd.Qx = mul_Qx!(itd.Qx, FloatData.Q, pt.x)
         itd.xTQx_2 =  pt.x' * itd.Qx / 2
-        itd.ATλ = mul_ATλ_COO!(itd.ATλ, IntData.Arows, IntData.Acols, FloatData.Avals, pt.λ)
-        itd.Ax = mul_Ax_COO!(itd.Ax, IntData.Arows, IntData.Acols, FloatData.Avals, pt.x)
+        itd.ATλ = mul!(itd.ATλ, FloatData.A', pt.λ)
+        itd.Ax = mul!(itd.Ax, FloatData.A, pt.x)
         itd.cTx = FloatData.c' * pt.x
         itd.pri_obj = itd.xTQx_2 + itd.cTx + FloatData.c0
         itd.dual_obj = FloatData.b' * pt.λ - itd.xTQx_2 + view(pt.s_l,IntData.ilow)'*view(FloatData.lvar, IntData.ilow) -

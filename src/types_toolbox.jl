@@ -1,7 +1,6 @@
 function get_QM_data(QM :: AbstractNLPModel)
     T = eltype(QM.meta.lvar)
-    IntData = QM_IntData(Int[], Int[], Int[], Int[],Int[], Int[], Int[], QM.meta.ncon,
-                         QM.meta.nvar, 0, 0)
+    IntData = QM_IntData(Int[], Int[], Int[], QM.meta.ncon, QM.meta.nvar, 0, 0)
     Oc = zeros(T, IntData.n_cols)
     IntData.ilow, IntData.iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
     IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
@@ -11,9 +10,7 @@ function get_QM_data(QM :: AbstractNLPModel)
     A = dropzeros!(A)
     Q = hess(QM, Oc)  # lower triangular
     Q = dropzeros!(Q)
-    FloatData_T = QM_FloatData(T[], T[], QM.meta.lcon, grad(QM, Oc), obj(QM, Oc), QM.meta.lvar, QM.meta.uvar)
-    IntData.Arows, IntData.Acols, FloatData_T.Avals = findnz(A)
-    IntData.Qrows, IntData.Qcols, FloatData_T.Qvals = findnz(Q)
+    FloatData_T = QM_FloatData(Q, A, QM.meta.lcon, grad(QM, Oc), obj(QM, Oc), QM.meta.lvar, QM.meta.uvar)
     return FloatData_T, IntData, T
 end
 
@@ -101,9 +98,11 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), regul)
     tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
-    J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Qvals, FloatData_T.Avals, regu, T) # in sparse_toolbox.jl
+    diag_Q = get_diag_Q(FloatData_T.Q)
+    # J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Qvals, FloatData_T.Avals, regu, T) # in sparse_toolbox.jl
+    J_augm = create_J_augm2(IntData, tmp_diag, FloatData_T.Q, FloatData_T.A, regu, T)
+    # J_augm[diagind(J_augm)[1:IntData.n_cols]] .+= tmp_diag
     diagind_J = get_diag_sparseCSC(J_augm)
-    # J_augm.nzval[view(diagind_J, IntData.n_cols+1:IntData.n_rows+IntData.n_cols)] .= zero(T)
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
         Amax = @views norm(J_augm.nzval[diagind_J], Inf)
@@ -114,7 +113,7 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
     end
     J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
-                    get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
+                    diag_Q, #diag_Q
                     J_augm, #J_augm
                     J_fact,
                     diagind_J, #diagind_J
