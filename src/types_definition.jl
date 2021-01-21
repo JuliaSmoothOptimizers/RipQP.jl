@@ -3,6 +3,8 @@ import Base: convert
 mutable struct QM_FloatData{T<:Real}
     Q     :: SparseMatrixCSC{T,Int}
     A     :: SparseMatrixCSC{T,Int}
+    Qvals :: Vector{T}
+    Avals :: Vector{T}
     b     :: Vector{T}
     c     :: Vector{T}
     c0    :: T
@@ -14,6 +16,10 @@ mutable struct QM_IntData
     ilow   :: Vector{Int}
     iupp   :: Vector{Int}
     irng   :: Vector{Int}
+    Qrows  :: Vector{Int}
+    Qcols  :: Vector{Int}
+    Arows  :: Vector{Int}
+    Acols  :: Vector{Int}
     n_rows :: Int
     n_cols :: Int
     n_low  :: Int
@@ -66,7 +72,7 @@ convert(::Type{regularization{T}}, regu) where {T<:Real} = regularization(T(regu
 
 mutable struct iter_data{T<:Real}
     tmp_diag    :: Vector{T}
-    diag_Q      :: SparseVector{T}
+    diag_Q      :: SparseVector{T,Int}
     J_augm      :: SparseMatrixCSC{T,Int}
     J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}
     diagind_J   :: Vector{Int}
@@ -93,7 +99,7 @@ createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_f
                                                           J_fact.pattern)
 
 convert(::Type{iter_data{T}}, itd) where {T<:Real} = iter_data(convert(Array{T}, itd.tmp_diag),
-                                                                itd.diagind_Q,
+                                                                convert(SparseVector{T,Int}, itd.diag_Q),
                                                                 convert(SparseMatrixCSC{T,Int}, itd.J_augm),
                                                                 createldl(T, itd.J_fact),
                                                                 itd.diagind_J,

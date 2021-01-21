@@ -4,8 +4,8 @@ function starting_points(FloatData :: QM_FloatData{T}, IntData:: QM_IntData, itd
     Δ_xλ[IntData.n_cols+1: end] = FloatData.b
     Δ_xλ = ldiv!(itd.J_fact, Δ_xλ)
     pt0 = point(Δ_xλ[1:IntData.n_cols], Δ_xλ[IntData.n_cols+1:end], zeros(T, IntData.n_cols), zeros(T, IntData.n_cols))
-    itd.Qx = mul_Qx!(itd.Qx, FloatData.Q, pt0.x)
-    itd.ATλ = mul!(itd.ATλ, FloatData.A', pt0.λ)
+    itd.Qx = mul!(itd.Qx, Symmetric(FloatData.Q, :U), pt0.x)
+    itd.ATλ = mul!(itd.ATλ, FloatData.A, pt0.λ)
     dual_val = itd.Qx .- itd.ATλ .+ FloatData.c
     pt0.s_l[IntData.ilow] = @views dual_val[IntData.ilow]
     pt0.s_u[IntData.iupp] = @views -dual_val[IntData.iupp]
@@ -67,9 +67,9 @@ function starting_points(FloatData :: QM_FloatData{T}, IntData:: QM_IntData, itd
     @assert all(pt0.x .> FloatData.lvar) && all(pt0.x .< FloatData.uvar)
     @assert @views all(pt0.s_l[IntData.ilow] .> zero(T)) && all(pt0.s_u[IntData.iupp] .> zero(T))
 
-    itd.Qx = mul_Qx!(itd.Qx, FloatData.Q, pt0.x)
-    itd.ATλ = mul!(itd.ATλ, FloatData.A', pt0.λ)
-    itd.Ax = mul!(itd.Ax, FloatData.A, pt0.x)
+    itd.Qx = mul!(itd.Qx, Symmetric(FloatData.Q, :U), pt0.x)
+    itd.ATλ = mul!(itd.ATλ, FloatData.A, pt0.λ)
+    itd.Ax = mul!(itd.Ax, FloatData.A', pt0.x)
     itd.xTQx_2 = pt0.x' * itd.Qx / 2
     itd.cTx = FloatData.c' * pt0.x
     itd.pri_obj = itd.xTQx_2 + itd.cTx + FloatData.c0

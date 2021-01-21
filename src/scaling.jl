@@ -103,7 +103,7 @@ function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: poi
             FloatData_T0.Q.nzval[i] /= d2[FloatData_T0.Q.rowval[i]] * d2[j] * d3[FloatData_T0.Q.rowval[i]] * d3[j]
         end
     end
-    Qx = mul_Qx!(Qx, FloatData_T0.Q, pt.x)
+    Qx = mul!(Qx, Symmetric(FloatData_T0.Q, :L), pt.x)
     xTQx_2 =  pt.x' * Qx / 2
     @inbounds @simd for j=1:size(FloatData_T0.A, 2)
         for i in nzrange(FloatData_T0.A, j)

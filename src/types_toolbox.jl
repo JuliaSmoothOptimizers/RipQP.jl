@@ -1,16 +1,16 @@
-function get_QM_data(QM :: AbstractNLPModel)
+function get_QM_data(QM :: QuadraticModel)
     T = eltype(QM.meta.lvar)
-    IntData = QM_IntData(Int[], Int[], Int[], QM.meta.ncon, QM.meta.nvar, 0, 0)
-    Oc = zeros(T, IntData.n_cols)
-    IntData.ilow, IntData.iupp = [QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng] # finite bounds index
+    A = sparse(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.nvar, QM.meta.ncon) # transposed
+    dropzeros!(A)
+    Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  # lower triangular converted to upper triangular
+    dropzeros!(Q)
+    IntData = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
+                         QM.data.Hrows, QM.data.Hcols, QM.data.Arows, QM.data.Acols,
+                         QM.meta.ncon, QM.meta.nvar, 0, 0)
     IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
-    IntData.irng = QM.meta.irng
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
-    A = jac(QM, Oc)
-    A = dropzeros!(A)
-    Q = hess(QM, Oc)  # lower triangular
-    Q = dropzeros!(Q)
-    FloatData_T = QM_FloatData(Q, A, QM.meta.lcon, grad(QM, Oc), obj(QM, Oc), QM.meta.lvar, QM.meta.uvar)
+    FloatData_T = QM_FloatData(Q, A, QM.data.Hvals, QM.data.Avals, QM.meta.lcon, QM.data.c, QM.data.c0, 
+                               QM.meta.lvar, QM.meta.uvar)
     return FloatData_T, IntData, T
 end
 
@@ -100,7 +100,8 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
     tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
     diag_Q = get_diag_Q(FloatData_T.Q)
     # J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Qvals, FloatData_T.Avals, regu, T) # in sparse_toolbox.jl
-    J_augm = create_J_augm2(IntData, tmp_diag, FloatData_T.Q, FloatData_T.A, regu, T)
+    J_augm = create_J_augm4(IntData, tmp_diag, FloatData_T.Q, FloatData_T.A, diag_Q, regu, T)
+    # display(Matrix(J_augm))
     # J_augm[diagind(J_augm)[1:IntData.n_cols]] .+= tmp_diag
     diagind_J = get_diag_sparseCSC(J_augm)
     J_fact = ldl_analyze(Symmetric(J_augm, :U))

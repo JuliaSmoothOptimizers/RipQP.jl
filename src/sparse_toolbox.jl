@@ -13,15 +13,15 @@ function mul_Qx!(Qx, Q, x)
     return Qx
 end
 
-function mul_ATλ!(ATλ, A, λ)
-    ATλ .= zero(eltype(ATλ))
+function mul_Aλ!(Aλ, A, λ)
+    Aλ .= zero(eltype(Aλ))
     @inbounds @simd for j=1:A.n
         for k=A.colptr[j]:(A.colptr[j+1]-1)
             i = A.rowval[k]
-            ATλ[j] += A.nzval[k] * λ[i]
+            Aλ[j] += A.nzval[k] * λ[i]
         end
     end
-    return ATλ
+    return Aλ
 end
 
 function mul_Ax!(Ax, A, x)
@@ -59,10 +59,10 @@ function get_diag_Q(Q) # lower triangular
     T = eltype(Q.nzval)
     diagval = spzeros(T, Q.m)
     @inbounds @simd for j=1:Q.m
-        colptri = Q.colptr[j]
-        i = Q.rowval[colptri]
-        if i==j
-            diagval[j] = Q.nzval[colptri]
+        for k in nzrange(Q, j)
+            if j == Q.rowval[k]
+                diagval[j] = Q.nzval[k]
+            end
         end
     end
     return diagval
@@ -85,104 +85,190 @@ function create_J_augm(IntData, tmp_diag, Qvals, Avals, regu, T)
     return J_augm
 end
 
-function create_J_augm2(IntData, tmp_diag, Q, A, regu, T)
-    n_nz =  length(A.nzval) + length(Q.nzval)
+function create_J_augm2(IntData, tmp_diag, Q, A, diag_Q, regu, T)
+    n_nz =  length(A.nzval) + length(Q.nzval) + IntData.n_cols - nnz(diag_Q) + IntData.n_rows
     J_augm_colptr = zeros(Int, IntData.n_rows+IntData.n_cols+1)
     J_augm_rowval = zeros(Int, n_nz)
-    J_augm_nzval = zeros(T, n_nz)
-    for k in 1:length(Q.nzval) # add +1 in col j if j=Q.rowval[k]
+    J_augm_nzval = zeros(T, n_nz) 
+    # regul classic
+    @inbounds @simd for k in 1:length(Q.nzval) # add +1 in col j if j=Q.rowval[k]
         J_augm_colptr[Q.rowval[k]+1] += 1
     end
-    for k in 1:length(A.nzval)
+    @inbounds @simd for i=1:Q.m
+        if diag_Q[i] == zero(T)
+            J_augm_colptr[i+1] += 1
+        end
+    end
+    @inbounds @simd for k=1:length(A.nzval)
         J_augm_colptr[Q.m+A.rowval[k]+1] += 1
     end
+    J_augm_colptr[Q.m+2:end] .+= 1
     countsum = 1
     J_augm_colptr[1] = countsum
-    for k in 2:length(J_augm_colptr)
+    @inbounds for k=2:length(J_augm_colptr) # J_augm_colptr shifted forward one position
         overwritten = J_augm_colptr[k]
         J_augm_colptr[k] = countsum
         countsum += overwritten
     end
-    for i in 1:Q.n
+
+    count_zeros_Q = 0
+    @inbounds for i=1:Q.n
+        if diag_Q[i] == zero(T)
+            count_zeros_Q += 1
+            coli = J_augm_colptr[i+1]
+            J_augm_rowval[coli] = i
+            J_augm_nzval[coli] = tmp_diag[i] 
+            J_augm_colptr[i+1] += 1
+        end
         for k in nzrange(Q, i)
             j = Q.rowval[k]
-            colj = J_augm_colptr[j+1]
+            val = Q.nzval[k]
+            colj = J_augm_colptr[j+1] 
             J_augm_rowval[colj] = i
-            J_augm_nzval[colj] = -Q.nzval[k]
+            if i == j
+                J_augm_nzval[colj] = tmp_diag[i] - val
+            else
+                J_augm_nzval[colj] = -val
+            end
             J_augm_colptr[j+1] += 1
         end
-    end
-    for i in 1:A.n
         for k in nzrange(A, i)
-            j = IntData.n_cols+A.rowval[k]
-            colj = J_augm_colptr[j+1]
+            j = A.rowval[k] + IntData.n_cols
+            val = A.nzval[k]
+            colj = J_augm_colptr[j+1] 
             J_augm_rowval[colj] = i
-            J_augm_nzval[colj] = A.nzval[k]
+            J_augm_nzval[colj] = val
             J_augm_colptr[j+1] += 1
         end
     end
+
+    @inbounds for i=IntData.n_cols+1:IntData.n_cols+IntData.n_rows
+        colj = J_augm_colptr[i+1]
+        J_augm_rowval[colj] = i
+        J_augm_nzval[colj] = regu.δ
+        J_augm_colptr[i+1] += 1
+    end 
+
     J_augm = SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
                              J_augm_colptr, J_augm_rowval, J_augm_nzval)
-    diagind_J = diagind(J_augm)
-    J_augm[diagind_J[1:IntData.n_cols]] = tmp_diag
-    if regu.regul == :classic
-        J_augm[diagind_J[IntData.n_cols+1:end]] .= regu.δ
-    end
-    # J_augm = [Q                                            A';
-    #           spzeros(T, IntData.n_rows, IntData.n_cols)     regu.δ.*I]
-    # J_augm = spzeros(T, IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols)
-    # J_augm[1:IntData.n_cols, 1:IntData.n_cols] = Q'
-    # J_augm.nzval .= .-J_augm.nzval
-    # diagind_J = diagind(J_augm)
-    # J_augm[view(diagind_J, 1:IntData.n_cols)] .+= tmp_diag
-    # J_augm[1:IntData.n_cols, IntData.n_cols+1:end] = A'
-    # J_augm[diagind_J[IntData.n_cols+1:end]] .= regu.δ
     return J_augm
 end
 
-function create_J_augm3(IntData, tmp_diag, Q, A, regu, diag_Q, T)
+function create_J_augm3(IntData, tmp_diag, Q, A, diag_Q, regu, T)
+    # # for classic regul only
+    # n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval) + IntData.n_rows
+    # J_augm_colptr = Vector{Int}(undef, IntData.n_rows+IntData.n_cols+1) 
+    # J_augm_colptr[1] = 1
+    # J_augm_rowval = Vector{Int}(undef, n_nz)
+    # J_augm_nzval =  Vector{T}(undef, n_nz)
+    # # [-Q -tmp_diag    A ]
+    # # [0               δI]
+
+    # added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
+    # @inbounds for j=1:Q.n  # Q coeffs, tmp diag coefs. 
+    #     J_augm_colptr[j+1] = Q.colptr[j+1] + added_coeffs_diag 
+    #     for k=Q.colptr[j]:(Q.colptr[j+1]-2)
+    #         nz_idx = k + added_coeffs_diag 
+    #         J_augm_rowval[nz_idx] = Q.rowval[k]
+    #         J_augm_nzval[nz_idx] = Q.nzval[k]
+    #     end
+    #     if diag_Q[j] == zero(T)
+    #         added_coeffs_diag += 1
+    #         J_augm_colptr[j+1] += 1
+    #         nz_idx = J_augm_colptr[j+1] - 1
+    #         J_augm_rowval[nz_idx] = j
+    #         J_augm_nzval[nz_idx] = tmp_diag[j]
+    #     else
+    #         nz_idx = J_augm_colptr[j+1] - 1
+    #         J_augm_rowval[nz_idx] = j
+    #         J_augm_nzval[nz_idx] = tmp_diag[j] - Q.nzval[Q.colptr[j+1]-1] 
+    #     end
+    # end
+
+    # countsum = J_augm_colptr[Q.n+1] # current value of J_augm_colptr[Q.n+j+1]
+    # nnz_top_left = countsum # number of coefficients + 1 already added
+    # @inbounds for j=1:A.n
+    #     countsum += A.colptr[j+1] - A.colptr[j] + 1
+    #     J_augm_colptr[Q.n+j+1] = countsum
+    #     for k in nzrange(A, j)
+    #         nz_idx = k + nnz_top_left + j - 2
+    #         J_augm_rowval[nz_idx] = A.rowval[k]
+    #         J_augm_nzval[nz_idx] = A.nzval[k]
+    #     end
+    #     nz_idx = J_augm_colptr[Q.n+j+1] - 1
+    #     J_augm_rowval[nz_idx] = Q.n + j 
+    #     J_augm_nzval[nz_idx] = regu.δ
+    # end
+
+    # J_augm = SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
+    #                          J_augm_colptr, J_augm_rowval, J_augm_nzval)
+    J_augm = [.-Q  A
+              spzeros(T, IntData.n_rows, IntData.n_cols+IntData.n_rows)]
+    J_augm[diagind(J_augm)[1:IntData.n_cols]] = tmp_diag
+    J_augm[diagind(J_augm)[IntData.n_cols+1:IntData.n_rows+IntData.n_cols]] .= regu.δ
+    return J_augm
+end
+
+function fill_J_augm4!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_colptr, Q_rowval, Q_nzval,
+                       A_colptr, A_rowval, A_nzval, diag_Q_nzind, δ, n_rows, n_cols, T)
+
+    added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
+    c_nz = length(diag_Q_nzind) > 0 ? 1 : 0
+    @inbounds for j=1:n_cols  # Q coeffs, tmp diag coefs. 
+        J_augm_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
+        for k=Q_colptr[j]:(Q_colptr[j+1]-2)
+            nz_idx = k + added_coeffs_diag 
+            J_augm_rowval[nz_idx] = Q_rowval[k]
+            J_augm_nzval[nz_idx] = Q_nzval[k]
+        end
+        if c_nz == 0 || diag_Q_nzind[c_nz] != j
+            added_coeffs_diag += 1
+            J_augm_colptr[j+1] += 1
+            nz_idx = J_augm_colptr[j+1] - 1
+            J_augm_rowval[nz_idx] = j
+            J_augm_nzval[nz_idx] = tmp_diag[j]
+        else
+            if c_nz != 0
+                c_nz += 1
+            end
+            nz_idx = J_augm_colptr[j+1] - 1
+            J_augm_rowval[nz_idx] = j
+            J_augm_nzval[nz_idx] = tmp_diag[j] - Q_nzval[Q_colptr[j+1]-1] 
+        end
+    end
+
+    countsum = J_augm_colptr[n_cols+1] # current value of J_augm_colptr[Q.n+j+1]
+    nnz_top_left = countsum # number of coefficients + 1 already added
+    @inbounds for j=1:n_rows
+        countsum += A_colptr[j+1] - A_colptr[j] + 1
+        J_augm_colptr[n_cols+j+1] = countsum
+        for k=A_colptr[j]:(A_colptr[j+1]-1)
+            nz_idx = k + nnz_top_left + j - 2
+            J_augm_rowval[nz_idx] = A_rowval[k]
+            J_augm_nzval[nz_idx] = A_nzval[k]
+        end
+        nz_idx = J_augm_colptr[n_cols+j+1] - 1
+        J_augm_rowval[nz_idx] = n_cols + j 
+        J_augm_nzval[nz_idx] = δ
+    end   
+end
+
+function create_J_augm4(IntData, tmp_diag, Q, A, diag_Q, regu, T)
     # for classic regul only
     n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval) + IntData.n_rows
-    J_augm_colptr = ones(Int, IntData.n_rows+IntData.n_cols+1)
-    J_augm_rowval = zeros(Int, n_nz)
-    J_augm_nzval = zeros(T, n_nz)
-    # [-Q -tmp_diag    0 ]
-    # [A               δI]
-    c_Q = 1
-    c_A = 1
-    for j=1:Q.m # top and bottom left blocs
-        colptr_j = J_augm_colptr[j]
-        diag_idx = 0
-        # add Q coeffs
-        diag_zero = diag_Q[j] == zero(T) ? 1 : 0 # add 1 if Q[j,j] = 0 because of tmp_diag
-        J_augm_colptr[j+1] = colptr_j + Q.colptr[j+1] - Q.colptr[j] + diag_zero
-        J_augm_rowval[colptr_j] = j # diagonal 1st coef
-        J_augm_nzval[colptr_j] = tmp_diag[j]
-        for k=colptr_j+diag_zero:(J_augm_colptr[j+1]-1)
-            J_augm_rowval[k] = Q.rowval[c_Q]
-            J_augm_nzval[k] += Q.nzval[c_Q]
-            c_Q += 1
-        end
-        # add A coeffs
-        println("ok")
-        prev_colptr = J_augm_colptr[j+1]
-        J_augm_colptr[j+1] += A.colptr[j+1] - A.colptr[j]
-        for k=prev_colptr:(J_augm_colptr[j+1]-1)
-            J_augm_rowval[k] = IntData.n_cols + A.rowval[c_A]
-            J_augm_nzval[k] = A.nzval[c_A]
-            c_A += 1
-        end
-    end
-    # bottom right bloc
-    for j=Q.m+1:length(J_augm_colptr)-1
-        colptr_j = J_augm_colptr[j]
-        J_augm_colptr[j+1] = colptr_j + 1
-        J_augm_rowval[colptr_j] = j
-        J_augm_nzval[colptr_j] = regu.δ
-    end
-    J_augm = SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
-                             J_augm_colptr, J_augm_rowval, J_augm_nzval)
-    return
+    J_augm_colptr = Vector{Int}(undef, IntData.n_rows+IntData.n_cols+1) 
+    J_augm_colptr[1] = 1
+    J_augm_rowval = Vector{Int}(undef, n_nz)
+    J_augm_nzval = Vector{T}(undef, n_nz)
+    # [-Q -tmp_diag    A ]
+    # [0               δI]
+
+    fill_J_augm4!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q.colptr, Q.rowval, Q.nzval,
+                  A.colptr, A.rowval, A.nzval, diag_Q.nzind, regu.δ, IntData.n_rows, 
+                  IntData.n_cols, T)
+
+    return SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
+                           J_augm_colptr, J_augm_rowval, J_augm_nzval)
 end
 
 function nb_corrector_steps(J :: SparseMatrixCSC{T,Int}, n_cols :: Int) where {T<:Real}
