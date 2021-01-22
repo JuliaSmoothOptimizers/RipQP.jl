@@ -63,7 +63,8 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     end
     start_time = time()
     elapsed_time = 0.0
-    QM = SlackModel(QM)
+    nvar_init = QM.meta.nvar
+    SlackModel!(QM)
     FloatData_T0, IntData, T = get_QM_data(QM)
     T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
     ϵ = tolerances(T(ϵ_pdd), T(ϵ_rb), T(ϵ_rc), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
@@ -140,7 +141,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
 
     elapsed_time = time() - start_time
 
-    stats = GenericExecutionStats(status, QM, solution = pt.x[1:QM.meta.nvar],
+    stats = GenericExecutionStats(status, QM, solution = pt.x[1:nvar_init],
                                   objective = itd.pri_obj,
                                   dual_feas = res.rcNorm,
                                   primal_feas = res.rbNorm,

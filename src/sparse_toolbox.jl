@@ -210,25 +210,26 @@ function create_J_augm3(IntData, tmp_diag, Q, A, diag_Q, regu, T)
 end
 
 function fill_J_augm4!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_colptr, Q_rowval, Q_nzval,
-                       A_colptr, A_rowval, A_nzval, diag_Q_nzind, δ, n_rows, n_cols, T)
+                       A_colptr, A_rowval, A_nzval, diag_Q_nzind, δ, n_rows, n_cols, regul, T)
 
     added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
-    c_nz = length(diag_Q_nzind) > 0 ? 1 : 0
+    n_nz = length(diag_Q_nzind)
+    c_nz = n_nz > 0 ? 1 : 0
     @inbounds for j=1:n_cols  # Q coeffs, tmp diag coefs. 
         J_augm_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
         for k=Q_colptr[j]:(Q_colptr[j+1]-2)
             nz_idx = k + added_coeffs_diag 
             J_augm_rowval[nz_idx] = Q_rowval[k]
-            J_augm_nzval[nz_idx] = Q_nzval[k]
+            J_augm_nzval[nz_idx] = -Q_nzval[k]
         end
-        if c_nz == 0 || diag_Q_nzind[c_nz] != j
+        if c_nz == 0 || c_nz > n_nz || diag_Q_nzind[c_nz] != j
             added_coeffs_diag += 1
             J_augm_colptr[j+1] += 1
             nz_idx = J_augm_colptr[j+1] - 1
             J_augm_rowval[nz_idx] = j
             J_augm_nzval[nz_idx] = tmp_diag[j]
         else
-            if c_nz != 0
+            if c_nz != 0  
                 c_nz += 1
             end
             nz_idx = J_augm_colptr[j+1] - 1
@@ -240,22 +241,30 @@ function fill_J_augm4!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_c
     countsum = J_augm_colptr[n_cols+1] # current value of J_augm_colptr[Q.n+j+1]
     nnz_top_left = countsum # number of coefficients + 1 already added
     @inbounds for j=1:n_rows
-        countsum += A_colptr[j+1] - A_colptr[j] + 1
+        countsum += A_colptr[j+1] - A_colptr[j] 
+        if regul == :classic 
+            countsum += 1
+        end
         J_augm_colptr[n_cols+j+1] = countsum
         for k=A_colptr[j]:(A_colptr[j+1]-1)
-            nz_idx = k + nnz_top_left + j - 2
+            nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
             J_augm_rowval[nz_idx] = A_rowval[k]
             J_augm_nzval[nz_idx] = A_nzval[k]
         end
-        nz_idx = J_augm_colptr[n_cols+j+1] - 1
-        J_augm_rowval[nz_idx] = n_cols + j 
-        J_augm_nzval[nz_idx] = δ
+        if regul == :classic
+            nz_idx = J_augm_colptr[n_cols+j+1] - 1
+            J_augm_rowval[nz_idx] = n_cols + j 
+            J_augm_nzval[nz_idx] = δ
+        end
     end   
 end
 
 function create_J_augm4(IntData, tmp_diag, Q, A, diag_Q, regu, T)
     # for classic regul only
-    n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval) + IntData.n_rows
+    n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval) 
+    if regu.regul == :classic
+        n_nz += IntData.n_rows
+    end
     J_augm_colptr = Vector{Int}(undef, IntData.n_rows+IntData.n_cols+1) 
     J_augm_colptr[1] = 1
     J_augm_rowval = Vector{Int}(undef, n_nz)
@@ -265,7 +274,7 @@ function create_J_augm4(IntData, tmp_diag, Q, A, diag_Q, regu, T)
 
     fill_J_augm4!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q.colptr, Q.rowval, Q.nzval,
                   A.colptr, A.rowval, A.nzval, diag_Q.nzind, regu.δ, IntData.n_rows, 
-                  IntData.n_cols, T)
+                  IntData.n_cols, regu.regul, T)
 
     return SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
                            J_augm_colptr, J_augm_rowval, J_augm_nzval)

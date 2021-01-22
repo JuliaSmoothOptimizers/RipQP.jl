@@ -5,20 +5,23 @@ function get_QM_data(QM :: QuadraticModel)
     Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  # lower triangular converted to upper triangular
     dropzeros!(Q)
     IntData = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
-                         QM.data.Hrows, QM.data.Hcols, QM.data.Arows, QM.data.Acols,
                          QM.meta.ncon, QM.meta.nvar, 0, 0)
     IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
-    FloatData_T = QM_FloatData(Q, A, QM.data.Hvals, QM.data.Avals, QM.meta.lcon, QM.data.c, QM.data.c0, 
-                               QM.meta.lvar, QM.meta.uvar)
+    FloatData_T = QM_FloatData(Q, A, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
     return FloatData_T, IntData, T
 end
 
 function convert_FloatData(T :: DataType, FloatData_T0 :: QM_FloatData{T0}) where {T0<:Real}
-    FloatData_T = QM_FloatData(Array{T}(FloatData_T0.Qvals),Array{T}(FloatData_T0.Avals),
-                               Array{T}(FloatData_T0.b), Array{T}(FloatData_T0.c), T(FloatData_T0.c0),
-                               Array{T}(FloatData_T0.lvar), Array{T}(FloatData_T0.uvar))
-    return FloatData_T
+    return QM_FloatData(SparseMatrixCSC{T, Int}(FloatData_T0.Q.m, FloatData_T0.Q.n, 
+                                                FloatData_T0.Q.colptr, FloatData_T0.Q.rowval, Array{T}(FloatData_T0.Q.nzval)),
+                        SparseMatrixCSC{T, Int}(FloatData_T0.A.m, FloatData_T0.A.n, 
+                                                FloatData_T0.A.colptr, FloatData_T0.A.rowval, Array{T}(FloatData_T0.A.nzval)),
+                        Array{T}(FloatData_T0.b), 
+                        Array{T}(FloatData_T0.c), 
+                        T(FloatData_T0.c0),
+                        Array{T}(FloatData_T0.lvar), 
+                        Array{T}(FloatData_T0.uvar))
 end
 
 function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
@@ -29,7 +32,9 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), regul)
     tmp_diag = -T(1.0e-2) .* ones(T, IntData.n_cols)
-    J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Qvals, FloatData_T.Avals, regu, T) # in sparse_toolbox.jl
+    # J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Qvals, FloatData_T.Avals, regu, T) # in sparse_toolbox.jl
+    diag_Q = get_diag_Q(FloatData_T.Q)
+    J_augm = create_J_augm4(IntData, tmp_diag, FloatData_T.Q, FloatData_T.A, diag_Q, regu, T)
     diagind_J = get_diag_sparseCSC(J_augm)
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
@@ -41,7 +46,7 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
     end
     J_fact.__factorized = true
     itd = iter_data(tmp_diag, # tmp diag
-                    get_diag_sparseCOO(IntData.Qrows, IntData.Qcols, FloatData_T.Qvals, IntData.n_cols), #diag_Q
+                    diag_Q, #diag_Q
                     J_augm, #J_augm
                     J_fact, #J_fact
                     diagind_J, #diagind_J

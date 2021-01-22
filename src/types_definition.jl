@@ -3,8 +3,6 @@ import Base: convert
 mutable struct QM_FloatData{T<:Real}
     Q     :: SparseMatrixCSC{T,Int}
     A     :: SparseMatrixCSC{T,Int}
-    Qvals :: Vector{T}
-    Avals :: Vector{T}
     b     :: Vector{T}
     c     :: Vector{T}
     c0    :: T
@@ -16,10 +14,6 @@ mutable struct QM_IntData
     ilow   :: Vector{Int}
     iupp   :: Vector{Int}
     irng   :: Vector{Int}
-    Qrows  :: Vector{Int}
-    Qcols  :: Vector{Int}
-    Arows  :: Vector{Int}
-    Acols  :: Vector{Int}
     n_rows :: Int
     n_cols :: Int
     n_low  :: Int
