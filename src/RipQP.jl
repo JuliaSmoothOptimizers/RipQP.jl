@@ -80,14 +80,15 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     if mode == :multi
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ, regul)
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt, res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ, regul)
     elseif mode == :mono
         regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ, regul)
     end
 
     Δt = time() - start_time
     sc.tired = Δt > max_time
-    cnts = counters(zero(Int), zero(Int), 0, 0, K==-1 ? nb_corrector_steps(itd.J_augm, IntData.n_cols) : K)
+    cnts = counters(zero(Int), zero(Int), 0, 0, 
+                    K==-1 ? nb_corrector_steps(itd.J_augm.colptr, IntData.n_rows, IntData.n_cols, T) : K)
     # display
     if display == true
         @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ, :ρ, :δ],

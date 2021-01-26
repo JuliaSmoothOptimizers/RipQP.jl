@@ -298,8 +298,8 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, FloatData :: QM_F
                                  IntData.n_low, IntData.n_upp)
         itd.Qx = mul!(itd.Qx, Symmetric(FloatData.Q, :U), pt.x)
         itd.xTQx_2 =  pt.x' * itd.Qx / 2
-        itd.ATλ = mul!(itd.ATλ, FloatData.A, pt.λ)
-        itd.Ax = mul!(itd.Ax, FloatData.A', pt.x)
+        itd.ATλ = mul!(itd.ATλ, FloatData.AT, pt.λ)
+        itd.Ax = mul!(itd.Ax, FloatData.AT', pt.x)
         itd.cTx = FloatData.c' * pt.x
         itd.pri_obj = itd.xTQx_2 + itd.cTx + FloatData.c0
         itd.dual_obj = FloatData.b' * pt.λ - itd.xTQx_2 + view(pt.s_l,IntData.ilow)'*view(FloatData.lvar, IntData.ilow) -

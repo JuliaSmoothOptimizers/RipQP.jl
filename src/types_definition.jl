@@ -2,7 +2,7 @@ import Base: convert
 
 mutable struct QM_FloatData{T<:Real}
     Q     :: SparseMatrixCSC{T,Int}
-    A     :: SparseMatrixCSC{T,Int}
+    AT     :: SparseMatrixCSC{T,Int}
     b     :: Vector{T}
     c     :: Vector{T}
     c0    :: T
