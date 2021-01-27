@@ -1,31 +1,3 @@
-function mul_Qx_COO!(Qx, Qrows, Qcols, Qvals, x)
-    # right mutiplication for sparse COO symetric matrix
-    Qx .= zero(eltype(Qx))
-    @inbounds @simd for i=1:length(Qcols)
-        Qx[Qrows[i]] += Qvals[i] * x[Qcols[i]]
-        if Qrows[i] != Qcols[i]
-            Qx[Qcols[i]] += Qvals[i]*x[Qrows[i]]
-        end
-    end
-    return Qx
-end
-
-function mul_ATλ_COO!(ATλ, Arows, Acols, Avals, λ)
-    ATλ .= zero(eltype(ATλ))
-    @inbounds @simd for i=1:length(Acols)
-        ATλ[Acols[i]] += Avals[i] * λ[Arows[i]]
-    end
-    return ATλ
-end
-
-function mul_Ax_COO!(Ax, Arows, Acols, Avals, x)
-    Ax .= zero(eltype(Ax))
-    @inbounds @simd for i=1:length(Acols)
-        Ax[Arows[i]] += Avals[i] * x[Acols[i]]
-    end
-    return Ax
-end
-
 function get_diag_sparseCSC(M; tri=:U)
     # get diagonal index of M.nzval
     # we assume all columns of M are non empty, and M triangular (:L or :U)
@@ -46,42 +18,95 @@ function get_diag_sparseCSC(M; tri=:U)
     return diagind
 end
 
-function get_diag_sparseCOO(Qrows, Qcols, Qvals, n_cols)
-    # get diagonal index of M.nzval
-    # we assume all columns of M are non empty, and M triangular (:L or :U)
-    T = eltype(Qvals)
-    n = length(Qrows)
-    diagval = zeros(T, n_cols)
-    @inbounds @simd for i=1:n
-        if Qrows[i] == Qcols[i]
-            diagval[Qrows[i]] = Qvals[i]
+function get_diag_Q(Q) 
+    T = eltype(Q.nzval)
+    diagval = spzeros(T, Q.m)
+    @inbounds @simd for j=1:Q.m
+        for k in nzrange(Q, j)
+            if j == Q.rowval[k]
+                diagval[j] = Q.nzval[k]
+            end
         end
     end
     return diagval
 end
 
-function create_J_augm(IntData, tmp_diag, Qvals, Avals, regu, T)
-    if regu.regul == :classic
-        J_augmrows = vcat(IntData.Qcols, IntData.Acols, IntData.n_cols+1:IntData.n_cols+IntData.n_rows,
-                          1:IntData.n_cols)
-        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols,
-                          IntData.n_cols+1:IntData.n_cols+IntData.n_rows, 1:IntData.n_cols)
-        J_augmvals = vcat(.-Qvals, Avals, regu.δ.*ones(T, IntData.n_rows), tmp_diag)
-    else
-        J_augmrows = vcat(IntData.Qcols, IntData.Acols, 1:IntData.n_cols)
-        J_augmcols = vcat(IntData.Qrows, IntData.Arows.+IntData.n_cols, 1:IntData.n_cols)
-        J_augmvals = vcat(.-Qvals, Avals, tmp_diag)
+function fill_J_augm!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_colptr, Q_rowval, Q_nzval,
+                       AT_colptr, AT_rowval, AT_nzval, diag_Q_nzind, δ, n_rows, n_cols, regul, T)
+
+    added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
+    n_nz = length(diag_Q_nzind)
+    c_nz = n_nz > 0 ? 1 : 0
+    @inbounds for j=1:n_cols  # Q coeffs, tmp diag coefs. 
+        J_augm_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
+        for k=Q_colptr[j]:(Q_colptr[j+1]-2)
+            nz_idx = k + added_coeffs_diag 
+            J_augm_rowval[nz_idx] = Q_rowval[k]
+            J_augm_nzval[nz_idx] = -Q_nzval[k]
+        end
+        if c_nz == 0 || c_nz > n_nz || diag_Q_nzind[c_nz] != j
+            added_coeffs_diag += 1
+            J_augm_colptr[j+1] += 1
+            nz_idx = J_augm_colptr[j+1] - 1
+            J_augm_rowval[nz_idx] = j
+            J_augm_nzval[nz_idx] = tmp_diag[j]
+        else
+            if c_nz != 0  
+                c_nz += 1
+            end
+            nz_idx = J_augm_colptr[j+1] - 1
+            J_augm_rowval[nz_idx] = j
+            J_augm_nzval[nz_idx] = tmp_diag[j] - Q_nzval[Q_colptr[j+1]-1] 
+        end
     end
-    J_augm = sparse(J_augmrows, J_augmcols, J_augmvals,
-                    IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols)
-    return J_augm
+
+    countsum = J_augm_colptr[n_cols+1] # current value of J_augm_colptr[Q.n+j+1]
+    nnz_top_left = countsum # number of coefficients + 1 already added
+    @inbounds for j=1:n_rows
+        countsum += AT_colptr[j+1] - AT_colptr[j] 
+        if regul == :classic 
+            countsum += 1
+        end
+        J_augm_colptr[n_cols+j+1] = countsum
+        for k=AT_colptr[j]:(AT_colptr[j+1]-1)
+            nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
+            J_augm_rowval[nz_idx] = AT_rowval[k]
+            J_augm_nzval[nz_idx] = AT_nzval[k]
+        end
+        if regul == :classic
+            nz_idx = J_augm_colptr[n_cols+j+1] - 1
+            J_augm_rowval[nz_idx] = n_cols + j 
+            J_augm_nzval[nz_idx] = δ
+        end
+    end   
 end
 
-function nb_corrector_steps(J :: SparseMatrixCSC{T,Int}, n_cols :: Int) where {T<:Real}
+function create_J_augm(IntData, tmp_diag, Q, AT, diag_Q, regu, T)
+    # for classic regul only
+    n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(AT.nzval) + length(Q.nzval) 
+    if regu.regul == :classic
+        n_nz += IntData.n_rows
+    end
+    J_augm_colptr = Vector{Int}(undef, IntData.n_rows+IntData.n_cols+1) 
+    J_augm_colptr[1] = 1
+    J_augm_rowval = Vector{Int}(undef, n_nz)
+    J_augm_nzval = Vector{T}(undef, n_nz)
+    # [-Q -tmp_diag    AT]
+    # [0               δI]
+
+    fill_J_augm!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q.colptr, Q.rowval, Q.nzval,
+                  AT.colptr, AT.rowval, AT.nzval, diag_Q.nzind, regu.δ, IntData.n_rows, 
+                  IntData.n_cols, regu.regul, T)
+
+    return SparseMatrixCSC(IntData.n_rows+IntData.n_cols, IntData.n_rows+IntData.n_cols,
+                           J_augm_colptr, J_augm_rowval, J_augm_nzval)
+end
+
+function nb_corrector_steps(J_colptr :: Vector{Int}, n_rows :: Int, n_cols :: Int, T) 
     # number to determine the number of centrality corrections (Gondzio's procedure)
-    Ef, Es, rfs = 0, 16 * n_cols, zero(T) # 16n = ratio tests and vector initializations
-    @inbounds @simd for j=1:J.n-1
-        lj = (J.colptr[j+1]-J.colptr[j])
+    Ef, Es, rfs = 0, 16 * n_cols, zero(T) # 14n = ratio tests and vector initializations
+    @inbounds @simd for j=1:n_rows+n_cols
+        lj = (J_colptr[j+1]-J_colptr[j])
         Ef += lj^2
         Es += lj
     end

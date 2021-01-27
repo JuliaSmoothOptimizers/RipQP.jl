@@ -2,7 +2,7 @@ module RipQP
 
 using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
-using LDLFactorizations, NLPModels, QuadraticModels, SolverTools
+using LDLFactorizations, QuadraticModels, SolverTools
 
 export ripqp
 
@@ -48,7 +48,7 @@ Returns a `GenericExecutionStats` containing information about the solved proble
 - `max_time`: maximum time to solve `QM0`, in seconds
 - `display::Bool`: activate/deactivate iteration data display
 """
-function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true,
+function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true,
                K :: Int = 0,
                max_iter :: Int = 200, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
                max_iter32 :: Int = 40, ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
@@ -63,7 +63,8 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, regul :: Symbol 
     end
     start_time = time()
     elapsed_time = 0.0
-    QM = SlackModel(QM0)
+    nvar_init = QM.meta.nvar
+    SlackModel!(QM)
     FloatData_T0, IntData, T = get_QM_data(QM)
     T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
     ϵ = tolerances(T(ϵ_pdd), T(ϵ_rb), T(ϵ_rc), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
@@ -79,14 +80,15 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, regul :: Symbol 
     if mode == :multi
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
-        FloatData32, ϵ32, ϵ, regu, itd, pad, pt,res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ, regul)
+        FloatData32, ϵ32, ϵ, regu, itd, pad, pt, res, sc = init_params(FloatData_T0, IntData, ϵ32, ϵ, regul)
     elseif mode == :mono
         regu, itd, ϵ, pad, pt, res, sc = init_params_mono(FloatData_T0, IntData, ϵ, regul)
     end
 
     Δt = time() - start_time
     sc.tired = Δt > max_time
-    cnts = counters(zero(Int), zero(Int), 0, 0, K==-1 ? nb_corrector_steps(itd.J_augm, IntData.n_cols) : K)
+    cnts = counters(zero(Int), zero(Int), 0, 0, 
+                    K==-1 ? nb_corrector_steps(itd.J_augm.colptr, IntData.n_rows, IntData.n_cols, T) : K)
     # display
     if display == true
         @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ, :ρ, :δ],
@@ -140,7 +142,7 @@ function ripqp(QM0 :: AbstractNLPModel; mode :: Symbol = :mono, regul :: Symbol 
 
     elapsed_time = time() - start_time
 
-    stats = GenericExecutionStats(status, QM, solution = pt.x[1:QM0.meta.nvar],
+    stats = GenericExecutionStats(status, QM, solution = pt.x[1:nvar_init],
                                   objective = itd.pri_obj,
                                   dual_feas = res.rcNorm,
                                   primal_feas = res.rbNorm,
