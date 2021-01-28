@@ -6,42 +6,42 @@ function get_QM_data(QM :: QuadraticModel)
     dropzeros!(AT)
     Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  
     dropzeros!(Q)
-    IntData = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
+    id = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
                          QM.meta.ncon, QM.meta.nvar, 0, 0)
-    IntData.n_low, IntData.n_upp = length(IntData.ilow), length(IntData.iupp) # number of finite constraints
+    id.n_low, id.n_upp = length(id.ilow), length(id.iupp) # number of finite constraints
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
-    FloatData_T = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
-    return FloatData_T, IntData, T
+    fd_T = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
+    return fd_T, id, T
 end
 
-function convert_FloatData(T :: DataType, FloatData_T0 :: QM_FloatData{T0}) where {T0<:Real}
-    return QM_FloatData(SparseMatrixCSC{T, Int}(FloatData_T0.Q.m, FloatData_T0.Q.n, 
-                                                FloatData_T0.Q.colptr, FloatData_T0.Q.rowval, Array{T}(FloatData_T0.Q.nzval)),
-                        SparseMatrixCSC{T, Int}(FloatData_T0.AT.m, FloatData_T0.AT.n, 
-                                                FloatData_T0.AT.colptr, FloatData_T0.AT.rowval, Array{T}(FloatData_T0.AT.nzval)),
-                        Array{T}(FloatData_T0.b), 
-                        Array{T}(FloatData_T0.c), 
-                        T(FloatData_T0.c0),
-                        Array{T}(FloatData_T0.lvar), 
-                        Array{T}(FloatData_T0.uvar))
+function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:Real}
+    return QM_FloatData(SparseMatrixCSC{T, Int}(fd_T0.Q.m, fd_T0.Q.n, 
+                                                fd_T0.Q.colptr, fd_T0.Q.rowval, Array{T}(fd_T0.Q.nzval)),
+                        SparseMatrixCSC{T, Int}(fd_T0.AT.m, fd_T0.AT.n, 
+                                                fd_T0.AT.colptr, fd_T0.AT.rowval, Array{T}(fd_T0.AT.nzval)),
+                        Array{T}(fd_T0.b), 
+                        Array{T}(fd_T0.c), 
+                        T(fd_T0.c0),
+                        Array{T}(fd_T0.lvar), 
+                        Array{T}(fd_T0.uvar))
 end
 
-function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
+function init_params(fd_T0 :: QM_FloatData{T0}, id :: QM_IntData,
                      ϵ_T :: tolerances{T}, ϵ :: tolerances{T0}, regul :: Symbol) where{T<:Real, T0<:Real}
 
-    FloatData_T = convert_FloatData(T, FloatData_T0)
-    res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
+    fd_T = convert_FloatData(T, fd_T0)
+    res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), regul)
-    tmp_diag = -T(1.0e-2) .* ones(T, IntData.n_cols)
-    diag_Q = get_diag_Q(FloatData_T.Q)
-    J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Q, FloatData_T.AT, diag_Q, regu, T)
+    tmp_diag = -T(1.0e-2) .* ones(T, id.n_cols)
+    diag_Q = get_diag_Q(fd_T.Q)
+    J_augm = create_J_augm(id, tmp_diag, fd_T.Q, fd_T.AT, diag_Q, regu, T)
     diagind_J = get_diag_sparseCSC(J_augm)
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
         Amax = @views norm(J_augm.nzval[diagind_J], Inf)
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, tol=Amax*T(eps(T)), r1=T(-eps(T)^(3/4)),
-                                r2=T(sqrt(eps(T))), n_d=IntData.n_cols)
+                                r2=T(sqrt(eps(T))), n_d=id.n_cols)
     else
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
     end
@@ -51,11 +51,11 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
                     J_augm, #J_augm
                     J_fact, #J_fact
                     diagind_J, #diagind_J
-                    zeros(T, IntData.n_low), # x_m_lvar
-                    zeros(T, IntData.n_upp), # uvar_m_x
-                    zeros(T, IntData.n_cols), # init Qx
-                    zeros(T, IntData.n_cols), # init ATλ
-                    zeros(T, IntData.n_rows), # Ax
+                    zeros(T, id.n_low), # x_m_lvar
+                    zeros(T, id.n_upp), # uvar_m_x
+                    zeros(T, id.n_cols), # init Qx
+                    zeros(T, id.n_cols), # init ATy
+                    zeros(T, id.n_rows), # Ax
                     zero(T), #xTQx
                     zero(T), #cTx
                     zero(T), #pri_obj
@@ -66,25 +66,25 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
                     one(T) #mean_pdd
                     )
 
-    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
-                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
-                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
-                            zeros(T, IntData.n_low), # s_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
-                            zeros(T, IntData.n_low), # rxs_l
-                            zeros(T, IntData.n_upp) #rxs_u
+    pad = preallocated_data(zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_aff
+                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_cc
+                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ
+                            zeros(T, id.n_cols+id.n_rows), # Δ_xy
+                            zeros(T, id.n_low), # x_m_l_αΔ_aff
+                            zeros(T, id.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, id.n_low), # s_l_αΔ_aff
+                            zeros(T, id.n_upp), # s_u_αΔ_aff
+                            zeros(T, id.n_low), # rxs_l
+                            zeros(T, id.n_upp) #rxs_u
                             )
 
-    pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
+    pt, itd, pad.Δ_xy = @views starting_points(fd_T, id, itd, pad.Δ_xy)
 
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    res.rb .= itd.Ax .- FloatData_T.b
-    res.rc .= itd.ATλ .-itd.Qx .+ pt.s_l .- pt.s_u .- FloatData_T.c
+    res.rb .= itd.Ax .- fd_T.b
+    res.rc .= itd.ATy .-itd.Qx .+ pt.s_l .- pt.s_u .- fd_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ_T.tol_rb, ϵ_T.tol_rc = ϵ_T.rb*(one(T) + res.rbNorm), ϵ_T.rc*(one(T) + res.rcNorm)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T0) + T0(res.rbNorm)), ϵ.rc*(one(T0) + T0(res.rcNorm))
@@ -94,24 +94,24 @@ function init_params(FloatData_T0 :: QM_FloatData{T0}, IntData :: QM_IntData,
                    false # tired
                    )
 
-    return FloatData_T, ϵ_T, ϵ, regu, itd, pad, pt, res, sc
+    return fd_T, ϵ_T, ϵ, regu, itd, pad, pt, res, sc
 end
 
-function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData, ϵ :: tolerances{T},
+function init_params_mono(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T},
                           regul :: Symbol) where {T<:Real}
 
-    res = residuals(zeros(T, IntData.n_rows), zeros(T, IntData.n_cols), zero(T), zero(T), zero(T))
+    res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     # init regularization values
     regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), regul)
-    tmp_diag = -T(1.0e0)/2 .* ones(T, IntData.n_cols)
-    diag_Q = get_diag_Q(FloatData_T.Q)
-    J_augm = create_J_augm(IntData, tmp_diag, FloatData_T.Q, FloatData_T.AT, diag_Q, regu, T)
+    tmp_diag = -T(1.0e0)/2 .* ones(T, id.n_cols)
+    diag_Q = get_diag_Q(fd_T.Q)
+    J_augm = create_J_augm(id, tmp_diag, fd_T.Q, fd_T.AT, diag_Q, regu, T)
     diagind_J = get_diag_sparseCSC(J_augm)
     J_fact = ldl_analyze(Symmetric(J_augm, :U))
     if regu.regul == :dynamic
         Amax = @views norm(J_augm.nzval[diagind_J], Inf)
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact, tol=Amax*T(eps(T)), r1=T(-eps(T)^(3/4)),
-                                r2=T(sqrt(eps(T))), n_d=IntData.n_cols)
+                                r2=T(sqrt(eps(T))), n_d=id.n_cols)
     else
         J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
     end
@@ -121,11 +121,11 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
                     J_augm, #J_augm
                     J_fact,
                     diagind_J, #diagind_J
-                    zeros(T, IntData.n_low), # x_m_lvar
-                    zeros(T, IntData.n_upp), # uvar_m_x
-                    zeros(T, IntData.n_cols), # init Qx
-                    zeros(T, IntData.n_cols), # init ATλ
-                    zeros(T, IntData.n_rows), # Ax
+                    zeros(T, id.n_low), # x_m_lvar
+                    zeros(T, id.n_upp), # uvar_m_x
+                    zeros(T, id.n_cols), # init Qx
+                    zeros(T, id.n_cols), # init ATy
+                    zeros(T, id.n_rows), # Ax
                     zero(T), #xTQx
                     zero(T), #cTx
                     zero(T), #pri_obj
@@ -136,25 +136,25 @@ function init_params_mono(FloatData_T :: QM_FloatData{T}, IntData :: QM_IntData,
                     one(T) #mean_pdd
                     )
 
-    pad = preallocated_data(zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_aff
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ_cc
-                            zeros(T, IntData.n_cols+IntData.n_rows+IntData.n_low+IntData.n_upp), # Δ
-                            zeros(T, IntData.n_cols+IntData.n_rows), # Δ_xλ
-                            zeros(T, IntData.n_low), # x_m_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # u_m_x_αΔ_aff
-                            zeros(T, IntData.n_low), # s_l_αΔ_aff
-                            zeros(T, IntData.n_upp), # s_u_αΔ_aff
-                            zeros(T, IntData.n_low), # rxs_l
-                            zeros(T, IntData.n_upp) #rxs_u
+    pad = preallocated_data(zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_aff
+                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_cc
+                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ
+                            zeros(T, id.n_cols+id.n_rows), # Δ_xy
+                            zeros(T, id.n_low), # x_m_l_αΔ_aff
+                            zeros(T, id.n_upp), # u_m_x_αΔ_aff
+                            zeros(T, id.n_low), # s_l_αΔ_aff
+                            zeros(T, id.n_upp), # s_u_αΔ_aff
+                            zeros(T, id.n_low), # rxs_l
+                            zeros(T, id.n_upp) #rxs_u
                             )
 
-    pt, itd, pad.Δ_xλ = @views starting_points(FloatData_T, IntData, itd, pad.Δ_xλ)
+    pt, itd, pad.Δ_xy = @views starting_points(fd_T, id, itd, pad.Δ_xy)
 
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
     #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-    res.rb .= itd.Ax .- FloatData_T.b
-    res.rc .= itd.ATλ .-itd.Qx .+ pt.s_l .- pt.s_u .- FloatData_T.c
+    res.rb .= itd.Ax .- fd_T.b
+    res.rc .= itd.ATy .-itd.Qx .+ pt.s_l .- pt.s_u .- fd_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
     sc = stop_crit(itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc, # optimal
