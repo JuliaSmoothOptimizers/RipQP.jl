@@ -7,12 +7,11 @@ using LDLFactorizations, QuadraticModels, SolverTools
 export ripqp
 
 include("types_definition.jl")
-include("types_toolbox.jl")
-include("direct_methods/K2.jl")
+include("data_initialization.jl")
+include("iterations/iterations.jl")
 include("starting_points.jl")
 include("scaling.jl")
 include("sparse_toolbox.jl")
-include("iterations.jl")
 
 """
     ripqp(QM0; mode=:mono, regul=:classic, scaling=true, K=0,
@@ -81,9 +80,11 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     if mode == :multi
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
-        fd32, ϵ32, ϵ, regu, itd, pad, pt, res, sc = init_params(fd_T0, id, ϵ32, ϵ, regul)
+        fd32 = convert_FloatData(T, fd_T0)
+        itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, regul, mode)
+        ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T0) + T0(res.rbNorm)), ϵ.rc*(one(T0) + T0(res.rcNorm))
     elseif mode == :mono
-        regu, itd, ϵ, pad, pt, res, sc = init_params_mono(fd_T0, id, ϵ, regul)
+        itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, regul, mode)
     end
 
     Δt = time() - start_time
@@ -99,16 +100,16 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
         hdr_override=Dict(:k => "iter", :pri_obj => "obj", :pdd => "rgap",
         :rbNorm => "‖rb‖", :rcNorm => "‖rc‖",
         :n_Δx => "‖Δx‖"))
-        @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ, regu.ρ, regu.δ])
+        @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ, itd.regu.ρ, itd.regu.δ])
     end
 
     if mode == :multi
         # iters Float 32
-        iter_mehrotraPC!(pt, itd, fd32, id, res, sc, Δt, regu, pad,
+        iter_mehrotraPC!(pt, itd, fd32, id, res, sc, Δt, pad,
                         max_iter32, ϵ32, start_time, max_time, cnts, T0, display)
         # convert to Float64
         T = Float64
-        pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad, T0)
+        pt, itd, res, pad = convert_types!(T, pt, itd, res, pad, T0)
         sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
 
@@ -116,7 +117,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
             fd64 = convert_fd(T, fd_T0)
             ϵ64 = tolerances(T(ϵ_pdd64), T(ϵ_rb64), T(ϵ_rc64), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
             ϵ64.tol_rb, ϵ64.tol_rc = ϵ64.rb*(one(T) + res.rbNorm), ϵ64.rc*(one(T) + res.rcNorm)
-            iter_mehrotraPC!(pt, itd, fd64, id, res, sc, Δt, regu, pad,
+            iter_mehrotraPC!(pt, itd, fd64, id, res, sc, Δt, pad,
                             max_iter64, ϵ64, start_time, max_time, cnts, T0, display)
             T = Float128
             pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, regu, pad, T0)
@@ -126,8 +127,8 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     end
 
     # iters T0
-    iter_mehrotraPC!(pt, itd, fd_T0, id, res, sc, Δt, regu, pad,
-                    max_iter, ϵ, start_time, max_time, cnts, T0, display)
+    iter_mehrotraPC!(pt, itd, fd_T0, id, res, sc, Δt, pad, max_iter, ϵ, start_time, 
+                     max_time, cnts, T0, display)
 
     # output status                                                    
     if cnts.k>= max_iter

@@ -71,19 +71,7 @@ function starting_points(fd :: QM_FloatData{T}, id:: QM_IntData, itd :: iter_dat
     @assert @views all(pt0.s_l[id.ilow] .> zero(T)) && all(pt0.s_u[id.iupp] .> zero(T))
 
     # update itd
-    itd.x_m_lvar .= @views pt0.x[id.ilow] .- fd.lvar[id.ilow]
-    itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt0.x[id.iupp]
-    itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt0.x)
-    itd.ATy = mul!(itd.ATy, fd.AT, pt0.y)
-    itd.Ax = mul!(itd.Ax, fd.AT', pt0.x)
-    itd.xTQx_2 = pt0.x' * itd.Qx / 2
-    itd.cTx = fd.c' * pt0.x
-    itd.pri_obj = itd.xTQx_2 + itd.cTx + fd.c0
-    itd.dual_obj = fd.b' * pt0.y - itd.xTQx_2 + view(pt0.s_l, id.ilow)'*view(fd.lvar, id.ilow) -
-                    view(pt0.s_u, id.iupp)'*view(fd.uvar, id.iupp) + fd.c0
-    itd.μ = @views compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt0.s_l[id.ilow], pt0.s_u[id.iupp],
-                             id.n_low, id.n_upp)
-    itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))
+    update_iter_data!(itd, pt0, fd, id; safety = false)
 
     return pt0, itd, Δ_xy
 end

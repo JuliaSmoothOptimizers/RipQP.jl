@@ -61,9 +61,10 @@ mutable struct regularization{T<:Real}
     regul    :: Symbol  # regularization mode (:classic, :dynamic, or :none)
 end
 
-convert(::Type{regularization{T}}, regu) where {T<:Real} = regularization(T(regu.ρ), T(regu.δ),
-                                                                          T(regu.ρ_min), T(regu.δ_min),
-                                                                          regu.regul)
+convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<:Real} = 
+    regularization(T(regu.ρ), T(regu.δ),
+                   T(regu.ρ_min), T(regu.δ_min),
+                   regu.regul)
 
 mutable struct iter_data{T<:Real}
     tmp_diag    :: Vector{T}                                        # temporary top-left diagonal
@@ -71,6 +72,7 @@ mutable struct iter_data{T<:Real}
     J_augm      :: SparseMatrixCSC{T,Int}                           # augmented matrix 
     J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}# factorized matrix
     diagind_J   :: Vector{Int}                                      # diagonal indices of J
+    regu        :: regularization{T}
     x_m_lvar    :: Vector{T}                                        # x - lvar
     uvar_m_x    :: Vector{T}                                        # uvar - x
     Qx          :: Vector{T}                                        
@@ -98,6 +100,7 @@ convert(::Type{iter_data{T}}, itd) where {T<:Real} = iter_data(convert(Array{T},
                                                                 convert(SparseMatrixCSC{T,Int}, itd.J_augm),
                                                                 createldl(T, itd.J_fact),
                                                                 itd.diagind_J,
+                                                                convert(regularization{T}, itd.regu),
                                                                 convert(Array{T}, itd.x_m_lvar),
                                                                 convert(Array{T}, itd.uvar_m_x),
                                                                 convert(Array{T}, itd.Qx),
@@ -111,7 +114,7 @@ convert(::Type{iter_data{T}}, itd) where {T<:Real} = iter_data(convert(Array{T},
                                                                 convert(T, itd.pdd),
                                                                 convert(Array{T}, itd.l_pdd),
                                                                 convert(T, itd.mean_pdd)
-                                                                    )
+                                                                )
 
 mutable struct preallocated_data{T<:Real}
     Δ_aff            :: Vector{T} # affine-step solution of the augmented system
