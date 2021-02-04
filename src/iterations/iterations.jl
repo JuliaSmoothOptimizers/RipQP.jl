@@ -154,21 +154,21 @@ function update_residuals!(res :: residuals{T}, s_l :: Vector{T}, s_u :: Vector{
 end
 
 function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatData{T}, id :: QM_IntData,
-                          res :: residuals{T}, sc :: stop_crit, Δt :: Real, pad :: preallocated_data{T}, 
-                          max_iter :: Int, ϵ :: tolerances{T}, start_time :: Real, max_time :: Real, 
-                          cnts :: counters, T0 :: DataType, display :: Bool) where {T<:Real}
+                          res :: residuals{T}, sc :: stop_crit{Tc}, pad :: preallocated_data{T}, 
+                          ϵ :: tolerances{T}, cnts :: counters, solve! :: Function, T0 :: DataType, 
+                          display :: Bool) where {T<:Real, Tc<:Real}
+    
     if itd.regu.regul == :dynamic
         itd.regu.ρ, itd.regu.δ = T(eps(T)^(3/4)), T(eps(T)^(1/2))
     elseif itd.regu.regul == :none
         itd.regu.ρ, itd.regu.δ = zero(T), zero(T)
     end
-    @inbounds while cnts.k<max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
+    @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
-        out = solve_K2!(pt, itd, fd, id, res, pad, cnts, T0)
+        out = solve!(pt, itd, fd, id, res, pad, cnts, T0)
         out == one(Int) && break
 
-        pad.Δ .= pad.Δ_aff .+ pad.Δ_cc # final direction
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δ, id.ilow, id.iupp, 
                                    id.n_low, id.n_upp, id.n_rows, id.n_cols)
         
@@ -204,8 +204,8 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
             out == one(Int) && break
         end
 
-        Δt = time() - start_time
-        sc.tired = Δt > max_time
+        sc.Δt = time() - sc.start_time
+        sc.tired = sc.Δt > sc.max_time
 
         if display == true
             @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, itd.regu.ρ, itd.regu.δ])

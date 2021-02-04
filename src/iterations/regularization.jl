@@ -1,4 +1,14 @@
 # tools for the regularization of the system.
+mutable struct regularization{T<:Real}
+    ρ        :: T       # curent top-left regularization parameter
+    δ        :: T       # cureent bottom-right regularization parameter
+    ρ_min    :: T       # ρ minimum value 
+    δ_min    :: T       # δ minimum value 
+    regul    :: Symbol  # regularization mode (:classic, :dynamic, or :none)
+end
+
+convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<:Real} = 
+    regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
 # update regularization values in classic mode if there is a failure during factorization
 function update_regu_trycatch!(regu :: regularization{T}, cnts :: counters, T0 :: DataType) where {T<:Real}

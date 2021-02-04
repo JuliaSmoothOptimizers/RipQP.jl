@@ -55,6 +55,7 @@ end
 
 function scaling_Ruiz!(fd_T0 :: QM_FloatData{T}, id :: QM_IntData, ϵ :: T;
                        max_iter :: Int = 100) where {T<:Real}
+
     d1, d2 = ones(T, id.n_rows), ones(T, id.n_cols)
     r_k, c_k = zeros(T, id.n_cols), zeros(T, id.n_rows)
     # r (resp. c) norm of rows of AT (resp. cols) 
@@ -125,6 +126,7 @@ end
 function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: point{T}, res :: residuals{T},
                     fd_T0 :: QM_FloatData{T}, id :: QM_IntData, Qx :: Vector{T}, ATy :: Vector{T},
                     Ax :: Vector{T}, cTx :: T, pri_obj :: T, dual_obj :: T, xTQx_2 :: T) where {T<:Real}
+                    
     pt.x .*= d2 .* d3
     div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.n_cols)
     Qx = mul!(Qx, Symmetric(fd_T0.Q, :U), pt.x)

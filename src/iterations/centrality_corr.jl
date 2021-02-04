@@ -87,3 +87,30 @@ function multi_centrality_corr!(pad :: preallocated_data{T}, pt :: point{T}, α_
     end
     return α_pri, α_dual
 end
+
+# function to determine the number of centrality corrections (Gondzio's procedure)
+function nb_corrector_steps(J_colptr :: Vector{Int}, n_rows :: Int, n_cols :: Int, T :: DataType) 
+    Ef, Es, rfs = 0, 16 * n_cols, zero(T) # 14n = ratio tests and vector initializations
+    @inbounds @simd for j=1:n_rows+n_cols
+        lj = (J_colptr[j+1]-J_colptr[j])
+        Ef += lj^2
+        Es += lj
+    end
+    rfs = T(Ef / Es)
+    if rfs <= 10
+        K = 0
+    elseif 10 < rfs <= 30
+        K = 1
+    elseif 30 < rfs <= 50
+        K = 2
+    elseif rfs > 50
+        K = 3
+    else
+        p = Int(rfs / 50)
+        K = p + 2
+        if K > 10
+            K = 10
+        end
+    end
+    return K
+end

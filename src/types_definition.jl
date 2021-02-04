@@ -3,7 +3,7 @@ import Base: convert
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 mutable struct QM_FloatData{T<:Real}
     Q     :: SparseMatrixCSC{T,Int}
-    AT    :: SparseMatrixCSC{T,Int}
+    AT    :: SparseMatrixCSC{T,Int} # using AT is easier to form systems
     b     :: Vector{T}
     c     :: Vector{T}
     c0    :: T
@@ -53,40 +53,7 @@ convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T},
                                                                convert(T, res.rbNorm), convert(T, res.rcNorm),
                                                                convert(T, res.n_Δx))
 
-mutable struct regularization{T<:Real}
-    ρ        :: T       # curent top-left regularization parameter
-    δ        :: T       # cureent bottom-right regularization parameter
-    ρ_min    :: T       # ρ minimum value 
-    δ_min    :: T       # δ minimum value 
-    regul    :: Symbol  # regularization mode (:classic, :dynamic, or :none)
-end
-
-convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<:Real} = 
-    regularization(T(regu.ρ), T(regu.δ),
-                   T(regu.ρ_min), T(regu.δ_min),
-                   regu.regul)
-
-mutable struct iter_data{T<:Real}
-    tmp_diag    :: Vector{T}                                        # temporary top-left diagonal
-    diag_Q      :: SparseVector{T,Int}                              # Q diagonal
-    J_augm      :: SparseMatrixCSC{T,Int}                           # augmented matrix 
-    J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}# factorized matrix
-    diagind_J   :: Vector{Int}                                      # diagonal indices of J
-    regu        :: regularization{T}
-    x_m_lvar    :: Vector{T}                                        # x - lvar
-    uvar_m_x    :: Vector{T}                                        # uvar - x
-    Qx          :: Vector{T}                                        
-    ATy         :: Vector{T}
-    Ax          :: Vector{T}
-    xTQx_2      :: T
-    cTx         :: T
-    pri_obj     :: T                                                
-    dual_obj    :: T
-    μ           :: T                                                # duality measure
-    pdd         :: T                                                # primal dual difference (relative)
-    l_pdd       :: Vector{T}                                        # list of the 5 last pdd
-    mean_pdd    :: T                                                # mean of the 5 last pdd
-end
+abstract type iter_data{T<:Real} end
 
 createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_fact.__factorized, J_fact.__upper,
                                                           J_fact.n, J_fact.parent, J_fact.Lnz, J_fact.flag,
@@ -94,27 +61,6 @@ createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_f
                                                           J_fact.Ci, J_fact.Li, Array{T}(J_fact.Lx),
                                                           Array{T}(J_fact.d), Array{T}(J_fact.Y),
                                                           J_fact.pattern)
-
-convert(::Type{iter_data{T}}, itd) where {T<:Real} = iter_data(convert(Array{T}, itd.tmp_diag),
-                                                                convert(SparseVector{T,Int}, itd.diag_Q),
-                                                                convert(SparseMatrixCSC{T,Int}, itd.J_augm),
-                                                                createldl(T, itd.J_fact),
-                                                                itd.diagind_J,
-                                                                convert(regularization{T}, itd.regu),
-                                                                convert(Array{T}, itd.x_m_lvar),
-                                                                convert(Array{T}, itd.uvar_m_x),
-                                                                convert(Array{T}, itd.Qx),
-                                                                convert(Array{T}, itd.ATy),
-                                                                convert(Array{T}, itd.Ax),
-                                                                convert(T, itd.xTQx_2),
-                                                                convert(T, itd.cTx),
-                                                                convert(T, itd.pri_obj),
-                                                                convert(T, itd.dual_obj),
-                                                                convert(T, itd.μ),
-                                                                convert(T, itd.pdd),
-                                                                convert(Array{T}, itd.l_pdd),
-                                                                convert(T, itd.mean_pdd)
-                                                                )
 
 mutable struct preallocated_data{T<:Real}
     Δ_aff            :: Vector{T} # affine-step solution of the augmented system
@@ -141,11 +87,15 @@ convert(::Type{preallocated_data{T}}, pad) where {T<:Real} = preallocated_data(c
                                                                                convert(Array{T}, pad.rxs_u)
                                                                                )
 
-mutable struct stop_crit
-    optimal   :: Bool
-    small_Δx  :: Bool
-    small_μ   :: Bool
-    tired     :: Bool 
+mutable struct stop_crit{T}
+    optimal     :: Bool
+    small_Δx    :: Bool
+    small_μ     :: Bool
+    tired       :: Bool 
+    max_iter    :: Int
+    max_time    :: T
+    start_time  :: T
+    Δt          :: T
 end
 
 mutable struct counters

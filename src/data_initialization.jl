@@ -26,12 +26,12 @@ function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:
                         Array{T}(fd_T0.uvar))
 end
 
-function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T},
-                     regul :: Symbol, mode :: Symbol) where {T<:Real}
+function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T}, sc :: stop_crit{Tc},
+                     regul :: Symbol, mode :: Symbol, create_itd :: Function) where {T<:Real, Tc<:Real}
 
     res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     
-    itd = create_K2_iterdata(fd_T, id, mode, regul)
+    itd = create_itd(fd_T, id, mode, regul)
 
     pad = preallocated_data(zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_aff
                             zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_cc
@@ -54,11 +54,9 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances
     res.rc .= itd.ATy .-itd.Qx .+ pt.s_l .- pt.s_u .- fd_T.c
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
     ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
-    sc = stop_crit(itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc, # optimal
-                   false, # small_Δx
-                   itd.μ < ϵ.μ, # small_μ
-                   false # tired
-                   )
+
+    sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
+    sc.small_μ = itd.μ < ϵ.μ
 
     return itd, ϵ, pad, pt, res, sc
 end
@@ -80,4 +78,36 @@ function convert_types!(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_ol
    itd.regu.δ /= 10
 
    return pt, itd, res, pad
+end
+
+############ tools for sparse matrices ##############
+
+function get_diag_sparseCSC(M_colptr :: Vector{Int}, n :: Int; tri :: Symbol =:U)
+    # get diagonal index of M.nzval
+    # we assume all columns of M are non empty, and M triangular (:L or :U)
+    @assert tri ==:U || tri == :L
+    diagind = zeros(Int, n) # square matrix
+    if tri == :U
+        @inbounds @simd for i=1:n
+            diagind[i] = M_colptr[i+1] - 1
+        end
+    else
+        @inbounds @simd for i=1:n
+            diagind[i] = M_colptr[i]
+        end
+    end
+    return diagind
+end
+
+function get_diag_Q(Q_colptr :: Vector{Int}, Q_rowval :: Vector{Int}, Q_nzval :: Vector{T}, 
+                    n :: Int) where {T<:Real} 
+    diagval = spzeros(T, n)
+    @inbounds @simd for j=1:n
+        for k=Q_colptr[j]:(Q_colptr[j+1]-1)
+            if j == Q_rowval[k]
+                diagval[j] = Q_nzval[k]
+            end
+        end
+    end
+    return diagval
 end
