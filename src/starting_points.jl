@@ -71,7 +71,7 @@ function starting_points(fd :: QM_FloatData{T}, id:: QM_IntData, itd :: iter_dat
     @assert @views all(pt0.s_l[id.ilow] .> zero(T)) && all(pt0.s_u[id.iupp] .> zero(T))
 
     # update itd
-    update_iter_data!(itd, pt0, fd, id; safety = false)
+    update_iter_data!(itd, pt0, fd, id, false)
 
     return pt0, itd, Δ_xy
 end

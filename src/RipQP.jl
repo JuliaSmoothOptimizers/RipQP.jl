@@ -56,7 +56,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
                max_iter32 :: Int = 40, ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
                max_iter64 :: Int = 180, ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
                ϵ_Δx :: Real = 1e-16, ϵ_μ :: Real = 1e-9, max_time :: Real = 1200., display :: Bool = true,
-               create_itd :: Function = create_K2_iterdata, solve! :: Function = solve_K2!)
+               Rfunc = RipQP_func(create_K2_iterdata, solve_K2!))
 
     if mode ∉ [:mono, :multi]
         error("mode should be :mono or :multi")
@@ -85,10 +85,10 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
         T = Float32
         ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
         fd32 = convert_FloatData(T, fd_T0)
-        itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, sc, regul, mode, create_itd)
+        itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, sc, regul, mode, Rfunc)
         ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T0) + T0(res.rbNorm)), ϵ.rc*(one(T0) + T0(res.rcNorm))
     elseif mode == :mono
-        itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, sc, regul, mode, create_itd)
+        itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, sc, regul, mode, Rfunc)
     end
 
     Δt = time() - start_time
@@ -110,7 +110,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     if mode == :multi
         # iters Float 32
         sc.max_iter = max_iter32
-        iter_mehrotraPC!(pt, itd, fd32, id, res, sc, pad, ϵ32, cnts, solve!, T0, display)
+        iter_mehrotraPC!(pt, itd, fd32, id, res, sc, pad, ϵ32, cnts, Rfunc, T0, display)
         # convert to Float64
         T = Float64
         pt, itd, res, pad = convert_types!(T, pt, itd, res, pad, T0)
@@ -122,7 +122,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
             fd64 = convert_fd(T, fd_T0)
             ϵ64 = tolerances(T(ϵ_pdd64), T(ϵ_rb64), T(ϵ_rc64), one(T), one(T), T(ϵ_μ), T(ϵ_Δx))
             ϵ64.tol_rb, ϵ64.tol_rc = ϵ64.rb*(one(T) + res.rbNorm), ϵ64.rc*(one(T) + res.rcNorm)
-            iter_mehrotraPC!(pt, itd, fd64, id, res, sc, pad, ϵ64, cnts, solve!, T0, display)
+            iter_mehrotraPC!(pt, itd, fd64, id, res, sc, pad, ϵ64, cnts, Rfunc, T0, display)
             T = Float128
             pt, itd, res, regu, pad = convert_types!(T, pt, itd, res, pad, T0)
             sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
@@ -132,7 +132,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
     end
 
     # iters T0
-    iter_mehrotraPC!(pt, itd, fd_T0, id, res, sc, pad, ϵ, cnts, solve!, T0, display)
+    iter_mehrotraPC!(pt, itd, fd_T0, id, res, sc, pad, ϵ, cnts, Rfunc, T0, display)
 
     # output status                                                    
     if cnts.k>= max_iter
@@ -150,7 +150,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
                                       itd.Ax, itd.cTx, itd.pri_obj, itd.dual_obj, itd.xTQx_2)
     end
 
-    elapsed_time = time() - start_time
+    elapsed_time = time() - sc.start_time
 
     stats = GenericExecutionStats(status, QM, solution = pt.x[1:nvar_init],
                                   objective = itd.pri_obj,

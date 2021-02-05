@@ -11,7 +11,7 @@ convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<
     regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
 # update regularization values in classic mode if there is a failure during factorization
-function update_regu_trycatch!(regu :: regularization{T}, cnts :: counters, T0 :: DataType) where {T<:Real}
+function update_regu_trycatch!(regu :: regularization{T}, cnts, T0) where {T<:Real}
             
     T == Float32 && return one(Int)
     T0 == Float128 && T == Float64 && return one(Int)
@@ -39,7 +39,7 @@ function update_regu_trycatch!(regu :: regularization{T}, cnts :: counters, T0 :
     return zero(Int)
 end
 
-function update_regu!(regu :: regularization{T}) where {T<:Real}
+function update_regu!(regu) 
     if regu.δ >= regu.δ_min
         regu.δ /= 10
     end
@@ -49,14 +49,13 @@ function update_regu!(regu :: regularization{T}) where {T<:Real}
 end
 
 # update regularization, and corrects if the magnitude of the diagonal of the matrix is too high
-function update_regu_diagJ!(regu :: regularization{T}, J_augm_nzval :: Vector{T}, diagind_J :: Vector{Int},
-                            n_cols :: Int, pdd :: T, l_pdd :: Vector{T}, mean_pdd :: T, cnts :: counters, 
-                            T0 :: DataType) where {T<:Real}
+function update_regu_diagJ!(regu :: regularization{T}, J_augm_nzval, diagind_J,
+                            n_cols, pdd, l_pdd, mean_pdd, cnts, T0 :: DataType) where {T<:Real}
 
     l_pdd[cnts.k%6+1] = pdd
     mean_pdd = mean(l_pdd)
 
-    if T == Float64 && cnts.k > 10  && mean_pdd!=zero(T) && std(l_pdd./mean_pdd) < 1e-2 && cnts.c_pdd < 5
+    if T == Float64 && cnts.k > 10  && mean_pdd!=zero(T) && std(l_pdd./mean_pdd) < T(1e-2) && cnts.c_pdd < 5
         regu.δ_min /= 10
         regu.δ /= 10
         cnts.c_pdd += 1

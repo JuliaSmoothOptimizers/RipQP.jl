@@ -55,6 +55,11 @@ convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T},
 
 abstract type iter_data{T<:Real} end
 
+struct RipQP_func{F1<:Function, F2<:Function}
+    create_iterdata :: F1
+    solve!          :: F2
+end
+
 createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_fact.__factorized, J_fact.__upper,
                                                           J_fact.n, J_fact.parent, J_fact.Lnz, J_fact.flag,
                                                           J_fact.P, J_fact.pinv, J_fact.Lp, J_fact.Cp,

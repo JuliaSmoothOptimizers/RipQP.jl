@@ -27,11 +27,11 @@ function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:
 end
 
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T}, sc :: stop_crit{Tc},
-                     regul :: Symbol, mode :: Symbol, create_itd :: Function) where {T<:Real, Tc<:Real}
+                     regul :: Symbol, mode :: Symbol, Rfunc :: RipQP_func) where {T<:Real, Tc<:Real}
 
     res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     
-    itd = create_itd(fd_T, id, mode, regul)
+    itd = Rfunc.create_iterdata(fd_T, id, mode, regul)
 
     pad = preallocated_data(zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_aff
                             zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_cc

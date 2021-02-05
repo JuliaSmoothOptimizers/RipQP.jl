@@ -87,12 +87,8 @@ function solve_augmented_system_cc!(Δ_cc, J_fact, Δ_xy, Δ_aff, x_m_lvar, uvar
     Δ_cc[n_cols+n_rows+n_low+1:end] .= @views (rxs_u.+s_u[iupp].*Δ_xy[1:n_cols][iupp])./uvar_m_x
 end
 
-function update_pt!(x :: Vector{T}, y :: Vector{T}, s_l :: Vector{T}, s_u :: Vector{T}, 
-                    α_pri :: T, α_dual :: T, x_m_lvar :: Vector{T}, uvar_m_x :: Vector{T}, 
-                    Δ :: Vector{T}, lvar :: Vector{T}, uvar :: Vector{T}, 
-                    ilow :: Vector{Int}, iupp :: Vector{Int}, n_low :: Int, n_upp :: Int, 
-                    n_rows :: Int, n_cols :: Int) where {T<:Real}
-
+function update_pt!(x, y, s_l, s_u, α_pri, α_dual, x_m_lvar, uvar_m_x, Δ, lvar, uvar, ilow, iupp, 
+                    n_low, n_upp, n_rows, n_cols)
     x .= @views x .+ α_pri .* Δ[1:n_cols]
     y .= @views y .+ α_dual .* Δ[n_cols+1: n_rows+n_cols]
     s_l[ilow] .= @views s_l[ilow] .+ α_dual .* Δ[n_rows+n_cols+1: n_rows+n_cols+n_low]
@@ -100,30 +96,29 @@ function update_pt!(x :: Vector{T}, y :: Vector{T}, s_l :: Vector{T}, s_u :: Vec
 end
 
 # "security" if x is too close from lvar or uvar
-function boundary_safety!(x_m_lvar :: Vector{T}, uvar_m_x :: Vector{T}, 
-                          n_low :: Int, n_upp :: Int) where {T<:Real}
-    if zero(T) in x_m_lvar 
+function boundary_safety!(x_m_lvar, uvar_m_x, n_low, n_upp, T) 
+    if 0 in x_m_lvar 
         @inbounds @simd for i=1:n_low
-            if x_m_lvar[i] == zero(T)
+            if x_m_lvar[i] == 0
                 x_m_lvar[i] = eps(T)^2
             end
         end
     end
-    if zero(T) in uvar_m_x
+    if 0 in uvar_m_x
         @inbounds @simd for i=1:n_upp
-            if uvar_m_x[i] == zero(T)
+            if uvar_m_x[i] == 0
                 uvar_m_x[i] = eps(T)^2
             end
         end
     end
 end
 
-function update_iter_data!(itd :: iter_data{T}, pt :: point{T}, fd :: QM_FloatData{T}, 
-                           id :: QM_IntData; safety :: Bool = true) where {T<:Real}
+function update_iter_data!(itd, pt, fd, id, safety) 
 
+    T = eltype(itd.x_m_lvar)
     itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
     itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
-    safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.n_low, id.n_upp)
+    safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.n_low, id.n_upp, T)
 
     itd.μ = @views compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l[id.ilow], pt.s_u[id.iupp], id.n_low, id.n_upp)
     itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
@@ -137,9 +132,7 @@ function update_iter_data!(itd :: iter_data{T}, pt :: point{T}, fd :: QM_FloatDa
     itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))                     
 end
 
-function update_residuals!(res :: residuals{T}, s_l :: Vector{T}, s_u :: Vector{T}, Δ :: Vector{T},
-                           Ax :: Vector{T}, ATy :: Vector{T}, Qx :: Vector{T}, b :: Vector{T}, 
-                           c :: Vector{T}, α_pri :: T, n_cols :: Int) where {T<:Real}
+function update_residuals!(res, s_l, s_u, Δ, Ax, ATy, Qx, b, c, α_pri, n_cols) 
     res.n_Δx = @views α_pri * norm(Δ[1:n_cols])
     res.rb .= Ax .- b
     res.rc .= ATy .- Qx .+ s_l .- s_u .- c
@@ -155,7 +148,7 @@ end
 
 function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatData{T}, id :: QM_IntData,
                           res :: residuals{T}, sc :: stop_crit{Tc}, pad :: preallocated_data{T}, 
-                          ϵ :: tolerances{T}, cnts :: counters, solve! :: Function, T0 :: DataType, 
+                          ϵ :: tolerances{T}, cnts :: counters, Rfunc :: RipQP_func, T0 :: DataType, 
                           display :: Bool) where {T<:Real, Tc<:Real}
     
     if itd.regu.regul == :dynamic
@@ -166,7 +159,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
-        out = solve!(pt, itd, fd, id, res, pad, cnts, T0)
+        out = Rfunc.solve!(pt, itd, fd, id, res, pad, cnts, T0)
         out == one(Int) && break
 
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δ, id.ilow, id.iupp, 
@@ -183,7 +176,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
         update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, itd.x_m_lvar, itd.uvar_m_x, pad.Δ, 
                    fd.lvar, fd.uvar, id.ilow, id.iupp, id.n_low, id.n_upp, id.n_rows, id.n_cols)
         # update data and residuals after the new point is computed
-        update_iter_data!(itd, pt, fd, id)
+        update_iter_data!(itd, pt, fd, id, true)
         update_residuals!(res, pt.s_l, pt.s_u, pad.Δ, itd.Ax, itd.ATy, itd.Qx, fd.b, fd.c, α_pri, id.n_cols)
 
         sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
