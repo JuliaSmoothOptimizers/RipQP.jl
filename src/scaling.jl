@@ -130,21 +130,21 @@ function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: poi
     pt.x .*= d2 .* d3
     div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.n_cols)
     Qx = mul!(Qx, Symmetric(fd_T0.Q, :U), pt.x)
-    xTQx_2 =  pt.x' * Qx / 2
+    xTQx_2 =  dot(pt.x, Qx) / 2
     div_D1_A_D2D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, d3, id.n_rows)
     pt.y .*= d1
     ATy = mul!(ATy, fd_T0.AT, pt.y)
     Ax = mul!(Ax, fd_T0.AT', pt.x)
     fd_T0.b ./= d1
     fd_T0.c ./= d2 .* d3
-    cTx = fd_T0.c' * pt.x
+    cTx = dot(fd_T0.c, pt.x)
     pri_obj = xTQx_2 + cTx + fd_T0.c0
     fd_T0.lvar .*= d2 .* d3
     fd_T0.uvar .*= d2 .* d3
     pt.s_l ./= @views d2[id.ilow] .* d3[id.ilow]
     pt.s_u ./= @views d2[id.iupp] .* d3[id.iupp]
-    dual_obj = fd_T0.b' * pt.y - xTQx_2 + pt.s_l'*view(fd_T0.lvar, id.ilow) -
-                    pt.s_u'*view(fd_T0.uvar, id.iupp) + fd_T0.c0
+    dual_obj = dot(fd_T0.b, pt.y) - xTQx_2 + dot(pt.s_l, view(fd_T0.lvar, id.ilow)) -
+                    dot(pt.s_u, view(fd_T0.uvar, id.iupp)) + fd_T0.c0
     res.rb .= Ax .- fd_T0.b
     res.rc .= ATy .-Qx .- fd_T0.c
     res.rc[id.ilow] .+= pt.s_l

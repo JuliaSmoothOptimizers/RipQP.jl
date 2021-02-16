@@ -27,25 +27,13 @@ function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:
 end
 
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T}, sc :: stop_crit{Tc},
-                     regul :: Symbol, mode :: Symbol) where {T<:Real, Tc<:Real}
+                     regul :: Symbol, mode :: Symbol, create_iterdata :: Function) where {T<:Real, Tc<:Real}
 
     res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     
-    itd = create_iterdata_K2(fd_T, id, mode, regul)
+    itd, pad, pt = create_iterdata(fd_T, id, mode, regul)
 
-    pad = preallocated_data(zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_aff
-                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ_cc
-                            zeros(T, id.n_cols+id.n_rows+id.n_low+id.n_upp), # Δ
-                            zeros(T, id.n_cols+id.n_rows), # Δ_xy
-                            zeros(T, id.n_low), # x_m_l_αΔ_aff
-                            zeros(T, id.n_upp), # u_m_x_αΔ_aff
-                            zeros(T, id.n_low), # s_l_αΔ_aff
-                            zeros(T, id.n_upp), # s_u_αΔ_aff
-                            zeros(T, id.n_low), # rxs_l
-                            zeros(T, id.n_upp) #rxs_u
-                            )
-
-    pt, itd, pad.Δ_xy = @views starting_points(fd_T, id, itd, pad.Δ_xy)
+    starting_points!(pt, fd_T, id, itd)
 
     # stopping criterion
     #     rcNorm, rbNorm = norm(rc), norm(rb)
@@ -63,8 +51,8 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances
     return itd, ϵ, pad, pt, res, sc
 end
 
-function convert_types!(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old}, res :: residuals{T_old},
-                        pad :: preallocated_data{T_old}, T0 :: DataType) where {T_old<:Real}
+function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old}, res :: residuals{T_old},
+                       pad :: preallocated_data{T_old}, T0 :: DataType) where {T_old<:Real}
 
    pt = convert(point{T}, pt)
    res = convert(residuals{T}, res)

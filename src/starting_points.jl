@@ -1,11 +1,6 @@
-function starting_points(fd :: QM_FloatData{T}, id:: QM_IntData, itd :: iter_data{T},
-                         Δ_xy :: Vector{T}) where {T<:Real}
+function starting_points!(pt0 :: point{T}, fd :: QM_FloatData{T}, id:: QM_IntData, 
+                          itd :: iter_data{T}) where {T<:Real}
 
-    # solve [-Q-tmp_diag    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
-    #       [      A         0 ] [y] = [0]
-    Δ_xy[id.n_cols+1: end] = fd.b
-    Δ_xy = ldiv!(itd.J_fact, Δ_xy)
-    pt0 = point(Δ_xy[1:id.n_cols], Δ_xy[id.n_cols+1:end], zeros(T, id.n_low), zeros(T, id.n_upp))
     itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt0.x)
     itd.ATy = mul!(itd.ATy, fd.AT, pt0.y)
     dual_val = itd.Qx .- itd.ATy .+ fd.c
@@ -33,7 +28,7 @@ function starting_points(fd :: QM_FloatData{T}, id:: QM_IntData, itd :: iter_dat
     itd.uvar_m_x .+= δx_u1
     s0_l1 = pt0.s_l .+ δs_l1
     s0_u1 = pt0.s_u .+ δs_u1
-    xs_l1, xs_u1 = s0_l1' * itd.x_m_lvar, s0_u1' * itd.uvar_m_x
+    xs_l1, xs_u1 = dot(s0_l1, itd.x_m_lvar), dot(s0_u1, itd.uvar_m_x)
     if id.n_low == 0
         δx_l2, δs_l2 = zero(T), zero(T)
     else
@@ -68,10 +63,9 @@ function starting_points(fd :: QM_FloatData{T}, id:: QM_IntData, itd :: iter_dat
 
     # verify bounds 
     @assert all(pt0.x .> fd.lvar) && all(pt0.x .< fd.uvar)
-    @assert @views all(pt0.s_l .> zero(T)) && all(pt0.s_u .> zero(T))
+    @assert all(pt0.s_l .> zero(T)) && all(pt0.s_u .> zero(T))
 
     # update itd
     update_iter_data!(itd, pt0, fd, id, false)
 
-    return pt0, itd, Δ_xy
 end

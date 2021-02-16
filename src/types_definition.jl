@@ -63,30 +63,7 @@ createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_f
                                                           J_fact.pattern, T(J_fact.r1), T(J_fact.r2),
                                                           T(J_fact.tol), J_fact.n_d)
 
-mutable struct preallocated_data{T<:Real}
-    Δ_aff            :: Vector{T} # affine-step solution of the augmented system
-    Δ_cc             :: Vector{T} # corrector-centering step solution of the augmented system
-    Δ                :: Vector{T} # Δ_aff + Δ_cc
-    Δ_xy             :: Vector{T} # temporary vector
-    x_m_l_αΔ_aff     :: Vector{T} # x + α * Δ_aff - lvar
-    u_m_x_αΔ_aff     :: Vector{T} # uvar - (x + α * Δ_aff)
-    s_l_αΔ_aff       :: Vector{T} # s_l + α * Δ_aff
-    s_u_αΔ_aff       :: Vector{T} # s_u + α * Δ_aff
-    rxs_l            :: Vector{T} # - σ * μ * e + ΔX_aff * Δ_S_l_aff
-    rxs_u            :: Vector{T} # σ * μ * e + ΔX_aff * Δ_S_u_aff
-end
-
-convert(::Type{preallocated_data{T}}, pad) where {T<:Real} = preallocated_data(convert(Array{T}, pad.Δ_aff),
-                                                                               convert(Array{T}, pad.Δ_cc),
-                                                                               convert(Array{T}, pad.Δ),
-                                                                               convert(Array{T}, pad.Δ_xy),
-                                                                               convert(Array{T}, pad.x_m_l_αΔ_aff),
-                                                                               convert(Array{T}, pad.u_m_x_αΔ_aff),
-                                                                               convert(Array{T}, pad.s_l_αΔ_aff),
-                                                                               convert(Array{T}, pad.s_u_αΔ_aff),
-                                                                               convert(Array{T}, pad.rxs_l),
-                                                                               convert(Array{T}, pad.rxs_u)
-                                                                               )
+abstract type preallocated_data{T<:Real} end
 
 mutable struct stop_crit{T}
     optimal     :: Bool

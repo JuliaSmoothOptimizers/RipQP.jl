@@ -23,6 +23,7 @@ mutable struct iter_data_K2{T<:Real} <: iter_data{T}
     pdd         :: T                                                # primal dual difference (relative)
     l_pdd       :: Vector{T}                                        # list of the 5 last pdd
     mean_pdd    :: T                                                # mean of the 5 last pdd
+    qp          :: Bool # true if qp false if lp
 end
 
 convert(::Type{<:iter_data{T}}, itd :: iter_data_K2{T0}) where {T<:Real, T0<:Real} = 
@@ -44,8 +45,39 @@ convert(::Type{<:iter_data{T}}, itd :: iter_data_K2{T0}) where {T<:Real, T0<:Rea
                  convert(T, itd.μ),
                  convert(T, itd.pdd),
                  convert(Array{T}, itd.l_pdd),
-                 convert(T, itd.mean_pdd)
+                 convert(T, itd.mean_pdd),
+                 itd.qp
                  )
+
+mutable struct preallocated_data_K2{T<:Real} <: preallocated_data{T} 
+    Δxy_aff          :: Vector{T} # affine-step solution of the augmented system
+    Δs_l_aff         :: Vector{T}
+    Δs_u_aff         :: Vector{T}
+    Δxy              :: Vector{T} # Newton step
+    Δs_l             :: Vector{T} 
+    Δs_u             :: Vector{T} 
+    x_m_l_αΔ_aff     :: Vector{T} # x + α * Δxy_aff - lvar
+    u_m_x_αΔ_aff     :: Vector{T} # uvar - (x + α * Δxy_aff)
+    s_l_αΔ_aff       :: Vector{T} # s_l + α * Δs_l_aff
+    s_u_αΔ_aff       :: Vector{T} # s_u + α * Δs_u_aff
+    rxs_l            :: Vector{T} # - σ * μ * e + ΔX_aff * Δ_S_l_aff
+    rxs_u            :: Vector{T} # σ * μ * e + ΔX_aff * Δ_S_u_aff
+end
+                
+convert(::Type{<:preallocated_data{T}}, pad :: preallocated_data_K2{T0}) where {T<:Real, T0<:Real} = 
+    preallocated_data_K2(convert(Array{T}, pad.Δxy_aff),
+                         convert(Array{T}, pad.Δs_l_aff),
+                         convert(Array{T}, pad.Δs_u_aff),
+                         convert(Array{T}, pad.Δxy),
+                         convert(Array{T}, pad.Δs_l),
+                         convert(Array{T}, pad.Δs_u),
+                         convert(Array{T}, pad.x_m_l_αΔ_aff),
+                         convert(Array{T}, pad.u_m_x_αΔ_aff),
+                         convert(Array{T}, pad.s_l_αΔ_aff),
+                         convert(Array{T}, pad.s_u_αΔ_aff),
+                         convert(Array{T}, pad.rxs_l),
+                         convert(Array{T}, pad.rxs_u)
+                         )
 
 # Init functions for the K2 system
 function fill_K2!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_colptr, Q_rowval, Q_nzval,
@@ -162,14 +194,38 @@ function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Sym
                        zero(T), #μ
                        zero(T),#pdd
                        zeros(T, 6), #l_pdd
-                       one(T) #mean_pdd
+                       one(T), #mean_pdd
+                       nnz(fd.Q) > 0
                        )
-    return itd
+    
+    
+    pad = preallocated_data_K2(zeros(T, id.n_cols+id.n_rows), # Δxy_aff
+                               zeros(T, id.n_low), # Δs_l_aff
+                               zeros(T, id.n_upp), # Δs_u_aff
+                               zeros(T, id.n_cols+id.n_rows), # Δxy
+                               zeros(T, id.n_low), # Δs_l
+                               zeros(T, id.n_upp), # Δs_u
+                               zeros(T, id.n_low), # x_m_l_αΔ_aff
+                               zeros(T, id.n_upp), # u_m_x_αΔ_aff
+                               zeros(T, id.n_low), # s_l_αΔ_aff
+                               zeros(T, id.n_upp), # s_u_αΔ_aff
+                               zeros(T, id.n_low), # rxs_l
+                               zeros(T, id.n_upp) #rxs_u
+                               )
+    
+    # init system
+    # solve [-Q-tmp_diag    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
+    #       [      A         0 ] [y] = [0]
+    pad.Δxy[id.n_cols+1: end] = fd.b
+    ldiv!(itd.J_fact, pad.Δxy)
+    pt0 = point(pad.Δxy[1:id.n_cols], pad.Δxy[id.n_cols+1:end], zeros(T, id.n_low), zeros(T, id.n_upp))
+
+    return itd, pad, pt0
 end
 
 # iteration functions for the K2 system
 function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, s_u, x_m_lvar, uvar_m_x, 
-                       ilow, iupp, n_rows, n_cols, cnts, T, T0) 
+                       ilow, iupp, n_rows, n_cols, cnts, qp, T, T0) 
 
     if regu.regul == :classic
         tmp_diag .= -regu.ρ
@@ -177,8 +233,8 @@ function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, 
     else
         tmp_diag .= zero(T)
     end
-    tmp_diag[ilow] .-= @views s_l ./ x_m_lvar
-    tmp_diag[iupp] .-= @views s_u ./ uvar_m_x
+    tmp_diag[ilow] .-= s_l ./ x_m_lvar
+    tmp_diag[iupp] .-= s_u ./ uvar_m_x
     tmp_diag[diag_Q.nzind] .-= diag_Q.nzval
     J_augm.nzval[view(diagind_J,1:n_cols)] = tmp_diag 
 
@@ -187,7 +243,7 @@ function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, 
         if Amax > T(1e6) / J_fact.r2 && cnts.c_pdd < 8
             if T == Float32
                 return one(Int) # update to Float64
-            elseif length(fQ.nzval) > 0 || cnts.c_pdd < 4
+            elseif qp || cnts.c_pdd < 4
                 cnts.c_pdd += 1
                 J_fact.r2 /= 10
                 # regu.ρ /= 10
@@ -203,8 +259,8 @@ function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, 
             out == 1 && return out
             cnts.c_catch += 1
             tmp_diag .= -regu.ρ
-            tmp_diag[ilow] .-= @views s_l ./ x_m_lvar
-            tmp_diag[iupp] .-= @views s_u ./ uvar_m_x
+            tmp_diag[ilow] .-= s_l ./ x_m_lvar
+            tmp_diag[iupp] .-= s_u ./ uvar_m_x
             tmp_diag[diag_Q.nzind] .-= diag_Q.nzval
             J_augm.nzval[view(diagind_J,1:n_cols)] = tmp_diag 
             J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= regu.δ
@@ -224,29 +280,32 @@ function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
 
     out = factorize_K2!(itd.J_augm, itd.J_fact, itd.tmp_diag, itd.diag_Q, itd.diagind_J, itd.regu, 
                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                        id.n_rows, id.n_cols, cnts, T, T0)
+                        id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
 
     out == 1 && return out
 
     # affine scaling step
-    solve_augmented_system_aff!(pad.Δ_aff, itd.J_fact, pad.Δ_xy, res.rc, res.rb, itd.x_m_lvar, itd.uvar_m_x, 
-                                pt.s_l, pt.s_u, id.ilow, id.iupp, id.n_cols, id.n_rows, id.n_low)
-    α_aff_pri, α_aff_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δ_aff, 
-                                       id.n_low, id.n_rows, id.n_cols) 
+    solve_augmented_system_aff!(pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, itd.J_fact, res.rc, res.rb, 
+                                itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.ilow, id.iupp, id.n_cols)
+    α_aff_pri, α_aff_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy_aff, pad.Δs_l_aff, 
+                                       pad.Δs_u_aff, id.n_cols)
     # (x-lvar, uvar-x, s_l, s_u) .+= α_aff * Δ_aff                                 
-    update_pt_aff!(pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, pad.Δ_aff, 
-                   itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_aff_pri, α_aff_dual, 
-                   id.ilow, id.iupp, id.n_low, id.n_rows, id.n_cols)
+    update_pt_aff!(pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, pad.Δxy_aff, 
+                   pad.Δs_l_aff, pad.Δs_u_aff, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, 
+                   α_aff_pri, α_aff_dual, id.ilow, id.iupp)
     μ_aff = compute_μ(pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, id.n_low, id.n_upp)
     σ = (μ_aff / itd.μ)^3
 
     # corrector-centering step
-    pad.rxs_l .= @views -σ * itd.μ .+ pad.Δ_aff[id.ilow] .* pad.Δ_aff[id.n_rows+id.n_cols+1: id.n_rows+id.n_cols+id.n_low]
-    pad.rxs_u .= @views σ * itd.μ .+ pad.Δ_aff[id.iupp] .* pad.Δ_aff[id.n_rows+id.n_cols+id.n_low+1: end]
-    solve_augmented_system_cc!(pad.Δ_cc, itd.J_fact, pad.Δ_xy, itd.x_m_lvar, itd.uvar_m_x, pad.rxs_l, pad.rxs_u, 
-                               pt.s_l, pt.s_u, id.ilow, id.iupp, id.n_cols, id.n_rows, id.n_low)
+    pad.rxs_l .= @views -σ * itd.μ .+ pad.Δxy_aff[id.ilow] .* pad.Δs_l_aff
+    pad.rxs_u .= @views σ * itd.μ .+ pad.Δxy_aff[id.iupp] .* pad.Δs_u_aff
+    solve_augmented_system_cc!(itd.J_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
+                               pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
 
-    pad.Δ .= pad.Δ_aff .+ pad.Δ_cc # final direction
-
+    # final direction
+    pad.Δxy .+= pad.Δxy_aff  
+    pad.Δs_l .+= pad.Δs_l_aff
+    pad.Δs_u .+= pad.Δs_u_aff
+    
     return out
 end
