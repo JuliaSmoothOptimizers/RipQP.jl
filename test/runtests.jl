@@ -1,5 +1,17 @@
-using RipQP, QPSReader, QuadraticModels
+using RipQP, QPSReader, QuadraticModels, Quadmath
 using Test
+
+function createQuadraticModel128(qpdata; name="qp_pb")
+    return QuadraticModel(convert(Array{Float128}, qpdata.c), qpdata.qrows, qpdata.qcols,
+            convert(Array{Float128}, qpdata.qvals),
+            Arows=qpdata.arows, Acols=qpdata.acols,
+            Avals=convert(Array{Float128}, qpdata.avals),
+            lcon=convert(Array{Float128}, qpdata.lcon),
+            ucon=convert(Array{Float128}, qpdata.ucon),
+            lvar=convert(Array{Float128}, qpdata.lvar),
+            uvar=convert(Array{Float128}, qpdata.uvar),
+            c0=Float128(qpdata.c0), x0 = zeros(Float128, length(qpdata.c)), name=name)
+end
 
 @testset "mono_mode" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
@@ -84,4 +96,12 @@ end
     stats3 = ripqp(QuadraticModel(qps3), K=2, display=false)
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
+end
+
+@testset "Float128_no_normalize_rtol" begin
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    qm128_1 = createQuadraticModel128(qps1)
+    stats1 = ripqp(qm128_1, ϵ_rb32=0.1, ϵ_rb64=0.01, normalize_rtol=false, display=false)
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
 end

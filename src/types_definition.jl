@@ -22,13 +22,14 @@ mutable struct QM_IntData
 end
 
 mutable struct tolerances{T<:Real}
-    pdd    :: T  # primal-dual difference (relative)
-    rb     :: T  # primal residuals tolerance
-    rc     :: T  # dual residuals tolerance
-    tol_rb :: T  # ϵ_rb * (1 + ||r_b0||)
-    tol_rc :: T  # ϵ_rc * (1 + ||r_c0||)
-    μ      :: T  # duality measure
-    Δx     :: T  
+    pdd              :: T  # primal-dual difference (relative)
+    rb               :: T  # primal residuals tolerance
+    rc               :: T  # dual residuals tolerance
+    tol_rb           :: T  # ϵ_rb * (1 + ||r_b0||)
+    tol_rc           :: T  # ϵ_rc * (1 + ||r_c0||)
+    μ                :: T  # duality measure
+    Δx               :: T  
+    normalize_rtol   :: Bool # true if normalize_rtol=true, then tol_rb, tol_rc = ϵ_rb, ϵ_rc
 end
 
 mutable struct point{T<:Real}
