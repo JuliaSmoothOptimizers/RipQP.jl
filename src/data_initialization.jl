@@ -43,7 +43,7 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances
     res.rc[id.ilow] .+= pt.s_l
     res.rc[id.iupp] .-= pt.s_u
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-    ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
+    set_tol_residuals!(ϵ, res.rbNorm, res.rcNorm)
 
     sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
     sc.small_μ = itd.μ < ϵ.μ
@@ -68,6 +68,14 @@ function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old
    itd.regu.δ /= 10
 
    return pt, itd, res, pad
+end
+
+function set_tol_residuals!(ϵ :: tolerances{T}, rbNorm :: T, rcNorm :: T) where {T<:Real}
+    if ϵ.normalize_rtol == true
+        ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + rbNorm), ϵ.rc*(one(T) + rcNorm)
+    else
+        ϵ.tol_rb, ϵ.tol_rc = ϵ.rb, ϵ.rc
+    end
 end
 
 ############ tools for sparse matrices ##############
