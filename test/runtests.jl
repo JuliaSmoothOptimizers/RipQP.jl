@@ -105,3 +105,20 @@ end
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 end
+
+@testset "K2_5" begin
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(QuadraticModel(qps1), display=false, solve! = solve_K2_5!)
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), display=false, mode = :multi, solve! = solve_K2_5!)
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+
+    qps3 = readqps("HS52.SIF") # free bounds
+    stats3 = ripqp(QuadraticModel(qps3), display=false, regul = :dynamic, solve! = solve_K2_5!)
+    @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
+    @test stats3.status == :acceptable
+end

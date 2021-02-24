@@ -245,8 +245,8 @@ function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, 
                 return one(Int) # update to Float64
             elseif qp || cnts.c_pdd < 4
                 cnts.c_pdd += 1
-                J_fact.r2 /= 10
-                # regu.ρ /= 10
+                regu.δ /= 10 
+                J_fact.r2 = regu.δ
             end
         end
         J_fact.tol = Amax * T(eps(T))
@@ -306,6 +306,12 @@ function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
     pad.Δxy .+= pad.Δxy_aff  
     pad.Δs_l .+= pad.Δs_l_aff
     pad.Δs_u .+= pad.Δs_u_aff
+
+    # update regularization
+    if itd.regu.regul == :classic  # update ρ and δ values, check J_augm diag magnitude 
+        out = update_regu_diagJ!(itd.regu, itd.J_augm.nzval, itd.diagind_J, id.n_cols, itd.pdd, 
+                                 itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
+    end
     
     return out
 end

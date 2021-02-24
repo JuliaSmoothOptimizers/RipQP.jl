@@ -4,7 +4,7 @@ using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
 using LDLFactorizations, QuadraticModels, SolverTools
 
-export ripqp, iter_data, iter_data_K2, create_K2_iterdata, solve_K2!
+export ripqp, iter_data, iter_data_K2, create_K2_iterdata, solve_K2!, solve_K2_5!
 
 include("types_definition.jl")
 include("iterations/iterations.jl")
