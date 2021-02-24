@@ -78,3 +78,33 @@ function update_regu_diagJ!(regu, J_augm_nzval, diagind_J, n_cols, pdd, l_pdd, m
 
     return 0
 end
+
+function update_regu_diagJ_K2_5!(regu, tmp_diag, pdd, l_pdd, mean_pdd, cnts, T, T0)
+
+    l_pdd[cnts.k%6+1] = pdd
+    mean_pdd = mean(l_pdd)
+
+    if T == Float64 && cnts.k > 10  && mean_pdd!=zero(T) && std(l_pdd./mean_pdd) < T(1e-2) && cnts.c_pdd < 5
+        regu.δ_min /= 10
+        regu.δ /= 10
+        cnts.c_pdd += 1
+    end
+    if T == Float64 && cnts.k>10 && cnts.c_catch <= 1 &&
+            @views minimum(tmp_diag) < -one(T) / regu.δ / T(1e-6)
+        regu.δ /= 10
+        regu.δ_min /= 10
+        cnts.c_pdd += 1
+    elseif T != T0 && cnts.c_pdd < 2 &&
+            @views minimum(tmp_diag) < -one(T) / regu.δ / T(1e-5)
+        return 1
+    elseif T == Float128 && cnts.k>10 && cnts.c_catch <= 1 &&
+            @views minimum(tmp_diag) < -one(T) / regu.δ / T(1e-15)
+        regu.δ /= 10
+        regu.δ_min /= 10
+        cnts.c_pdd += 1
+    end
+
+    update_regu!(regu)
+
+    return 0
+end

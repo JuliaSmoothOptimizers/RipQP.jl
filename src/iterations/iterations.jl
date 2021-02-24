@@ -1,6 +1,7 @@
 include("centrality_corr.jl")
 include("regularization.jl")
 include("direct_methods/K2.jl")
+include("direct_methods/K2_5.jl")
 
 function compute_α_dual(v, dir_v)
     n = length(v)
@@ -68,8 +69,8 @@ function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_a
                         x_m_lvar, uvar_m_x, s_l, s_u, α_aff_pri, α_aff_dual, ilow, iupp)
     x_m_l_αΔ_aff .= @views x_m_lvar .+ α_aff_pri .* Δxy_aff[ilow]
     u_m_x_αΔ_aff .= @views uvar_m_x .- α_aff_pri .* Δxy_aff[iupp]
-    s_l_αΔ_aff .= @views s_l .+ α_aff_dual .* Δs_l_aff
-    s_u_αΔ_aff .= @views s_u .+ α_aff_dual .* Δs_u_aff
+    s_l_αΔ_aff .= s_l .+ α_aff_dual .* Δs_l_aff
+    s_u_αΔ_aff .= s_u .+ α_aff_dual .* Δs_u_aff
 end
 
 function solve_augmented_system_cc!(J_fact, Δxy_cc, Δs_l_cc, Δs_u_cc, x_m_lvar, uvar_m_x, rxs_l, rxs_u, 
@@ -149,7 +150,8 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
                           display :: Bool) where {T<:Real, Tc<:Real}
     
     if itd.regu.regul == :dynamic
-        itd.J_fact.r1, itd.J_fact.r2 = -T(eps(T)^(3/4)), T(eps(T)^(1/2))
+        itd.regu.ρ, itd.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
+        itd.J_fact.r1, itd.J_fact.r2 = itd.regu.ρ, itd.regu.δ
     elseif itd.regu.regul == :none
         itd.regu.ρ, itd.regu.δ = zero(T), zero(T)
     end
@@ -185,12 +187,6 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
             cnts.km += 4
         else
             cnts.km += 16
-        end
-
-        if itd.regu.regul == :classic  # update ρ and δ values, check J_augm diag magnitude 
-            out = update_regu_diagJ!(itd.regu, itd.J_augm.nzval, itd.diagind_J, id.n_cols, itd.pdd, 
-                                     itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
-            out == 1 && break
         end
 
         sc.Δt = time() - sc.start_time
