@@ -129,12 +129,19 @@ function update_iter_data!(itd, pt, fd, id, safety)
     itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))                     
 end
 
-function update_residuals!(res, s_l, s_u, ilow, iupp, Δxy, Ax, ATy, Qx, b, c, α_pri, n_cols) 
-    res.n_Δx = @views α_pri * norm(Δxy[1:n_cols])
-    res.rb .= Ax .- b
-    res.rc .= ATy .- Qx .- c
-    res.rc[ilow] .+= s_l
-    res.rc[iupp] .-= s_u
+function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_data{T}, pad :: preallocated_data{T}, 
+                      res :: residuals{T}, fd :: QM_FloatData{T}, id :: QM_IntData) where {T<:Real}
+
+    # (x, y, s_l, s_u) += α * Δ
+    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_rows, id.n_cols)
+    update_iter_data!(itd, pt, fd, id, true)
+    
+    #update residuals
+    res.n_Δx = @views α_pri * norm(pad.Δxy[1:id.n_cols])
+    res.rb .= itd.Ax .- fd.b
+    res.rc .= itd.ATy .- itd.Qx .- fd.c
+    res.rc[id.ilow] .+= pt.s_l
+    res.rc[id.iupp] .-= pt.s_u
     # update stopping criterion values:
 #         rcNorm, rbNorm = norm(rc), norm(rb)
 #         xNorm = norm(x)
@@ -144,10 +151,9 @@ function update_residuals!(res, s_l, s_u, ilow, iupp, Δxy, Ax, ATy, Qx, b, c, �
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
 end
 
-function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatData{T}, id :: QM_IntData,
-                          res :: residuals{T}, sc :: stop_crit{Tc}, pad :: preallocated_data{T}, 
-                          ϵ :: tolerances{T}, solve! :: Function, cnts :: counters, T0 :: DataType, 
-                          display :: Bool) where {T<:Real, Tc<:Real}
+function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: residuals{T}, 
+               sc :: stop_crit{Tc}, pad :: preallocated_data{T}, ϵ :: tolerances{T}, solve! :: Function, 
+               cnts :: counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
     if itd.regu.regul == :dynamic
         itd.regu.ρ, itd.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
@@ -170,12 +176,7 @@ function iter_mehrotraPC!(pt :: point{T}, itd :: iter_data{T}, fd :: QM_FloatDat
             ## TODO replace by centrality_corr.jl, deal with α
         end
 
-        # (x, y, s_l, s_u) += α * Δ
-        update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_rows, id.n_cols)
-        # update data and residuals after the new point is computed
-        update_iter_data!(itd, pt, fd, id, true)
-        update_residuals!(res, pt.s_l, pt.s_u, id.ilow, id.iupp, pad.Δxy, itd.Ax, itd.ATy, itd.Qx, 
-                          fd.b, fd.c, α_pri, id.n_cols)
+        update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
 
         sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ

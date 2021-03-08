@@ -14,18 +14,6 @@ function get_QM_data(QM :: QuadraticModel)
     return fd_T, id, T
 end
 
-function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:Real}
-    return QM_FloatData(SparseMatrixCSC{T, Int}(fd_T0.Q.m, fd_T0.Q.n, 
-                                                fd_T0.Q.colptr, fd_T0.Q.rowval, Array{T}(fd_T0.Q.nzval)),
-                        SparseMatrixCSC{T, Int}(fd_T0.AT.m, fd_T0.AT.n, 
-                                                fd_T0.AT.colptr, fd_T0.AT.rowval, Array{T}(fd_T0.AT.nzval)),
-                        Array{T}(fd_T0.b), 
-                        Array{T}(fd_T0.c), 
-                        T(fd_T0.c0),
-                        Array{T}(fd_T0.lvar), 
-                        Array{T}(fd_T0.uvar))
-end
-
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T}, sc :: stop_crit{Tc},
                      regul :: Symbol, mode :: Symbol, create_iterdata :: Function) where {T<:Real, Tc<:Real}
 
@@ -49,25 +37,6 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances
     sc.small_μ = itd.μ < ϵ.μ
 
     return itd, ϵ, pad, pt, res, sc
-end
-
-function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old}, res :: residuals{T_old},
-                       pad :: preallocated_data{T_old}, T0 :: DataType) where {T_old<:Real}
-
-   pt = convert(point{T}, pt)
-   res = convert(residuals{T}, res)
-   itd = convert(iter_data{T}, itd)
-   if T == Float64 && T0 == Float64
-       itd.regu.ρ_min, itd.regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
-   else
-       itd.regu.ρ_min, itd.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
-   end
-   pad = convert(preallocated_data{T}, pad)
-
-   itd.regu.ρ /= 10
-   itd.regu.δ /= 10
-
-   return pt, itd, res, pad
 end
 
 function set_tol_residuals!(ϵ :: tolerances{T}, rbNorm :: T, rcNorm :: T) where {T<:Real}

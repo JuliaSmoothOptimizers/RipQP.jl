@@ -8,6 +8,7 @@ mutable struct iter_data_K2{T<:Real} <: iter_data{T}
     diag_Q      :: SparseVector{T,Int}                              # Q diagonal
     J_augm      :: SparseMatrixCSC{T,Int}                           # augmented matrix 
     J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}# factorized matrix
+    fact_fail   :: Bool                                             # true if factorization failed 
     diagind_J   :: Vector{Int}                                      # diagonal indices of J
     regu        :: regularization{T}
     x_m_lvar    :: Vector{T}                                        # x - lvar
@@ -31,6 +32,7 @@ convert(::Type{<:iter_data{T}}, itd :: iter_data_K2{T0}) where {T<:Real, T0<:Rea
                  convert(SparseVector{T,Int}, itd.diag_Q),
                  convert(SparseMatrixCSC{T,Int}, itd.J_augm),
                  createldl(T, itd.J_fact),
+                 itd.fact_fail,
                  itd.diagind_J,
                  convert(regularization{T}, itd.regu),
                  convert(Array{T}, itd.x_m_lvar),
@@ -180,6 +182,7 @@ function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Sym
                        diag_Q, #diag_Q
                        J_augm, #J_augm
                        J_fact, #J_fact
+                       false,
                        diagind_J, #diagind_J
                        regu,
                        zeros(T, id.n_low), # x_m_lvar
@@ -282,7 +285,10 @@ function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
                         id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
 
-    out == 1 && return out
+    if out == 1
+        itd.fact_fail = true
+        return 1
+    end
 
     # affine scaling step
     solve_augmented_system_aff!(pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, itd.J_fact, res.rc, res.rb, 
