@@ -35,12 +35,12 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals
     end
 
     c_ref = fd.c .- itd.ATy .+ itd.Qx
-    Δref = one(T)
-    αref = T(1.0e12)
     if refinement == :zoom || refinement == :multizoom
         # zoom parameter
         Δref = one(T) / res.rbNorm
     elseif refinement == :ref || refinement == :multiref
+        Δref = one(T)
+        αref = T(1.0e12)
         δd = norm(c_ref, Inf) 
         if id.n_low == 0 && id.n_upp > 0
             δp  = max(res.rbNorm, maximum(itd.uvar_m_x))
@@ -60,10 +60,7 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals
                              fd.c, copy(itd.pri_obj))
 
     # init zoom points
-    Δxy[1:id.n_cols] .= zero(T) 
-    Δxy[id.n_cols+1: end] .= fd_ref.b 
-    ldiv!(itd.J_fact, Δxy)
-    pt_z = point(Δxy[1:id.n_cols], Δxy[id.n_cols+1:end], zeros(T, id.n_low), zeros(T, id.n_upp))
+    pt_z = point(zeros(T, id.n_cols), zeros(T, id.n_rows), max.(abs.(c_ref[id.ilow]), eps(T)), max.(abs.(c_ref[id.iupp]), eps(T)))
     starting_points!(pt_z, fd_ref, id, itd)
 
     # update residuals
@@ -72,8 +69,6 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals
     res.rc[id.ilow] .+= pt_z.s_l
     res.rc[id.iupp] .-= pt_z.s_u
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-
-    ϵ.tol_rb, ϵ.tol_rc = ϵ.rb*(one(T) + res.rbNorm), ϵ.rc*(one(T) + res.rcNorm)
 
     return fd_ref, pt_z
 end
@@ -139,8 +134,5 @@ function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_dat
     res.rc .= itd.ATy .- itd.Qx .- fd.c
     res.rc[id.ilow] .+= pt.s_l
     res.rc[id.iupp] .-= pt.s_u
-
-    # use Ax and ATy for storage: rb_true = (Ax_z - b_z) / Δref
-    itd.Ax .-= fd.b
-    res.rcNorm, res.rbNorm = norm(res.rc, Inf) / fd.Δref, norm(itd.Ax, Inf) / fd.Δref
+    res.rcNorm, res.rbNorm = norm(res.rc, Inf) / fd.Δref, norm(res.rb, Inf) / fd.Δref
 end

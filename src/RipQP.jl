@@ -58,9 +58,11 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
         itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, sc, iconf.regul, iconf.mode, iconf.create_iterdata)
         set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
         if T0 == Float128
-            fd64 = convert_fd(T, fd_T0)
-            ϵ64 = tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), normalize_rtol)
-            set_tol_residuals!(ϵ64, res.rbNorm, res.rcNorm)
+            T = Float64
+            fd64 = convert_FloatData(T, fd_T0)
+            ϵ64 = tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+            set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
+            T = Float32
         end
     elseif iconf.mode == :mono
         itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, sc, iconf.regul, iconf.mode, iconf.create_iterdata)
@@ -99,7 +101,7 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
     ## iter T0
     # refinement
     if iconf.refinement == :zoom || iconf.refinement == :ref
-        ϵz = tolerances(T(1), itol.ϵ_rbz, itol.ϵ_rbz, ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb), one(T),  
+        ϵz = tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
                         T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         iter!(pt, itd, fd_T0, id, res, sc, pad, ϵz, iconf.solve!, cnts, T0, display)
         sc.optimal = false
