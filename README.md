@@ -28,7 +28,7 @@ qm = QuadraticModel(qps)
 stats = ripqp(qm)
 ```
 
-To use the multi precision mode (default to :mono):
+To use the multi precision mode (default to :mono) and change the maximum number of iterations:
 ```julia
-stats = ripqp(qm, mode=:multi)
+stats = ripqp(qm, iconf = input_config(mode=:multi), itol = input_tol(max_iter=100))
 ```

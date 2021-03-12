@@ -8,93 +8,67 @@ export ripqp, iter_data, iter_data_K2, create_K2_iterdata, solve_K2!, solve_K2_5
 
 include("types_definition.jl")
 include("iterations/iterations.jl")
+include("refinement.jl")
 include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
+include("multi_precision.jl")
 
 """
-    ripqp(QM0; mode=:mono, regul=:classic, scaling=true, K=0,
-          max_iter=200, ϵ_pdd=1e-8, ϵ_rb=1e-6, ϵ_rc=1e-6,
-          max_iter32=40, ϵ_pdd32=1e-2, ϵ_rb32=1e-4, ϵ_rc32=1e-4,
-          max_iter64=180, ϵ_pdd64=1e-4, ϵ_rb64=1e-5, ϵ_rc64=1e-5,
-          ϵ_Δx=1e-16, ϵ_μ=1e-9, max_time=1200., display=true, 
-          create_iterdata=create_iterdata_K2, solve!=solve_K2!)
+    stats = ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config(), 
+                  itol :: input_tol{Tu, Int} = input_tol(), 
+                  display :: Bool = true) where {Tu<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a `GenericExecutionStats` containing information about the solved problem.
 
-- `QM0::QuadraticModel{T0}`: problem to solve
-- `mode::Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
-    the multi-precision mode (start in single precision and gradually transitions
-    to `T0`)
-- `regul::Symbol`: if `:classic`, then the regularization is performed prior the factorization,
-    if `:dynamic`, then the regularization is performed during the factorization, and if `:none`,
-    no regularization is used
-- `scaling::Bool`: activate/deactivate scaling of A and Q in `QM0`
-- `K::Int`: number of centrality corrections (set to `-1` for automatic computation)
-- `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
-     are normalized by the initial primal and dual residuals
-- `max_iter::Int`: maximum number of iterations
-- `ϵ_pdd`: primal-dual difference tolerance
-- `ϵ_rb`: primal tolerance
-- `ϵ_rc`: dual tolerance
-- `max_iter32`, `ϵ_pdd32`, `ϵ_rb32`, `ϵ_rc32`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from single precision to double precision. They are
-    only usefull when `mode=:multi`
-- `max_iter64`, `ϵ_pdd64`, `ϵ_rb64`, `ϵ_rc64`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from double precision to quadruple precision. They
-    are only usefull when `mode=:multi` and `T0=Float128`
-- `ϵ_Δx`: step tolerance for the current point estimate (note: this criterion
-    is currently disabled)
-- `ϵ_μ`: duality measure tolerance (note: this criterion is currently disabled)
-- `max_time`: maximum time to solve `QM0`, in seconds
+- `QM :: QuadraticModel`: problem to solve
+- `iconf :: input_config{Int}`: input RipQP configuration. See `input_config{I}`.
+- `itol :: input_tol{T, Int}` input tolerances for the stopping criteria. See `input_tol{T, I}`.
 - `display::Bool`: activate/deactivate iteration data display
-- `create_iterdata :: Function`: used to create the iter_data type used for the iterations (including the system 
-    to solve)
-- `solve! :: Function` : used to solve the system at each iteration
 """
-function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true,
-               K :: Int = 0, normalize_rtol :: Bool = true,
-               max_iter :: Int = 200, ϵ_pdd :: Real = 1e-8, ϵ_rb :: Real = 1e-6, ϵ_rc :: Real = 1e-6,
-               max_iter32 :: Int = 40, ϵ_pdd32 :: Real = 1e-2, ϵ_rb32 :: Real = 1e-4, ϵ_rc32 :: Real = 1e-4,
-               max_iter64 :: Int = 180, ϵ_pdd64 :: Real = 1e-4, ϵ_rb64 :: Real = 1e-5, ϵ_rc64 :: Real = 1e-5, # params for the itermediate ϵ in :multi mode
-               ϵ_Δx :: Real = 1e-16, ϵ_μ :: Real = 1e-9, max_time :: Real = 1200., display :: Bool = true,
-               create_iterdata :: Function = create_iterdata_K2, solve! :: Function = solve_K2!)
-
-    mode == :mono || mode == :multi || error("mode should be :mono or :multi")
-    regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
+function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config(), itol :: input_tol{Tu, Int} = input_tol(), 
+               display :: Bool = true) where {Tu<:Real}
     
     start_time = time()
     elapsed_time = 0.0
-    sc = stop_crit(false, false, false, false, max_iter, max_time, start_time, 0.)    
+    sc = stop_crit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)    
     
     nvar_init = QM.meta.nvar
     SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
     fd_T0, id, T = get_QM_data(QM)
     T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
-    ϵ = tolerances(T(ϵ_pdd), T(ϵ_rb), T(ϵ_rc), one(T), one(T), T(ϵ_μ), T(ϵ_Δx), normalize_rtol)
+    ϵ = tolerances(T(itol.ϵ_pdd), T(itol.ϵ_rb), T(itol.ϵ_rc), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
 
-    if scaling
+    if iconf.scaling
         fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
     end
 
     # initialization
-    if mode == :multi
+    if iconf.mode == :multi
         T = Float32
-        ϵ32 = tolerances(T(ϵ_pdd32), T(ϵ_rb32), T(ϵ_rc32), one(T), one(T), T(ϵ_μ), T(ϵ_Δx), normalize_rtol)
+        ϵ32 = tolerances(T(itol.ϵ_pdd32), T(itol.ϵ_rb32), T(itol.ϵ_rc32), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         fd32 = convert_FloatData(T, fd_T0)
-        itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, sc, regul, mode, create_iterdata)
+        itd, ϵ32, pad, pt, res, sc = init_params(fd32, id, ϵ32, sc, iconf.regul, iconf.mode, iconf.create_iterdata)
         set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
-    elseif mode == :mono
-        itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, sc, regul, mode, create_iterdata)
+        if T0 == Float128
+            T = Float64
+            fd64 = convert_FloatData(T, fd_T0)
+            ϵ64 = tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+            set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
+            T = Float32
+        end
+    elseif iconf.mode == :mono
+        itd, ϵ, pad, pt, res, sc = init_params(fd_T0, id, ϵ, sc, iconf.regul, iconf.mode, iconf.create_iterdata)
     end
 
     Δt = time() - start_time
-    sc.tired = Δt > max_time
+    sc.tired = Δt > itol.max_time
     
     cnts = counters(zero(Int), zero(Int), 0, 0, 
-                    K==-1 ? nb_corrector_steps(itd.J_augm.colptr, id.n_rows, id.n_cols, T) : K)
+                    iconf.K==-1 ? nb_corrector_steps(itd.J_augm.colptr, id.n_rows, id.n_cols, T) : iconf.K,
+                    iconf.max_ref, zero(Int))
     
     # display
     if display == true
@@ -106,35 +80,43 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
         @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ, itd.regu.ρ, itd.regu.δ])
     end
 
-    if mode == :multi
-        # iters Float 32
-        sc.max_iter = max_iter32
-        iter_mehrotraPC!(pt, itd, fd32, id, res, sc, pad, ϵ32, solve!, cnts, T0, display)
-        # convert to Float64
-        T = Float64
-        pt, itd, res, pad = convert_types(T, pt, itd, res, pad, T0)
-        sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-        sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
-
-        if T0 == Float128 # iters Float64 if T0 == Float128
-            sc.max_iter = max_iter64
-            fd64 = convert_fd(T, fd_T0)
-            ϵ64 = tolerances(T(ϵ_pdd64), T(ϵ_rb64), T(ϵ_rc64), one(T), one(T), T(ϵ_μ), T(ϵ_Δx), normalize_rtol)
-            set_tol_residuals!(ϵ64, res.rbNorm, res.rcNorm)
-            iter_mehrotraPC!(pt, itd, fd64, id, res, sc, pad, ϵ64, solve!, cnts, T0, display)
-            T = Float128
-            pt, itd, res, pad = convert_types(T, pt, itd, res, pad, T0)
-            sc.optimal = itd.pdd < ϵ_pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-            sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
+    if iconf.mode == :multi
+        # iter in Float32 then convert data to Float64
+        pt, itd, res, pad = iter_and_update_T!(pt, itd, fd32, id, res, sc, pad, ϵ32, ϵ, iconf.solve!, cnts, 
+                                               itol.max_iter32, Float64, display)
+      
+        if T0 == Float128 
+            # iters in Float64 then convert data to Float128
+            pt, itd, res, pad = iter_and_update_T!(pt, itd, fd64, id, res, sc, pad, ϵ64, ϵ, iconf.solve!, cnts, 
+                                                   itol.max_iter64, Float128, display)
         end
-        sc.max_iter = max_iter
+        sc.max_iter = itol.max_iter
     end
 
-    # iters T0
-    iter_mehrotraPC!(pt, itd, fd_T0, id, res, sc, pad, ϵ, solve!, cnts, T0, display)
+    ## iter T0
+    # refinement
+    if iconf.refinement == :zoom || iconf.refinement == :ref
+        ϵz = tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
+                        T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+        iter!(pt, itd, fd_T0, id, res, sc, pad, ϵz, iconf.solve!, cnts, T0, display)
+        sc.optimal = false
+
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, pad.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve!, cnts, T0, display)
+        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+
+    elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, pad.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement, centering = true)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve!, cnts, T0, display)
+        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+
+    else
+        # iters T0, no refinement
+        iter!(pt, itd, fd_T0, id, res, sc, pad, ϵ, iconf.solve!, cnts, T0, display)
+    end
 
     # output status                                                    
-    if cnts.k>= max_iter
+    if cnts.k>= itol.max_iter
         status = :max_iter
     elseif sc.tired
         status = :max_time
@@ -144,7 +126,7 @@ function ripqp(QM :: QuadraticModel; mode :: Symbol = :mono, regul :: Symbol = :
         status = :unknown
     end
 
-    if scaling
+    if iconf.scaling
         pt, pri_obj, res = post_scale(d1, d2, d3, pt, res, fd_T0, id, itd.Qx, itd.ATy,
                                       itd.Ax, itd.cTx, itd.pri_obj, itd.dual_obj, itd.xTQx_2)
     end
