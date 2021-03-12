@@ -21,14 +21,14 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals
 
     # center points before zoom
     if centering
-        if itd.fact_fail # re-factorize if it failed in a lower precision system
-            out = factorize_K2!(itd.J_augm, itd.J_fact, itd.tmp_diag, itd.diag_Q, itd.diagind_J, itd.regu, 
+        if pad.fact_fail # re-factorize if it failed in a lower precision system
+            out = factorize_K2!(pad.K, pad.K_fact, itd.D, pad.diag_Q, pad.diagind_K, itd.regu, 
                                 pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
                                 id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
         end
         pad.rxs_l .= -itd.μ 
         pad.rxs_u .= itd.μ 
-        solve_augmented_system_cc!(itd.J_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
+        solve_augmented_system_cc!(pad.K_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
                                 pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_cols)
         update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)

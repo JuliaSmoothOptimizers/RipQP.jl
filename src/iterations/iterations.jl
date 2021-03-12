@@ -52,7 +52,7 @@ end
     return (dot(s_l, x_m_lvar) + dot(s_u, uvar_m_x)) / (nb_low + nb_upp)
 end
 
-function solve_augmented_system_aff!(Δxy_aff, Δs_l_aff, Δs_u_aff, J_fact, rc, rb, x_m_lvar, uvar_m_x,
+function solve_augmented_system_aff!(Δxy_aff, Δs_l_aff, Δs_u_aff, K_fact, rc, rb, x_m_lvar, uvar_m_x,
                                      s_l, s_u, ilow, iupp, n_cols)
 
     Δxy_aff[1:n_cols] .= .-rc
@@ -60,7 +60,7 @@ function solve_augmented_system_aff!(Δxy_aff, Δs_l_aff, Δs_u_aff, J_fact, rc,
     Δxy_aff[ilow] .+= s_l
     Δxy_aff[iupp] .-= s_u
 
-    ldiv!(J_fact, Δxy_aff)
+    ldiv!(K_fact, Δxy_aff)
     Δs_l_aff .= @views .-s_l .- s_l.*Δxy_aff[ilow]./x_m_lvar
     Δs_u_aff .= @views .-s_u .+ s_u.*Δxy_aff[iupp]./uvar_m_x
 end
@@ -73,14 +73,14 @@ function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_a
     s_u_αΔ_aff .= s_u .+ α_aff_dual .* Δs_u_aff
 end
 
-function solve_augmented_system_cc!(J_fact, Δxy_cc, Δs_l_cc, Δs_u_cc, x_m_lvar, uvar_m_x, rxs_l, rxs_u, 
+function solve_augmented_system_cc!(K_fact, Δxy_cc, Δs_l_cc, Δs_u_cc, x_m_lvar, uvar_m_x, rxs_l, rxs_u, 
                                     s_l, s_u, ilow, iupp)
 
     Δxy_cc .= 0
     Δxy_cc[ilow] .+= rxs_l./x_m_lvar
     Δxy_cc[iupp] .+= rxs_u./uvar_m_x
 
-    ldiv!(J_fact, Δxy_cc)
+    ldiv!(K_fact, Δxy_cc)
     Δs_l_cc .= @views .-(rxs_l.+s_l.*Δxy_cc[ilow])./x_m_lvar
     Δs_u_cc .= @views (rxs_u.+s_u.*Δxy_cc[iupp])./uvar_m_x
 end
@@ -157,7 +157,7 @@ function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{
     
     if itd.regu.regul == :dynamic
         itd.regu.ρ, itd.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
-        itd.J_fact.r1, itd.J_fact.r2 = itd.regu.ρ, itd.regu.δ
+        pad.K_fact.r1, pad.K_fact.r2 = itd.regu.ρ, itd.regu.δ
     elseif itd.regu.regul == :none
         itd.regu.ρ, itd.regu.δ = zero(T), zero(T)
     end
@@ -169,10 +169,10 @@ function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{
 
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_cols)
         
-        if cnts.K > 0   # centrality corrections
-            α_pri, α_dual = multi_centrality_corr!(pad, pt, α_pri, α_dual, itd.J_fact, itd.μ, 
+        if cnts.kc > 0   # centrality corrections
+            α_pri, α_dual = multi_centrality_corr!(pad, pt, α_pri, α_dual, pad.K_fact, itd.μ, 
                                                    fd.lvar, fd.uvar, itd.x_m_lvar, itd.uvar_m_x, 
-                                                   id, cnts.K, T)
+                                                   id, cnts.kc, T)
             ## TODO replace by centrality_corr.jl, deal with α
         end
 

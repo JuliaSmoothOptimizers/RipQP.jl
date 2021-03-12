@@ -1,15 +1,10 @@
 # Formulation K2: (if regul==:classic, adds additional regularization parmeters -ρ (top left) and δ (bottom right))
-# [-Q - tmp_diag     A' ] [x] = rhs
-# [ A                0  ] [y]
+# [-Q - D     A' ] [x] = rhs
+# [ A         0  ] [y]
 
 # iter_data type for the K2 formulation
 mutable struct iter_data_K2{T<:Real} <: iter_data{T} 
-    tmp_diag    :: Vector{T}                                        # temporary top-left diagonal
-    diag_Q      :: SparseVector{T,Int}                              # Q diagonal
-    J_augm      :: SparseMatrixCSC{T,Int}                           # augmented matrix 
-    J_fact      :: LDLFactorizations.LDLFactorization{T,Int,Int,Int}# factorized matrix
-    fact_fail   :: Bool                                             # true if factorization failed 
-    diagind_J   :: Vector{Int}                                      # diagonal indices of J
+    D           :: Vector{T}                                        # temporary top-left diagonal
     regu        :: regularization{T}
     x_m_lvar    :: Vector{T}                                        # x - lvar
     uvar_m_x    :: Vector{T}                                        # uvar - x
@@ -28,12 +23,7 @@ mutable struct iter_data_K2{T<:Real} <: iter_data{T}
 end
 
 convert(::Type{<:iter_data{T}}, itd :: iter_data_K2{T0}) where {T<:Real, T0<:Real} = 
-    iter_data_K2(convert(Array{T}, itd.tmp_diag),
-                 convert(SparseVector{T,Int}, itd.diag_Q),
-                 convert(SparseMatrixCSC{T,Int}, itd.J_augm),
-                 createldl(T, itd.J_fact),
-                 itd.fact_fail,
-                 itd.diagind_J,
+    iter_data_K2(convert(Array{T}, itd.D),
                  convert(regularization{T}, itd.regu),
                  convert(Array{T}, itd.x_m_lvar),
                  convert(Array{T}, itd.uvar_m_x),
@@ -52,6 +42,11 @@ convert(::Type{<:iter_data{T}}, itd :: iter_data_K2{T0}) where {T<:Real, T0<:Rea
                  )
 
 mutable struct preallocated_data_K2{T<:Real} <: preallocated_data{T} 
+    diag_Q           :: SparseVector{T,Int} # Q diagonal
+    K                :: SparseMatrixCSC{T,Int} # augmented matrix 
+    K_fact           :: LDLFactorizations.LDLFactorization{T,Int,Int,Int} # factorized matrix
+    fact_fail        :: Bool # true if factorization failed 
+    diagind_K        :: Vector{Int} # diagonal indices of J
     Δxy_aff          :: Vector{T} # affine-step solution of the augmented system
     Δs_l_aff         :: Vector{T}
     Δs_u_aff         :: Vector{T}
@@ -67,7 +62,12 @@ mutable struct preallocated_data_K2{T<:Real} <: preallocated_data{T}
 end
                 
 convert(::Type{<:preallocated_data{T}}, pad :: preallocated_data_K2{T0}) where {T<:Real, T0<:Real} = 
-    preallocated_data_K2(convert(Array{T}, pad.Δxy_aff),
+    preallocated_data_K2(convert(SparseVector{T,Int}, pad.diag_Q),
+                         convert(SparseMatrixCSC{T,Int}, pad.K),
+                         createldl(T, pad.K_fact),
+                         pad.fact_fail,
+                         pad.diagind_K,
+                         convert(Array{T}, pad.Δxy_aff),
                          convert(Array{T}, pad.Δs_l_aff),
                          convert(Array{T}, pad.Δs_u_aff),
                          convert(Array{T}, pad.Δxy),
@@ -82,75 +82,75 @@ convert(::Type{<:preallocated_data{T}}, pad :: preallocated_data_K2{T0}) where {
                          )
 
 # Init functions for the K2 system
-function fill_K2!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q_colptr, Q_rowval, Q_nzval,
+function fill_K2!(K_colptr, K_rowval, K_nzval, D, Q_colptr, Q_rowval, Q_nzval,
                   AT_colptr, AT_rowval, AT_nzval, diag_Q_nzind, δ, n_rows, n_cols, regul)
 
     added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
     n_nz = length(diag_Q_nzind)
     c_nz = n_nz > 0 ? 1 : 0
     @inbounds for j=1:n_cols  # Q coeffs, tmp diag coefs. 
-        J_augm_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
+        K_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
         for k=Q_colptr[j]:(Q_colptr[j+1]-2)
             nz_idx = k + added_coeffs_diag 
-            J_augm_rowval[nz_idx] = Q_rowval[k]
-            J_augm_nzval[nz_idx] = -Q_nzval[k]
+            K_rowval[nz_idx] = Q_rowval[k]
+            K_nzval[nz_idx] = -Q_nzval[k]
         end
         if c_nz == 0 || c_nz > n_nz || diag_Q_nzind[c_nz] != j
             added_coeffs_diag += 1
-            J_augm_colptr[j+1] += 1
-            nz_idx = J_augm_colptr[j+1] - 1
-            J_augm_rowval[nz_idx] = j
-            J_augm_nzval[nz_idx] = tmp_diag[j]
+            K_colptr[j+1] += 1
+            nz_idx = K_colptr[j+1] - 1
+            K_rowval[nz_idx] = j
+            K_nzval[nz_idx] = D[j]
         else
             if c_nz != 0  
                 c_nz += 1
             end
-            nz_idx = J_augm_colptr[j+1] - 1
-            J_augm_rowval[nz_idx] = j
-            J_augm_nzval[nz_idx] = tmp_diag[j] - Q_nzval[Q_colptr[j+1]-1] 
+            nz_idx = K_colptr[j+1] - 1
+            K_rowval[nz_idx] = j
+            K_nzval[nz_idx] = D[j] - Q_nzval[Q_colptr[j+1]-1] 
         end
     end
 
-    countsum = J_augm_colptr[n_cols+1] # current value of J_augm_colptr[Q.n+j+1]
+    countsum = K_colptr[n_cols+1] # current value of K_colptr[Q.n+j+1]
     nnz_top_left = countsum # number of coefficients + 1 already added
     @inbounds for j=1:n_rows
         countsum += AT_colptr[j+1] - AT_colptr[j] 
         if regul == :classic 
             countsum += 1
         end
-        J_augm_colptr[n_cols+j+1] = countsum
+        K_colptr[n_cols+j+1] = countsum
         for k=AT_colptr[j]:(AT_colptr[j+1]-1)
             nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
-            J_augm_rowval[nz_idx] = AT_rowval[k]
-            J_augm_nzval[nz_idx] = AT_nzval[k]
+            K_rowval[nz_idx] = AT_rowval[k]
+            K_nzval[nz_idx] = AT_nzval[k]
         end
         if regul == :classic
-            nz_idx = J_augm_colptr[n_cols+j+1] - 1
-            J_augm_rowval[nz_idx] = n_cols + j 
-            J_augm_nzval[nz_idx] = δ
+            nz_idx = K_colptr[n_cols+j+1] - 1
+            K_rowval[nz_idx] = n_cols + j 
+            K_nzval[nz_idx] = δ
         end
     end   
 end
 
-function create_K2(id, tmp_diag, Q, AT, diag_Q, regu)
+function create_K2(id, D, Q, AT, diag_Q, regu)
     # for classic regul only
-    n_nz = length(tmp_diag) - length(diag_Q.nzind) + length(AT.nzval) + length(Q.nzval) 
-    T = eltype(tmp_diag)
+    n_nz = length(D) - length(diag_Q.nzind) + length(AT.nzval) + length(Q.nzval) 
+    T = eltype(D)
     if regu.regul == :classic
         n_nz += id.n_rows
     end
-    J_augm_colptr = Vector{Int}(undef, id.n_rows+id.n_cols+1) 
-    J_augm_colptr[1] = 1
-    J_augm_rowval = Vector{Int}(undef, n_nz)
-    J_augm_nzval = Vector{T}(undef, n_nz)
-    # [-Q -tmp_diag    AT]
+    K_colptr = Vector{Int}(undef, id.n_rows+id.n_cols+1) 
+    K_colptr[1] = 1
+    K_rowval = Vector{Int}(undef, n_nz)
+    K_nzval = Vector{T}(undef, n_nz)
+    # [-Q -D    AT]
     # [0               δI]
 
-    fill_K2!(J_augm_colptr, J_augm_rowval, J_augm_nzval, tmp_diag, Q.colptr, Q.rowval, Q.nzval,
+    fill_K2!(K_colptr, K_rowval, K_nzval, D, Q.colptr, Q.rowval, Q.nzval,
              AT.colptr, AT.rowval, AT.nzval, diag_Q.nzind, regu.δ, id.n_rows, id.n_cols, regu.regul)
 
     return SparseMatrixCSC(id.n_rows+id.n_cols, id.n_rows+id.n_cols,
-                           J_augm_colptr, J_augm_rowval, J_augm_nzval)
+                           K_colptr, K_rowval, K_nzval)
 end
 
 function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Symbol, 
@@ -158,32 +158,27 @@ function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Sym
     # init regularization values
     if mode == :mono
         regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), regul)
-        tmp_diag = -T(1.0e0)/2 .* ones(T, id.n_cols)
+        D = -T(1.0e0)/2 .* ones(T, id.n_cols)
     else
         regu = regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), regul)
-        tmp_diag = -T(1.0e-2) .* ones(T, id.n_cols)
+        D = -T(1.0e-2) .* ones(T, id.n_cols)
     end
     diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.n_cols)
-    J_augm = create_K2(id, tmp_diag, fd.Q, fd.AT, diag_Q, regu)
+    K = create_K2(id, D, fd.Q, fd.AT, diag_Q, regu)
 
-    diagind_J = get_diag_sparseCSC(J_augm.colptr, id.n_rows+id.n_cols)
-    J_fact = ldl_analyze(Symmetric(J_augm, :U))
+    diagind_K = get_diag_sparseCSC(K.colptr, id.n_rows+id.n_cols)
+    K_fact = ldl_analyze(Symmetric(K, :U))
     if regu.regul == :dynamic
-        Amax = @views norm(J_augm.nzval[diagind_J], Inf)
-        J_fact.r1 = T(-eps(T)^(3/4))
-        J_fact.r2 = T(sqrt(eps(T)))
-        J_fact.tol = Amax*T(eps(T))
-        J_fact.n_d = id.n_cols
-        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+        Amax = @views norm(K.nzval[diagind_K], Inf)
+        K_fact.r1 = T(-eps(T)^(3/4))
+        K_fact.r2 = T(sqrt(eps(T)))
+        K_fact.tol = Amax*T(eps(T))
+        K_fact.n_d = id.n_cols
+        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
     end
-    J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
-    J_fact.__factorized = true
-    itd = iter_data_K2(tmp_diag, # tmp diag
-                       diag_Q, #diag_Q
-                       J_augm, #J_augm
-                       J_fact, #J_fact
-                       false,
-                       diagind_J, #diagind_J
+    K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    K_fact.__factorized = true
+    itd = iter_data_K2(D, # tmp diag
                        regu,
                        zeros(T, id.n_low), # x_m_lvar
                        zeros(T, id.n_upp), # uvar_m_x
@@ -202,7 +197,12 @@ function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Sym
                        )
     
     
-    pad = preallocated_data_K2(zeros(T, id.n_cols+id.n_rows), # Δxy_aff
+    pad = preallocated_data_K2(diag_Q, #diag_Q
+                               K, #K
+                               K_fact, #K_fact
+                               false,
+                               diagind_K, #diagind_K
+                               zeros(T, id.n_cols+id.n_rows), # Δxy_aff
                                zeros(T, id.n_low), # Δs_l_aff
                                zeros(T, id.n_upp), # Δs_u_aff
                                zeros(T, id.n_cols+id.n_rows), # Δxy
@@ -217,61 +217,61 @@ function create_iterdata_K2(fd :: QM_FloatData{T}, id :: QM_IntData, mode :: Sym
                                )
     
     # init system
-    # solve [-Q-tmp_diag    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
+    # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
     #       [      A         0 ] [y] = [0]
     pad.Δxy[id.n_cols+1: end] = fd.b
-    ldiv!(itd.J_fact, pad.Δxy)
+    ldiv!(pad.K_fact, pad.Δxy)
     pt0 = point(pad.Δxy[1:id.n_cols], pad.Δxy[id.n_cols+1:end], zeros(T, id.n_low), zeros(T, id.n_upp))
 
     return itd, pad, pt0
 end
 
 # iteration functions for the K2 system
-function factorize_K2!(J_augm, J_fact, tmp_diag, diag_Q , diagind_J, regu, s_l, s_u, x_m_lvar, uvar_m_x, 
+function factorize_K2!(K, K_fact, D, diag_Q , diagind_K, regu, s_l, s_u, x_m_lvar, uvar_m_x, 
                        ilow, iupp, n_rows, n_cols, cnts, qp, T, T0) 
 
     if regu.regul == :classic
-        tmp_diag .= -regu.ρ
-        J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= regu.δ
+        D .= -regu.ρ
+        K.nzval[view(diagind_K, n_cols+1:n_rows+n_cols)] .= regu.δ
     else
-        tmp_diag .= zero(T)
+        D .= zero(T)
     end
-    tmp_diag[ilow] .-= s_l ./ x_m_lvar
-    tmp_diag[iupp] .-= s_u ./ uvar_m_x
-    tmp_diag[diag_Q.nzind] .-= diag_Q.nzval
-    J_augm.nzval[view(diagind_J,1:n_cols)] = tmp_diag 
+    D[ilow] .-= s_l ./ x_m_lvar
+    D[iupp] .-= s_u ./ uvar_m_x
+    D[diag_Q.nzind] .-= diag_Q.nzval
+    K.nzval[view(diagind_K,1:n_cols)] = D 
 
     if regu.regul == :dynamic
-        Amax = @views norm(J_augm.nzval[diagind_J], Inf)
-        if Amax > T(1e6) / J_fact.r2 && cnts.c_pdd < 8
+        Amax = @views norm(K.nzval[diagind_K], Inf)
+        if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
             if T == Float32
                 return one(Int) # update to Float64
             elseif qp || cnts.c_pdd < 4
                 cnts.c_pdd += 1
                 regu.δ /= 10 
-                J_fact.r2 = regu.δ
+                K_fact.r2 = regu.δ
             end
         end
-        J_fact.tol = Amax * T(eps(T))
-        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+        K_fact.tol = Amax * T(eps(T))
+        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
 
     elseif regu.regul == :classic
-        J_fact = try ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+        K_fact = try ldl_factorize!(Symmetric(K, :U), K_fact)
         catch
             out = update_regu_trycatch!(regu, cnts, T, T0)
             out == 1 && return out
             cnts.c_catch += 1
-            tmp_diag .= -regu.ρ
-            tmp_diag[ilow] .-= s_l ./ x_m_lvar
-            tmp_diag[iupp] .-= s_u ./ uvar_m_x
-            tmp_diag[diag_Q.nzind] .-= diag_Q.nzval
-            J_augm.nzval[view(diagind_J,1:n_cols)] = tmp_diag 
-            J_augm.nzval[view(diagind_J, n_cols+1:n_rows+n_cols)] .= regu.δ
-            J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+            D .= -regu.ρ
+            D[ilow] .-= s_l ./ x_m_lvar
+            D[iupp] .-= s_u ./ uvar_m_x
+            D[diag_Q.nzind] .-= diag_Q.nzval
+            K.nzval[view(diagind_K,1:n_cols)] = D 
+            K.nzval[view(diagind_K, n_cols+1:n_rows+n_cols)] .= regu.δ
+            K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
         end
 
     else # no regularization
-        J_fact = ldl_factorize!(Symmetric(J_augm, :U), J_fact)
+        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
     cnts.c_catch >= 4 && return 1
@@ -281,17 +281,17 @@ end
 
 function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
 
-    out = factorize_K2!(itd.J_augm, itd.J_fact, itd.tmp_diag, itd.diag_Q, itd.diagind_J, itd.regu, 
+    out = factorize_K2!(pad.K, pad.K_fact, itd.D, pad.diag_Q, pad.diagind_K, itd.regu, 
                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
                         id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
 
     if out == 1
-        itd.fact_fail = true
+        pad.fact_fail = true
         return 1
     end
 
     # affine scaling step
-    solve_augmented_system_aff!(pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, itd.J_fact, res.rc, res.rb, 
+    solve_augmented_system_aff!(pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, pad.K_fact, res.rc, res.rb, 
                                 itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.ilow, id.iupp, id.n_cols)
     α_aff_pri, α_aff_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy_aff, pad.Δs_l_aff, 
                                        pad.Δs_u_aff, id.n_cols)
@@ -305,7 +305,7 @@ function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
     # corrector-centering step
     pad.rxs_l .= @views -σ * itd.μ .+ pad.Δxy_aff[id.ilow] .* pad.Δs_l_aff
     pad.rxs_u .= @views σ * itd.μ .+ pad.Δxy_aff[id.iupp] .* pad.Δs_u_aff
-    solve_augmented_system_cc!(itd.J_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
+    solve_augmented_system_cc!(pad.K_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
                                pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
 
     # final direction
@@ -314,8 +314,8 @@ function solve_K2!(pt, itd, fd, id, res, pad, cnts, T, T0)
     pad.Δs_u .+= pad.Δs_u_aff
 
     # update regularization
-    if itd.regu.regul == :classic  # update ρ and δ values, check J_augm diag magnitude 
-        out = update_regu_diagJ!(itd.regu, itd.J_augm.nzval, itd.diagind_J, id.n_cols, itd.pdd, 
+    if itd.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
+        out = update_regu_diagJ!(itd.regu, pad.K.nzval, pad.diagind_K, id.n_cols, itd.pdd, 
                                  itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
     end
     

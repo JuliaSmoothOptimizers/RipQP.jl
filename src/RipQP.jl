@@ -67,7 +67,7 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
     sc.tired = Δt > itol.max_time
     
     cnts = counters(zero(Int), zero(Int), 0, 0, 
-                    iconf.K==-1 ? nb_corrector_steps(itd.J_augm.colptr, id.n_rows, id.n_cols, T) : iconf.K,
+                    iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.n_rows, id.n_cols, T) : iconf.kc,
                     iconf.max_ref, zero(Int))
     
     # display

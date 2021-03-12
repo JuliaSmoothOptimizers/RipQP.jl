@@ -37,7 +37,7 @@ Type to specify the configuration used by RipQP.
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
-- `K :: Int`: number of centrality corrections (set to `-1` for automatic computation)
+- `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
 - `refinement :: Symbol` : should be `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
     with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
@@ -50,7 +50,7 @@ The constructor
 
     iconf = input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
                          scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                         K :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
+                         kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
                          create_iterdata :: Function = create_iterdata_K2, 
                          solve! :: Function = solve_K2!) where {I<:Integer}
 
@@ -61,7 +61,7 @@ struct input_config{I<:Integer}
     regul               :: Symbol
     scaling             :: Bool 
     normalize_rtol      :: Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
-    K                   :: I # multiple centrality corrections, -1 = automatic computation
+    kc                  :: I # multiple centrality corrections, -1 = automatic computation
 
     # QP refinement 
     refinement          :: Symbol 
@@ -73,7 +73,7 @@ struct input_config{I<:Integer}
 end
 
 function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                      K :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
+                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
                       create_iterdata :: Function = create_iterdata_K2, solve! :: Function = solve_K2!) where {I<:Integer}
 
     mode == :mono || mode == :multi || error("mode should be :mono or :multi")
@@ -81,7 +81,7 @@ function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scal
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
 
-    return input_config{I}(mode, regul, scaling, normalize_rtol, K, refinement, max_ref, create_iterdata, solve!)
+    return input_config{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, create_iterdata, solve!)
 end
 
 """
@@ -190,13 +190,13 @@ convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T},
 
 abstract type iter_data{T<:Real} end
 
-createldl(T, J_fact) = LDLFactorizations.LDLFactorization(J_fact.__analyzed, J_fact.__factorized, J_fact.__upper,
-                                                          J_fact.n, J_fact.parent, J_fact.Lnz, J_fact.flag,
-                                                          J_fact.P, J_fact.pinv, J_fact.Lp, J_fact.Cp,
-                                                          J_fact.Ci, J_fact.Li, Array{T}(J_fact.Lx),
-                                                          Array{T}(J_fact.d), Array{T}(J_fact.Y),
-                                                          J_fact.pattern, T(J_fact.r1), T(J_fact.r2),
-                                                          T(J_fact.tol), J_fact.n_d)
+createldl(T, K_fact) = LDLFactorizations.LDLFactorization(K_fact.__analyzed, K_fact.__factorized, K_fact.__upper,
+                                                          K_fact.n, K_fact.parent, K_fact.Lnz, K_fact.flag,
+                                                          K_fact.P, K_fact.pinv, K_fact.Lp, K_fact.Cp,
+                                                          K_fact.Ci, K_fact.Li, Array{T}(K_fact.Lx),
+                                                          Array{T}(K_fact.d), Array{T}(K_fact.Y),
+                                                          K_fact.pattern, T(K_fact.r1), T(K_fact.r2),
+                                                          T(K_fact.tol), K_fact.n_d)
 
 abstract type preallocated_data{T<:Real} end
 
@@ -216,7 +216,7 @@ mutable struct counters
     c_pdd    :: Int # maximum number of δ_min reductions when pdd does not change
     k        :: Int # iter count
     km       :: Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
-    K        :: Int # maximum corrector steps
+    kc       :: Int # maximum corrector steps
     max_ref  :: Int # maximum number of refinements
     c_ref    :: Int # current number of refinements
 end

@@ -1,6 +1,6 @@
 function get_QM_data(QM :: QuadraticModel)
     T = eltype(QM.meta.lvar)
-    # constructs A and Q transposed so we can create J_augm upper triangular. 
+    # constructs A and Q transposed so we can create K upper triangular. 
     # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
     AT = sparse(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.nvar, QM.meta.ncon) 
     dropzeros!(AT)
