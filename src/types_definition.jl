@@ -28,18 +28,20 @@ end
 """
 Type to specify the configuration used by RipQP.
 
-- `mode::Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
+- `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
-- `regul::Symbol`: if `:classic`, then the regularization is performed prior the factorization,
+- `regul :: Symbol`: if `:classic`, then the regularization is performed prior the factorization,
     if `:dynamic`, then the regularization is performed during the factorization, and if `:none`,
     no regularization is used
-- `scaling::Bool`: activate/deactivate scaling of A and Q in `QM0`
+- `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
 - `K :: Int`: number of centrality corrections (set to `-1` for automatic computation)
 - `refinement :: Symbol` : should be `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
-    with multi-precision, or `none` to avoid refinements
+    with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
+    to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
+    refinements
 - `create_iterdata :: Function`: used to create the iter_data type used for the iterations (including the system 
     to solve)
 - `solve! :: Function` : used to solve the system at each iteration
@@ -73,14 +75,19 @@ end
 function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
                       K :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
                       create_iterdata :: Function = create_iterdata_K2, solve! :: Function = solve_K2!) where {I<:Integer}
-    
+
+    mode == :mono || mode == :multi || error("mode should be :mono or :multi")
+    regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
+    refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
+        refinement == :none || error("not a valid refinement parameter")
+
     return input_config{I}(mode, regul, scaling, normalize_rtol, K, refinement, max_ref, create_iterdata, solve!)
 end
 
 """
 Type to specify the tolerances used by RipQP.
 
-- `max_iter::Int`: maximum number of iterations
+- `max_iter :: Int`: maximum number of iterations
 - `ϵ_pdd`: relative primal-dual difference tolerance
 - `ϵ_rb`: primal tolerance
 - `ϵ_rc`: dual tolerance
@@ -90,6 +97,7 @@ Type to specify the tolerances used by RipQP.
 - `max_iter64`, `ϵ_pdd64`, `ϵ_rb64`, `ϵ_rc64`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
     `ϵ_rc`, but used for switching from double precision to quadruple precision. They
     are only usefull when `mode=:multi` and `T0=Float128`
+- `ϵ_rbz` : primal transition tolerance for the zoom procedure, (used only if `refinement=:zoom`)
 - `ϵ_Δx`: step tolerance for the current point estimate (note: this criterion
     is currently disabled)
 - `ϵ_μ`: duality measure tolerance (note: this criterion is currently disabled)

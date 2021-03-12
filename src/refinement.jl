@@ -6,7 +6,7 @@ mutable struct QM_FloatData_ref{T<:Real} <: Abstract_QM_FloatData{T}
     c0                  :: T
     lvar                :: Vector{T}
     uvar                :: Vector{T}
-    Δref                 :: T
+    Δref                :: T
     x_approx            :: Vector{T}
     x_approxQx_approx_2 :: T
     b_init              :: Vector{T}

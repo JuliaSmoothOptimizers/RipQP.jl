@@ -8,7 +8,7 @@ export ripqp, iter_data, iter_data_K2, create_K2_iterdata, solve_K2!, solve_K2_5
 
 include("types_definition.jl")
 include("iterations/iterations.jl")
-include("iterations/refinement.jl")
+include("refinement.jl")
 include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
@@ -22,18 +22,13 @@ include("multi_precision.jl")
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a `GenericExecutionStats` containing information about the solved problem.
 
-- `QM0 :: QuadraticModel{T0}`: problem to solve
+- `QM :: QuadraticModel`: problem to solve
 - `iconf :: input_config{Int}`: input RipQP configuration. See `input_config{I}`.
 - `itol :: input_tol{T, Int}` input tolerances for the stopping criteria. See `input_tol{T, I}`.
 - `display::Bool`: activate/deactivate iteration data display
 """
 function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config(), itol :: input_tol{Tu, Int} = input_tol(), 
                display :: Bool = true) where {Tu<:Real}
-
-    iconf.mode == :mono || iconf.mode == :multi || error("mode should be :mono or :multi")
-    iconf.regul == :classic || iconf.regul == :dynamic || iconf.regul == :none || error("regul should be :classic or :dynamic or :none")
-    iconf.refinement == :zoom || iconf.refinement == :multizoom || iconf.refinement == :ref || iconf.refinement == :multiref || 
-        iconf.refinement == :none || error("not a valid refinement parameter")
     
     start_time = time()
     elapsed_time = 0.0

@@ -64,26 +64,9 @@ end
     @test stats3.status == :acceptable
 end
 
-@testset "multiple_centrality_corrections_auto" begin
+@testset "centrality_corrections" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(K=-1), display=false)
-    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
-    @test stats1.status == :acceptable
-
-    qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(K=-1), display=false)
-    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
-    @test stats2.status == :acceptable
-
-    qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(K=-1), display=false)
-    @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
-    @test stats3.status == :acceptable
-end
-
-@testset "2_centrality_corrections" begin
-    qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(K=2), display=false)
+    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(K=-1), display=false) # automatic centrality corrections computation
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
@@ -98,12 +81,40 @@ end
     @test stats3.status == :acceptable
 end
 
-@testset "Float128_no_normalize_rtol" begin
+@testset "Float128" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
     qm128_1 = createQuadraticModel128(qps1)
-    stats1 = ripqp(qm128_1, itol = input_tol(ϵ_rb32=0.1, ϵ_rb64=0.01), iconf = input_config(normalize_rtol=false), display=false)
+    stats1 = ripqp(qm128_1, itol = input_tol(ϵ_rb32=0.1, ϵ_rb64=0.01), iconf = input_config(mode=:multi, normalize_rtol=false), display=false)
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    qm128_2 = createQuadraticModel128(qps2)
+    stats2 = ripqp(qm128_2, display=false)
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+end
+
+@testset "refinement" begin
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(refinement=:zoom), display=false) # automatic centrality corrections computation
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
+
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(refinement=:ref), display=false) # automatic centrality corrections computation
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(mode=:multi, refinement=:multizoom),  display=false)
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+
+    qps3 = readqps("HS52.SIF") # free bounds
+    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(mode=:multi, refinement=:multiref),  display=false)
+    @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
+    @test stats3.status == :acceptable
 end
 
 @testset "K2_5" begin
