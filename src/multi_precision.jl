@@ -17,14 +17,14 @@ function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old
    res = convert(residuals{T}, res)
    itd = convert(iter_data{T}, itd)
    if T == Float64 && T0 == Float64
-       itd.regu.ρ_min, itd.regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
    else
-       itd.regu.ρ_min, itd.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
+       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
    end
    pad = convert(preallocated_data{T}, pad)
 
-   itd.regu.ρ /= 10
-   itd.regu.δ /= 10
+   pad.regu.ρ /= 10
+   pad.regu.δ /= 10
 
    return pt, itd, res, pad
 end

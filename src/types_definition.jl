@@ -42,9 +42,9 @@ Type to specify the configuration used by RipQP.
     with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
     refinements
-- `create_iterdata :: Function`: used to create the iter_data type used for the iterations (including the system 
-    to solve)
-- `solve! :: Function` : used to solve the system at each iteration
+- `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the initialization.
+The Symbol should correspond to the specific `preallocated_data` used by the solver. 
+- `solve_method! :: Function` : used to solve the system at each iteration
 
 The constructor
 
@@ -68,20 +68,20 @@ struct input_config{I<:Integer}
     max_ref             :: I # maximum number of refinements
 
     # Functions to choose formulations
-    create_iterdata     :: Function 
-    solve!              :: Function
+    solver              :: Symbol 
+    solve_method!       :: Function
 end
 
 function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
-                      create_iterdata :: Function = create_iterdata_K2, solve! :: Function = solve_K2!) where {I<:Integer}
+                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, solver :: Symbol = :K2,
+                      solve_method! :: Function = solve_PC!) where {I<:Integer}
 
     mode == :mono || mode == :multi || error("mode should be :mono or :multi")
     regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
 
-    return input_config{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, create_iterdata, solve!)
+    return input_config{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method!)
 end
 
 """
@@ -188,15 +188,59 @@ convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T},
                                                                convert(T, res.rbNorm), convert(T, res.rcNorm),
                                                                convert(T, res.n_Δx))
 
-abstract type iter_data{T<:Real} end
+# LDLFactorization conversion function
+convertldl(T :: DataType, K_fact) = LDLFactorizations.LDLFactorization(K_fact.__analyzed, K_fact.__factorized, K_fact.__upper,
+                                                                       K_fact.n, K_fact.parent, K_fact.Lnz, K_fact.flag,
+                                                                       K_fact.P, K_fact.pinv, K_fact.Lp, K_fact.Cp,
+                                                                       K_fact.Ci, K_fact.Li, convert(Array{T}, K_fact.Lx),
+                                                                       convert(Array{T}, K_fact.d), convert(Array{T}, K_fact.Y),
+                                                                       K_fact.pattern, T(K_fact.r1), T(K_fact.r2),
+                                                                       T(K_fact.tol), K_fact.n_d)
 
-createldl(T, K_fact) = LDLFactorizations.LDLFactorization(K_fact.__analyzed, K_fact.__factorized, K_fact.__upper,
-                                                          K_fact.n, K_fact.parent, K_fact.Lnz, K_fact.flag,
-                                                          K_fact.P, K_fact.pinv, K_fact.Lp, K_fact.Cp,
-                                                          K_fact.Ci, K_fact.Li, Array{T}(K_fact.Lx),
-                                                          Array{T}(K_fact.d), Array{T}(K_fact.Y),
-                                                          K_fact.pattern, T(K_fact.r1), T(K_fact.r2),
-                                                          T(K_fact.tol), K_fact.n_d)
+mutable struct regularization{T<:Real}
+    ρ        :: T       # curent top-left regularization parameter
+    δ        :: T       # cureent bottom-right regularization parameter
+    ρ_min    :: T       # ρ minimum value 
+    δ_min    :: T       # δ minimum value 
+    regul    :: Symbol  # regularization mode (:classic, :dynamic, or :none)
+end
+                                                            
+convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<:Real} = 
+    regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
+
+mutable struct iter_data{T<:Real} 
+    x_m_lvar    :: Vector{T}                                        # x - lvar
+    uvar_m_x    :: Vector{T}                                        # uvar - x
+    Qx          :: Vector{T}                                        
+    ATy         :: Vector{T}
+    Ax          :: Vector{T}
+    xTQx_2      :: T
+    cTx         :: T
+    pri_obj     :: T                                                
+    dual_obj    :: T
+    μ           :: T                                                # duality measure
+    pdd         :: T                                                # primal dual difference (relative)
+    l_pdd       :: Vector{T}                                        # list of the 5 last pdd
+    mean_pdd    :: T                                                # mean of the 5 last pdd
+    qp          :: Bool # true if qp false if lp
+end
+
+convert(::Type{iter_data{T}}, itd :: iter_data{T0}) where {T<:Real, T0<:Real} = 
+    iter_data(convert(Array{T}, itd.x_m_lvar),
+              convert(Array{T}, itd.uvar_m_x),
+              convert(Array{T}, itd.Qx),
+              convert(Array{T}, itd.ATy),
+              convert(Array{T}, itd.Ax),
+              convert(T, itd.xTQx_2),
+              convert(T, itd.cTx),
+              convert(T, itd.pri_obj),
+              convert(T, itd.dual_obj),
+              convert(T, itd.μ),
+              convert(T, itd.pdd),
+              convert(Array{T}, itd.l_pdd),
+              convert(T, itd.mean_pdd),
+              itd.qp
+              )
 
 abstract type preallocated_data{T<:Real} end
 

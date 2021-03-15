@@ -21,15 +21,26 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals
 
     # center points before zoom
     if centering
-        if pad.fact_fail # re-factorize if it failed in a lower precision system
-            out = factorize_K2!(pad.K, pad.K_fact, itd.D, pad.diag_Q, pad.diagind_K, itd.regu, 
-                                pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                                id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
-        end
+        # if pad.fact_fail # re-factorize if it failed in a lower precision system
+        #     out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
+        #                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
+        #                         id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+        # end
         pad.rxs_l .= -itd.μ 
         pad.rxs_u .= itd.μ 
-        solve_augmented_system_cc!(pad.K_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
-                                pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
+        # solve_augmented_system_cc!(pad.K_fact, pad.Δxy, pad.Δs_l, pad.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
+        #                         pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
+        pad.Δxy .= 0
+        pad.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
+        pad.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
+        if pad.fact_fail
+            out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :aff)
+        else
+            out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :cc)
+        end
+        pad.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* pad.Δxy[id.ilow]) ./ itd.x_m_lvar
+        pad.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* pad.Δxy[id.iupp]) ./ itd.uvar_m_x
+
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_cols)
         update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
     end

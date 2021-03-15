@@ -14,12 +14,51 @@ function get_QM_data(QM :: QuadraticModel)
     return fd_T, id, T
 end
 
+function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: residuals{T}, iconf :: input_config{Tconf}, 
+                    T0 :: DataType) where {T<:Real, Tconf<:Real}
+
+    itd = iter_data(zeros(T, id.n_low), # x_m_lvar
+                    zeros(T, id.n_upp), # uvar_m_x
+                    zeros(T, id.n_cols), # init Qx
+                    zeros(T, id.n_cols), # init ATy
+                    zeros(T, id.n_rows), # Ax
+                    zero(T), #xTQx
+                    zero(T), #cTx
+                    zero(T), #pri_obj
+                    zero(T), #dual_obj
+                    zero(T), #μ
+                    zero(T),#pdd
+                    zeros(T, 6), #l_pdd
+                    one(T), #mean_pdd
+                    nnz(fd.Q) > 0
+                    )
+    
+    pad_type = Symbol(:preallocated_data_, iconf.solver)
+    pad = eval(pad_type)(fd, id, iconf)
+    
+    # init system
+    # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
+    #       [  A     0  ] [y] = [0]
+    pad.Δxy[id.n_cols+1: end] = fd.b
+
+    cnts = counters(zero(Int), zero(Int), 0, 0, 
+                    iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.n_rows, id.n_cols, T) : iconf.kc,
+                    iconf.max_ref, zero(Int))
+
+    pt0 = point(zeros(T, id.n_cols), zeros(T, id.n_rows), zeros(T, id.n_low), zeros(T, id.n_upp))
+    out = solver!(pt0, itd, fd, id, res, pad, cnts, T0, :init)
+    pt0.x .= pad.Δxy[1:id.n_cols]
+    pt0.y .= pad.Δxy[id.n_cols+1:end]
+
+    return itd, pad, pt0, cnts
+end
+
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances{T}, sc :: stop_crit{Tc},
-                     regul :: Symbol, mode :: Symbol, create_iterdata :: Function) where {T<:Real, Tc<:Real}
+                     iconf :: input_config{Tconf}, T0 :: DataType) where {T<:Real, Tc<:Real, Tconf<:Real}
 
     res = residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     
-    itd, pad, pt = create_iterdata(fd_T, id, mode, regul)
+    itd, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 
     starting_points!(pt, fd_T, id, itd)
 
@@ -36,7 +75,7 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: tolerances
     sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
     sc.small_μ = itd.μ < ϵ.μ
 
-    return itd, ϵ, pad, pt, res, sc
+    return itd, ϵ, pad, pt, res, sc, cnts
 end
 
 function set_tol_residuals!(ϵ :: tolerances{T}, rbNorm :: T, rcNorm :: T) where {T<:Real}
