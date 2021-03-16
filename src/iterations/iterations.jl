@@ -1,8 +1,8 @@
+include("solve_method.jl")
 include("centrality_corr.jl")
 include("regularization.jl")
 include("direct_methods/K2.jl")
 include("direct_methods/K2_5.jl")
-include("solve_method.jl")
 
 function compute_α_dual(v, dir_v)
     n = length(v)
@@ -51,45 +51,6 @@ end
 
 @inline function compute_μ(x_m_lvar, uvar_m_x, s_l, s_u, nb_low, nb_upp)
     return (dot(s_l, x_m_lvar) + dot(s_u, uvar_m_x)) / (nb_low + nb_upp)
-end
-
-function solve_augmented_system_aff!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
-                                     res :: Residuals{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType, 
-                                     solver! :: Function) where {T<:Real}
-
-    pad.Δxy_aff[1:id.n_cols] .= .- res.rc
-    pad.Δxy_aff[id.n_cols+1:end] .= .-res.rb
-    pad.Δxy_aff[id.ilow] .+= pt.s_l
-    pad.Δxy_aff[id.iupp] .-= pt.s_u
-
-    # ldiv!(K_fact, Δxy_aff)
-    out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :aff)
-    pad.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* itd.Δxy_aff[id.ilow] ./ itd.x_m_lvar
-    pad.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* itd.Δxy_aff[id.iupp] ./ itd.uvar_m_x
-    return out
-end
-
-function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, Δxy_aff, Δs_l_aff, Δs_u_aff, 
-                        x_m_lvar, uvar_m_x, s_l, s_u, α_aff_pri, α_aff_dual, ilow, iupp)
-    x_m_l_αΔ_aff .= @views x_m_lvar .+ α_aff_pri .* Δxy_aff[ilow]
-    u_m_x_αΔ_aff .= @views uvar_m_x .- α_aff_pri .* Δxy_aff[iupp]
-    s_l_αΔ_aff .= s_l .+ α_aff_dual .* Δs_l_aff
-    s_u_αΔ_aff .= s_u .+ α_aff_dual .* Δs_u_aff
-end
-
-function solve_augmented_system_cc!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
-                                    res :: Residuals{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType, 
-                                    solver! :: Function) where {T<:Real} 
-
-    itd.Δxy .= 0
-    itd.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
-    itd.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
-
-    # ldiv!(K_fact, Δxy_cc)
-    out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :cc)
-    itd.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
-    itd.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
-    return out
 end
 
 function update_pt!(x, y, s_l, s_u, α_pri, α_dual, Δxy, Δs_l, Δs_u, n_rows, n_cols)
@@ -159,7 +120,7 @@ function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData
 end
 
 function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
-               sc :: StopCrit{Tc}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T}, solve! :: Function, 
+               sc :: StopCrit{Tc}, dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T},
                cnts :: Counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
     if pad.regu.regul == :dynamic
@@ -171,13 +132,13 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
-        out = solve!(pt, itd, fd, id, res, pad, cnts, T0)
+        out = update_dda!(pt, itd, fd, id, res, dda, pad, cnts, T0)
         out == 1 && break
 
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
         
         if cnts.kc > 0   # centrality corrections
-            α_pri, α_dual = multi_centrality_corr!(pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
+            α_pri, α_dual = multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
             ## TODO replace by centrality_corr.jl, deal with α
         end
 

@@ -16,8 +16,8 @@ mutable struct QM_FloatData_ref{T<:Real} <: Abstract_QM_FloatData{T}
 end
 
 function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, Δxy :: Vector{T}, pt :: Point{T}, 
-                       itd :: IterData{T}, ϵ :: Tolerances{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType,
-                       refinement :: Symbol; centering :: Bool = false) where {T<:Real}
+                       itd :: IterData{T}, ϵ :: Tolerances{T}, dda :: DescentDirectionAllocsPC{T}, pad :: PreallocatedData{T}, 
+                       cnts :: Counters, T0 :: DataType, refinement :: Symbol; centering :: Bool = false) where {T<:Real}
 
     # center Points before zoom
     if centering
@@ -26,20 +26,20 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
         #                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
         #                         id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
         # end
-        pad.rxs_l .= -itd.μ 
-        pad.rxs_u .= itd.μ 
+        dda.rxs_l .= -itd.μ 
+        dda.rxs_u .= itd.μ 
         # solve_augmented_system_cc!(pad.K_fact, itd.Δxy, itd.Δs_l, itd.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
         #                         pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
         itd.Δxy .= 0
-        itd.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
-        itd.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
+        itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
+        itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
         if pad.fact_fail
-            out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :aff)
+            out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :aff)
         else
-            out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :cc)
+            out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :cc)
         end
-        itd.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
-        itd.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
+        itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
+        itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
 
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
         update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)

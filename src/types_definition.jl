@@ -44,7 +44,7 @@ Type to specify the configuration used by RipQP.
     refinements
 - `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the initialization.
 The Symbol should correspond to the specific `PreallocatedData` used by the solver. 
-- `solve_method! :: Function` : used to solve the system at each iteration
+- `solve_method :: Symbol` : used to solve the system at each iteration
 
 The constructor
 
@@ -69,19 +69,19 @@ struct InputConfig{I<:Integer}
 
     # Functions to choose formulations
     solver              :: Symbol 
-    solve_method!       :: Function
+    solve_method        :: Symbol
 end
 
 function InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
                       kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, solver :: Symbol = :K2,
-                      solve_method! :: Function = solve_PC!) where {I<:Integer}
+                      solve_method :: Symbol = :PC) where {I<:Integer}
 
     mode == :mono || mode == :multi || error("mode should be :mono or :multi")
     regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
 
-    return InputConfig{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method!)
+    return InputConfig{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method)
 end
 
 """

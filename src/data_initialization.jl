@@ -36,6 +36,9 @@ function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}
                    nnz(fd.Q) > 0
                    )
     
+    dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
+    dda = eval(dda_type)(id, T)
+    
     pad_type = Symbol(:PreallocatedData_, iconf.solver)
     pad = eval(pad_type)(fd, id, iconf)
     
@@ -49,11 +52,11 @@ function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}
                     iconf.max_ref, zero(Int))
 
     pt0 = Point(zeros(T, id.n_cols), zeros(T, id.n_rows), zeros(T, id.n_low), zeros(T, id.n_upp))
-    out = solver!(pt0, itd, fd, id, res, pad, cnts, T0, :init)
+    out = solver!(pt0, itd, fd, id, res, dda, pad, cnts, T0, :init)
     pt0.x .= itd.Δxy[1:id.n_cols]
     pt0.y .= itd.Δxy[id.n_cols+1:end]
 
-    return itd, pad, pt0, cnts
+    return itd, dda, pad, pt0, cnts
 end
 
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: Tolerances{T}, sc :: StopCrit{Tc},
@@ -61,7 +64,7 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: Tolerances
 
     res = Residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
     
-    itd, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
+    itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 
     starting_points!(pt, fd_T, id, itd)
 
@@ -78,7 +81,7 @@ function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: Tolerances
     sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
     sc.small_μ = itd.μ < ϵ.μ
 
-    return itd, ϵ, pad, pt, res, sc, cnts
+    return itd, ϵ, dda, pad, pt, res, sc, cnts
 end
 
 function set_tol_residuals!(ϵ :: Tolerances{T}, rbNorm :: T, rcNorm :: T) where {T<:Real}

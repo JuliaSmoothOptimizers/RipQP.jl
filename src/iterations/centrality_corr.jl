@@ -30,51 +30,51 @@ function update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_α�
     end
 end
 
-function multi_centrality_corr!(pad :: PreallocatedData{T}, pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData{T}, 
-                                fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, cnts :: Counters, res :: Residuals{T}, 
+function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: PreallocatedData{T}, pt :: Point{T}, α_pri :: T, α_dual :: T, 
+                                itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, cnts :: Counters, res :: Residuals{T}, 
                                 T0 :: DataType) where {T<:Real}
 
     iter_c = 0 # current number of correction iterations
     corr_flag = true #stop correction if false
     # for storage issues Δ_aff = Δp  and Δ_cc = Δm
-    pad.Δxy_aff .= itd.Δxy 
-    pad.Δs_l_aff .= itd.Δs_l
-    pad.Δs_u_aff .= itd.Δs_u
+    dda.Δxy_aff .= itd.Δxy 
+    dda.Δs_l_aff .= itd.Δs_l
+    dda.Δs_u_aff .= itd.Δs_u
     @inbounds while iter_c < cnts.kc && corr_flag
         # Δp = Δ_aff + Δ_cc
         δα, γ, βmin, βmax = T(0.1), T(0.1), T(0.1), T(10)
         α_p2, α_d2 = min(α_pri + δα, one(T)), min(α_dual + δα, one(T))
-        update_pt_aff!(pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, 
+        update_pt_aff!(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, 
                         itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_p2, α_d2, id.ilow, id.iupp)
-        μ_p = compute_μ(pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, id.n_low, id.n_upp)
+        μ_p = compute_μ(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
 
         σ = (μ_p / itd.μ)^3
         Hmin, Hmax = βmin * σ * itd.μ, βmax * σ * itd.μ
 
         # corrector-centering step
-        update_rxs!(pad.rxs_l, pad.rxs_u, Hmin, Hmax, pad.x_m_l_αΔ_aff, pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, id.n_low, id.n_upp)
+        update_rxs!(dda.rxs_l, dda.rxs_u, Hmin, Hmax, dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
         itd.Δxy .= 0
-        itd.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
-        itd.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
-        out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :cc)
-        itd.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
-        itd.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
+        itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
+        itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
+        out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :cc)
+        itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
+        itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
         
-        itd.Δxy .+= pad.Δxy_aff
-        itd.Δs_l .+= pad.Δs_l_aff 
-        itd.Δs_u .+= pad.Δs_u_aff
+        itd.Δxy .+= dda.Δxy_aff
+        itd.Δs_l .+= dda.Δs_l_aff 
+        itd.Δs_u .+= dda.Δs_u_aff
         α_p2, α_d2 = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
 
         if α_p2 >= α_pri + γ*δα && α_d2 >= α_dual + γ*δα
             iter_c += 1
-            pad.Δxy_aff .= itd.Δxy
-            pad.Δs_l_aff .= itd.Δs_l
-            pad.Δs_u_aff .= itd.Δs_u
+            dda.Δxy_aff .= itd.Δxy
+            dda.Δs_l_aff .= itd.Δs_l
+            dda.Δs_u_aff .= itd.Δs_u
             α_pri, α_dual = α_p2, α_d2
         else
-            itd.Δxy .= pad.Δxy_aff
-            itd.Δs_l .= pad.Δs_l_aff
-            itd.Δs_u .= pad.Δs_u_aff
+            itd.Δxy .= dda.Δxy_aff
+            itd.Δs_l .= dda.Δs_l_aff
+            itd.Δs_u .= dda.Δs_u_aff
             corr_flag = false
         end
     end

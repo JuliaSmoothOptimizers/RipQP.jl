@@ -50,7 +50,7 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
         T = Float32
         ϵ32 = Tolerances(T(itol.ϵ_pdd32), T(itol.ϵ_rb32), T(itol.ϵ_rc32), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         fd32 = convert_FloatData(T, fd_T0)
-        itd, ϵ32, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
+        itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
         set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
         if T0 == Float128
             T = Float64
@@ -60,7 +60,7 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
             T = Float32
         end
     elseif iconf.mode == :mono
-        itd, ϵ, pad, pt, res, sc, cnts = init_params(fd_T0, id, ϵ, sc, iconf, T0)
+        itd, ϵ, dda, pad, pt, res, sc, cnts = init_params(fd_T0, id, ϵ, sc, iconf, T0)
     end
 
     Δt = time() - start_time
@@ -82,13 +82,13 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
 
     if iconf.mode == :multi
         # iter in Float32 then convert data to Float64
-        pt, itd, res, pad = iter_and_update_T!(pt, itd, fd32, id, res, sc, pad, ϵ32, ϵ, iconf.solve_method!, cnts, 
-                                               itol.max_iter32, Float64, display)
+        pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd32, id, res, sc, dda, pad, ϵ32, ϵ, cnts, 
+                                                    itol.max_iter32, Float64, display)
       
         if T0 == Float128 
             # iters in Float64 then convert data to Float128
-            pt, itd, res, pad = iter_and_update_T!(pt, itd, fd64, id, res, sc, pad, ϵ64, ϵ, iconf.solve_method!, cnts, 
-                                                   itol.max_iter64, Float128, display)
+            pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd64, id, res, sc, dda, pad, ϵ64, ϵ, cnts, 
+                                                        itol.max_iter64, Float128, display)
         end
         sc.max_iter = itol.max_iter
     end
@@ -98,21 +98,21 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
     if iconf.refinement == :zoom || iconf.refinement == :ref
         ϵz = Tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
                         T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
-        iter!(pt, itd, fd_T0, id, res, sc, pad, ϵz, iconf.solve_method!, cnts, T0, display)
+        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
         sc.optimal = false
 
-        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement)
-        iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve_method!, cnts, T0, display)
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
     elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
-        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement, centering = true)
-        iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve_method!, cnts, T0, display)
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement, centering = true)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
     else
         # iters T0, no refinement
-        iter!(pt, itd, fd_T0, id, res, sc, pad, ϵ, iconf.solve_method!, cnts, T0, display)
+        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
     end
 
     # output status                                                    

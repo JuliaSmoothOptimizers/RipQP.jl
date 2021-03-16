@@ -10,15 +10,6 @@ mutable struct PreallocatedData_K2{T<:Real} <: PreallocatedData{T}
     K_fact           :: LDLFactorizations.LDLFactorization{T,Int,Int,Int} # factorized matrix
     fact_fail        :: Bool # true if factorization failed 
     diagind_K        :: Vector{Int} # diagonal indices of J
-    Δxy_aff          :: Vector{T} # affine-step solution of the augmented system
-    Δs_l_aff         :: Vector{T}
-    Δs_u_aff         :: Vector{T} 
-    x_m_l_αΔ_aff     :: Vector{T} # x + α * Δxy_aff - lvar
-    u_m_x_αΔ_aff     :: Vector{T} # uvar - (x + α * Δxy_aff)
-    s_l_αΔ_aff       :: Vector{T} # s_l + α * Δs_l_aff
-    s_u_αΔ_aff       :: Vector{T} # s_u + α * Δs_u_aff
-    rxs_l            :: Vector{T} # - σ * μ * e + ΔX_aff * Δ_S_l_aff
-    rxs_u            :: Vector{T} # σ * μ * e + ΔX_aff * Δ_S_u_aff
 end
 
 # outer constructor
@@ -54,19 +45,9 @@ function PreallocatedData_K2(fd :: QM_FloatData{T}, id :: QM_IntData, iconf :: I
                                K, #K
                                K_fact, #K_fact
                                false,
-                               diagind_K, #diagind_K
-                               zeros(T, id.n_cols+id.n_rows), # Δxy_aff
-                               zeros(T, id.n_low), # Δs_l_aff
-                               zeros(T, id.n_upp), # Δs_u_aff
-                               zeros(T, id.n_low), # x_m_l_αΔ_aff
-                               zeros(T, id.n_upp), # u_m_x_αΔ_aff
-                               zeros(T, id.n_low), # s_l_αΔ_aff
-                               zeros(T, id.n_upp), # s_u_αΔ_aff
-                               zeros(T, id.n_low), # rxs_l
-                               zeros(T, id.n_upp)  # rxs_u
+                               diagind_K #diagind_K
                                )
 end
-
                 
 convert(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2{T0}) where {T<:Real, T0<:Real} = 
     PreallocatedData_K2(convert(Array{T}, pad.D),
@@ -75,26 +56,18 @@ convert(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2{T0}) where {T<
                         convert(SparseMatrixCSC{T,Int}, pad.K),
                         convertldl(T, pad.K_fact),
                         pad.fact_fail,
-                        pad.diagind_K,
-                        convert(Array{T}, pad.Δxy_aff),
-                        convert(Array{T}, pad.Δs_l_aff),
-                        convert(Array{T}, pad.Δs_u_aff),
-                        convert(Array{T}, pad.x_m_l_αΔ_aff),
-                        convert(Array{T}, pad.u_m_x_αΔ_aff),
-                        convert(Array{T}, pad.s_l_αΔ_aff),
-                        convert(Array{T}, pad.s_u_αΔ_aff),
-                        convert(Array{T}, pad.rxs_l),
-                        convert(Array{T}, pad.rxs_u)
+                        pad.diagind_K
                         )
 
 # function used to solve problems
 # solver LDLFactorization
 function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
-                 pad :: PreallocatedData_K2{T}, cnts :: Counters, T0 :: DataType, step :: Symbol) where {T<:Real}
+                 dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData_K2{T}, cnts :: Counters, T0 :: DataType, 
+                 step :: Symbol) where {T<:Real}
     
     if step == :init # only for starting points
         ldiv!(pad.K_fact, itd.Δxy)
-    elseif step == :aff
+    elseif step == :aff # affine predictor step
         out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
                             pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
                             id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
@@ -103,7 +76,7 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
             pad.fact_fail = true
             return out
         end
-        ldiv!(pad.K_fact, pad.Δxy_aff) 
+        ldiv!(pad.K_fact, dda.Δxy_aff) 
     else # corrector-centering step
         ldiv!(pad.K_fact, itd.Δxy)
         if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
