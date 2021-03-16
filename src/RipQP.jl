@@ -15,31 +15,31 @@ include("scaling.jl")
 include("multi_precision.jl")
 
 """
-    stats = ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config(), 
-                  itol :: input_tol{Tu, Int} = input_tol(), 
+    stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
+                  itol :: InputTol{Tu, Int} = InputTol(), 
                   display :: Bool = true) where {Tu<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a `GenericExecutionStats` containing information about the solved problem.
 
 - `QM :: QuadraticModel`: problem to solve
-- `iconf :: input_config{Int}`: input RipQP configuration. See `input_config{I}`.
-- `itol :: input_tol{T, Int}` input tolerances for the stopping criteria. See `input_tol{T, I}`.
+- `iconf :: InputConfig{Int}`: input RipQP configuration. See `InputConfig{I}`.
+- `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See `InputTol{T, I}`.
 - `display::Bool`: activate/deactivate iteration data display
 """
-function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config(), itol :: input_tol{Tu, Int} = input_tol(), 
+function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), itol :: InputTol{Tu, Int} = InputTol(), 
                display :: Bool = true) where {Tu<:Real}
     
     start_time = time()
     elapsed_time = 0.0
-    sc = stop_crit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)    
+    sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)    
     
     nvar_init = QM.meta.nvar
     SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
     fd_T0, id, T = get_QM_data(QM)
     T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
-    ϵ = tolerances(T(itol.ϵ_pdd), T(itol.ϵ_rb), T(itol.ϵ_rc), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+    ϵ = Tolerances(T(itol.ϵ_pdd), T(itol.ϵ_rb), T(itol.ϵ_rc), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
 
     if iconf.scaling
         fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
@@ -48,14 +48,14 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
     # initialization
     if iconf.mode == :multi
         T = Float32
-        ϵ32 = tolerances(T(itol.ϵ_pdd32), T(itol.ϵ_rb32), T(itol.ϵ_rc32), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+        ϵ32 = Tolerances(T(itol.ϵ_pdd32), T(itol.ϵ_rb32), T(itol.ϵ_rc32), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         fd32 = convert_FloatData(T, fd_T0)
         itd, ϵ32, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
         set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
         if T0 == Float128
             T = Float64
             fd64 = convert_FloatData(T, fd_T0)
-            ϵ64 = tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+            ϵ64 = Tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
             set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
             T = Float32
         end
@@ -66,7 +66,7 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
     Δt = time() - start_time
     sc.tired = Δt > itol.max_time
     
-    cnts = counters(zero(Int), zero(Int), 0, 0, 
+    cnts = Counters(zero(Int), zero(Int), 0, 0, 
                     iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.n_rows, id.n_cols, T) : iconf.kc,
                     iconf.max_ref, zero(Int))
     
@@ -96,17 +96,17 @@ function ripqp(QM :: QuadraticModel; iconf :: input_config{Int} = input_config()
     ## iter T0
     # refinement
     if iconf.refinement == :zoom || iconf.refinement == :ref
-        ϵz = tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
+        ϵz = Tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
                         T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         iter!(pt, itd, fd_T0, id, res, sc, pad, ϵz, iconf.solve_method!, cnts, T0, display)
         sc.optimal = false
 
-        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, pad.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement)
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement)
         iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve_method!, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
     elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
-        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, pad.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement, centering = true)
+        fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, pad, cnts, T0, iconf.refinement, centering = true)
         iter!(pt_ref, itd, fd_ref, id, res, sc, pad, ϵ, iconf.solve_method!, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 

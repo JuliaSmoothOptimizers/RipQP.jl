@@ -1,6 +1,6 @@
 import Base: convert
 
-export input_config, input_tol
+export InputConfig, InputTol
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{T<:Real} end
@@ -43,20 +43,20 @@ Type to specify the configuration used by RipQP.
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
     refinements
 - `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the initialization.
-The Symbol should correspond to the specific `preallocated_data` used by the solver. 
+The Symbol should correspond to the specific `PreallocatedData` used by the solver. 
 - `solve_method! :: Function` : used to solve the system at each iteration
 
 The constructor
 
-    iconf = input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
-                         scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                         kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
-                         create_iterdata :: Function = create_iterdata_K2, 
-                         solve! :: Function = solve_K2!) where {I<:Integer}
+    iconf = InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
+                        scaling :: Bool = true, normalize_rtol :: Bool = true, 
+                        kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
+                        create_iterdata :: Function = create_iterdata_K2, 
+                        solve! :: Function = solve_K2!) where {I<:Integer}
 
-returns a `input_config` struct that shall be used to solve the input `QuadraticModel` with RipQP.
+returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
-struct input_config{I<:Integer}
+struct InputConfig{I<:Integer}
     mode                :: Symbol
     regul               :: Symbol
     scaling             :: Bool 
@@ -72,7 +72,7 @@ struct input_config{I<:Integer}
     solve_method!       :: Function
 end
 
-function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
+function InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
                       kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, solver :: Symbol = :K2,
                       solve_method! :: Function = solve_PC!) where {I<:Integer}
 
@@ -81,7 +81,7 @@ function input_config(; mode :: Symbol = :mono, regul :: Symbol = :classic, scal
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
 
-    return input_config{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method!)
+    return InputConfig{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method!)
 end
 
 """
@@ -105,17 +105,17 @@ Type to specify the tolerances used by RipQP.
 
 The constructor
 
-    itol = input_tol(;max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
+    itol = InputTol(;max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
                      ϵ_pdd :: T = 1e-8, ϵ_pdd32 :: T = 1e-2, ϵ_pdd64 :: T = 1e-4, 
                      ϵ_rb :: T = 1e-6, ϵ_rb32 :: T = 1e-4, ϵ_rb64 :: T = 1e-5, ϵ_rbz :: T = 1e-3,
                      ϵ_rc :: T = 1e-6, ϵ_rc32 :: T = 1e-4, ϵ_rc64 :: T = 1e-5,
                      ϵ_Δx :: T = 1e-16, ϵ_μ :: T = 1e-9) where {T<:Real, I<:Integer}
 
-returns a `input_tol` struct that initializes the stopping criteria for RipQP. 
+returns a `InputTol` struct that initializes the stopping criteria for RipQP. 
 The 32 and 64 characters refer to the stopping criteria in `:multi` mode for the transitions from `Float32` to `Float64` 
 and `Float64` to `Float128` (if the input `QuadraticModel` is in `Float128`) respectively.
 """
-struct input_tol{T<:Real, I<:Integer}
+struct InputTol{T<:Real, I<:Integer}
     # maximum number of iterations
     max_iter        :: I
     max_iter32      :: I # only in multi mode
@@ -145,17 +145,17 @@ struct input_tol{T<:Real, I<:Integer}
     max_time        :: T
 end
 
-function input_tol(;max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
+function InputTol(;max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
                    ϵ_pdd :: T = 1e-8, ϵ_pdd32 :: T = 1e-2, ϵ_pdd64 :: T = 1e-4, 
                    ϵ_rb :: T = 1e-6, ϵ_rb32 :: T = 1e-4, ϵ_rb64 :: T = 1e-5, ϵ_rbz :: T = 1e-5,
                    ϵ_rc :: T = 1e-6, ϵ_rc32 :: T = 1e-4, ϵ_rc64 :: T = 1e-5,
                    ϵ_Δx :: T = 1e-16, ϵ_μ :: T = 1e-9, max_time :: T = 1200.) where {T<:Real, I<:Integer}
 
-    return input_tol{T, I}(max_iter, max_iter32, max_iter64, ϵ_pdd, ϵ_pdd32, ϵ_pdd64, ϵ_rb, ϵ_rb32, ϵ_rb64, ϵ_rbz,
+    return InputTol{T, I}(max_iter, max_iter32, max_iter64, ϵ_pdd, ϵ_pdd32, ϵ_pdd64, ϵ_rb, ϵ_rb32, ϵ_rb64, ϵ_rbz,
                            ϵ_rc, ϵ_rc32, ϵ_rc64, ϵ_μ, ϵ_Δx, max_time)
 end
 
-mutable struct tolerances{T<:Real}
+mutable struct Tolerances{T<:Real}
     pdd              :: T  # primal-dual difference (relative)
     rb               :: T  # primal residuals tolerance
     rc               :: T  # dual residuals tolerance
@@ -166,17 +166,17 @@ mutable struct tolerances{T<:Real}
     normalize_rtol   :: Bool # true if normalize_rtol=true, then tol_rb, tol_rc = ϵ_rb, ϵ_rc
 end
 
-mutable struct point{T<:Real}
+mutable struct Point{T<:Real}
     x    :: Vector{T}
     y    :: Vector{T}
     s_l  :: Vector{T}
     s_u  :: Vector{T}
 end
 
-convert(::Type{point{T}}, pt) where {T<:Real} = point(convert(Array{T}, pt.x), convert(Array{T}, pt.y),
+convert(::Type{Point{T}}, pt) where {T<:Real} = Point(convert(Array{T}, pt.x), convert(Array{T}, pt.y),
                                                       convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u))
 
-mutable struct residuals{T<:Real}
+mutable struct Residuals{T<:Real}
     rb      :: Vector{T} # primal residuals
     rc      :: Vector{T} # dual residuals
     rbNorm  :: T       
@@ -184,7 +184,7 @@ mutable struct residuals{T<:Real}
     n_Δx    :: T
 end
 
-convert(::Type{residuals{T}}, res) where {T<:Real} = residuals(convert(Array{T}, res.rb), convert(Array{T}, res.rc),
+convert(::Type{Residuals{T}}, res) where {T<:Real} = Residuals(convert(Array{T}, res.rb), convert(Array{T}, res.rc),
                                                                convert(T, res.rbNorm), convert(T, res.rcNorm),
                                                                convert(T, res.n_Δx))
 
@@ -197,7 +197,7 @@ convertldl(T :: DataType, K_fact) = LDLFactorizations.LDLFactorization(K_fact.__
                                                                        K_fact.pattern, T(K_fact.r1), T(K_fact.r2),
                                                                        T(K_fact.tol), K_fact.n_d)
 
-mutable struct regularization{T<:Real}
+mutable struct Regularization{T<:Real}
     ρ        :: T       # curent top-left regularization parameter
     δ        :: T       # cureent bottom-right regularization parameter
     ρ_min    :: T       # ρ minimum value 
@@ -205,10 +205,13 @@ mutable struct regularization{T<:Real}
     regul    :: Symbol  # regularization mode (:classic, :dynamic, or :none)
 end
                                                             
-convert(::Type{regularization{T}}, regu::regularization{T0}) where {T<:Real, T0<:Real} = 
-    regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
+convert(::Type{Regularization{T}}, regu::Regularization{T0}) where {T<:Real, T0<:Real} = 
+    Regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
-mutable struct iter_data{T<:Real} 
+mutable struct IterData{T<:Real} 
+    Δxy         :: Vector{T}                                        # Newton step
+    Δs_l        :: Vector{T} 
+    Δs_u        :: Vector{T}
     x_m_lvar    :: Vector{T}                                        # x - lvar
     uvar_m_x    :: Vector{T}                                        # uvar - x
     Qx          :: Vector{T}                                        
@@ -225,26 +228,29 @@ mutable struct iter_data{T<:Real}
     qp          :: Bool # true if qp false if lp
 end
 
-convert(::Type{iter_data{T}}, itd :: iter_data{T0}) where {T<:Real, T0<:Real} = 
-    iter_data(convert(Array{T}, itd.x_m_lvar),
-              convert(Array{T}, itd.uvar_m_x),
-              convert(Array{T}, itd.Qx),
-              convert(Array{T}, itd.ATy),
-              convert(Array{T}, itd.Ax),
-              convert(T, itd.xTQx_2),
-              convert(T, itd.cTx),
-              convert(T, itd.pri_obj),
-              convert(T, itd.dual_obj),
-              convert(T, itd.μ),
-              convert(T, itd.pdd),
-              convert(Array{T}, itd.l_pdd),
-              convert(T, itd.mean_pdd),
-              itd.qp
-              )
+convert(::Type{IterData{T}}, itd :: IterData{T0}) where {T<:Real, T0<:Real} = 
+    IterData(convert(Array{T}, itd.Δxy),
+             convert(Array{T}, itd.Δs_l),
+             convert(Array{T}, itd.Δs_u),
+             convert(Array{T}, itd.x_m_lvar),
+             convert(Array{T}, itd.uvar_m_x),
+             convert(Array{T}, itd.Qx),
+             convert(Array{T}, itd.ATy),
+             convert(Array{T}, itd.Ax),
+             convert(T, itd.xTQx_2),
+             convert(T, itd.cTx),
+             convert(T, itd.pri_obj),
+             convert(T, itd.dual_obj),
+             convert(T, itd.μ),
+             convert(T, itd.pdd),
+             convert(Array{T}, itd.l_pdd),
+             convert(T, itd.mean_pdd),
+             itd.qp
+             )
 
-abstract type preallocated_data{T<:Real} end
+abstract type PreallocatedData{T<:Real} end
 
-mutable struct stop_crit{T}
+mutable struct StopCrit{T}
     optimal     :: Bool
     small_Δx    :: Bool
     small_μ     :: Bool
@@ -255,7 +261,7 @@ mutable struct stop_crit{T}
     Δt          :: T
 end
 
-mutable struct counters
+mutable struct Counters
     c_catch  :: Int # safety try:cath
     c_pdd    :: Int # maximum number of δ_min reductions when pdd does not change
     k        :: Int # iter count

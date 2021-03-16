@@ -10,18 +10,18 @@ function convert_FloatData(T :: DataType, fd_T0 :: QM_FloatData{T0}) where {T0<:
                         Array{T}(fd_T0.uvar))
 end
 
-function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old}, res :: residuals{T_old},
-                       pad :: preallocated_data{T_old}, T0 :: DataType) where {T_old<:Real}
+function convert_types(T :: DataType, pt :: Point{T_old}, itd :: IterData{T_old}, res :: Residuals{T_old},
+                       pad :: PreallocatedData{T_old}, T0 :: DataType) where {T_old<:Real}
 
-   pt = convert(point{T}, pt)
-   res = convert(residuals{T}, res)
-   itd = convert(iter_data{T}, itd)
+   pt = convert(Point{T}, pt)
+   res = convert(Residuals{T}, res)
+   itd = convert(IterData{T}, itd)
    if T == Float64 && T0 == Float64
        pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
    else
        pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
    end
-   pad = convert(preallocated_data{T}, pad)
+   pad = convert(PreallocatedData{T}, pad)
 
    pad.regu.ρ /= 10
    pad.regu.δ /= 10
@@ -29,9 +29,9 @@ function convert_types(T :: DataType, pt :: point{T_old}, itd :: iter_data{T_old
    return pt, itd, res, pad
 end
 
-function iter_and_update_T!(pt :: point{T}, itd :: iter_data{T}, fd_T :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: residuals{T}, 
-                            sc :: stop_crit{Tsc}, pad :: preallocated_data{T}, ϵ_T :: tolerances{T}, ϵ :: tolerances{T0}, solve! :: Function, 
-                            cnts :: counters, max_iter_T :: Int, T_next :: DataType, display :: Bool) where {T<:Real, T0<:Real, Tsc<:Real}
+function iter_and_update_T!(pt :: Point{T}, itd :: IterData{T}, fd_T :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
+                            sc :: StopCrit{Tsc}, pad :: PreallocatedData{T}, ϵ_T :: Tolerances{T}, ϵ :: Tolerances{T0}, solve! :: Function, 
+                            cnts :: Counters, max_iter_T :: Int, T_next :: DataType, display :: Bool) where {T<:Real, T0<:Real, Tsc<:Real}
     # iters T
     sc.max_iter = max_iter_T
     iter!(pt, itd, fd_T, id, res, sc, pad, ϵ_T, solve!, cnts, T0, display)

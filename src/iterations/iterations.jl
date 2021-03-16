@@ -53,8 +53,8 @@ end
     return (dot(s_l, x_m_lvar) + dot(s_u, uvar_m_x)) / (nb_low + nb_upp)
 end
 
-function solve_augmented_system_aff!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
-                                     res :: residuals{T}, pad :: preallocated_data{T}, cnts :: counters, T0 :: DataType, 
+function solve_augmented_system_aff!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
+                                     res :: Residuals{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType, 
                                      solver! :: Function) where {T<:Real}
 
     pad.Δxy_aff[1:id.n_cols] .= .- res.rc
@@ -64,8 +64,8 @@ function solve_augmented_system_aff!(pt :: point{T}, itd :: iter_data{T}, fd :: 
 
     # ldiv!(K_fact, Δxy_aff)
     out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :aff)
-    pad.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* pad.Δxy_aff[id.ilow] ./ itd.x_m_lvar
-    pad.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* pad.Δxy_aff[id.iupp] ./ itd.uvar_m_x
+    pad.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* itd.Δxy_aff[id.ilow] ./ itd.x_m_lvar
+    pad.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* itd.Δxy_aff[id.iupp] ./ itd.uvar_m_x
     return out
 end
 
@@ -77,18 +77,18 @@ function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_a
     s_u_αΔ_aff .= s_u .+ α_aff_dual .* Δs_u_aff
 end
 
-function solve_augmented_system_cc!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
-                                    res :: residuals{T}, pad :: preallocated_data{T}, cnts :: counters, T0 :: DataType, 
+function solve_augmented_system_cc!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, 
+                                    res :: Residuals{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType, 
                                     solver! :: Function) where {T<:Real} 
 
-    pad.Δxy .= 0
-    pad.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
-    pad.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
+    itd.Δxy .= 0
+    itd.Δxy[id.ilow] .+= pad.rxs_l ./ itd.x_m_lvar
+    itd.Δxy[id.iupp] .+= pad.rxs_u ./ itd.uvar_m_x
 
     # ldiv!(K_fact, Δxy_cc)
     out = solver!(pt, itd, fd, id, res, pad, cnts, T0, :cc)
-    pad.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* pad.Δxy[id.ilow]) ./ itd.x_m_lvar
-    pad.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* pad.Δxy[id.iupp]) ./ itd.uvar_m_x
+    itd.Δs_l .= @views .-(pad.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
+    itd.Δs_u .= @views (pad.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
     return out
 end
 
@@ -117,7 +117,7 @@ function boundary_safety!(x_m_lvar, uvar_m_x, n_low, n_upp, T)
     end
 end
 
-function update_iter_data!(itd, pt, fd, id, safety) 
+function update_IterData!(itd, pt, fd, id, safety) 
 
     T = eltype(itd.x_m_lvar)
     itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
@@ -136,15 +136,15 @@ function update_iter_data!(itd, pt, fd, id, safety)
     itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))                     
 end
 
-function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_data{T}, pad :: preallocated_data{T}, 
-                      res :: residuals{T}, fd :: QM_FloatData{T}, id :: QM_IntData) where {T<:Real}
+function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData{T}, pad :: PreallocatedData{T}, 
+                      res :: Residuals{T}, fd :: QM_FloatData{T}, id :: QM_IntData) where {T<:Real}
 
     # (x, y, s_l, s_u) += α * Δ
-    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_rows, id.n_cols)
-    update_iter_data!(itd, pt, fd, id, true)
+    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_rows, id.n_cols)
+    update_IterData!(itd, pt, fd, id, true)
     
-    #update residuals
-    res.n_Δx = @views α_pri * norm(pad.Δxy[1:id.n_cols])
+    #update Residuals
+    res.n_Δx = @views α_pri * norm(itd.Δxy[1:id.n_cols])
     res.rb .= itd.Ax .- fd.b
     res.rc .= itd.ATy .- itd.Qx .- fd.c
     res.rc[id.ilow] .+= pt.s_l
@@ -158,9 +158,9 @@ function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_dat
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
 end
 
-function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: residuals{T}, 
-               sc :: stop_crit{Tc}, pad :: preallocated_data{T}, ϵ :: tolerances{T}, solve! :: Function, 
-               cnts :: counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
+function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
+               sc :: StopCrit{Tc}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T}, solve! :: Function, 
+               cnts :: Counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
     if pad.regu.regul == :dynamic
         pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
@@ -174,7 +174,7 @@ function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{
         out = solve!(pt, itd, fd, id, res, pad, cnts, T0)
         out == 1 && break
 
-        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_cols)
+        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
         
         if cnts.kc > 0   # centrality corrections
             α_pri, α_dual = multi_centrality_corr!(pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
