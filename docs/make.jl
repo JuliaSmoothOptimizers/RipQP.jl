@@ -8,6 +8,7 @@ makedocs(
   format = Documenter.HTML(assets = ["assets/style.css"], prettyurls = get(ENV, "CI", nothing) == "true"),
   sitename = "RipQP.jl",
   pages = ["Home" => "index.md",
+           "Tutorial" => "tutorial.md",
            "API" => "api.md",
            "Reference" => "reference.md",
           ]

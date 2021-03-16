@@ -42,8 +42,8 @@ Type to specify the configuration used by RipQP.
     with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
     refinements
-- `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the initialization.
-The Symbol should correspond to the specific `PreallocatedData` used by the solver. 
+- `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the 
+    initialization (the Symbol should correspond to the specific `PreallocatedData` used by the solver) 
 - `solve_method :: Symbol` : used to solve the system at each iteration
 
 The constructor
@@ -51,8 +51,7 @@ The constructor
     iconf = InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
                         scaling :: Bool = true, normalize_rtol :: Bool = true, 
                         kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
-                        create_iterdata :: Function = create_iterdata_K2, 
-                        solve! :: Function = solve_K2!) where {I<:Integer}
+                        solver :: Symbol = :K2, solve_method :: Symbol = :PC) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
