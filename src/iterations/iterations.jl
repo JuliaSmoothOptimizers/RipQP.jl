@@ -1,3 +1,4 @@
+include("solve_method.jl")
 include("centrality_corr.jl")
 include("regularization.jl")
 include("direct_methods/K2.jl")
@@ -52,39 +53,6 @@ end
     return (dot(s_l, x_m_lvar) + dot(s_u, uvar_m_x)) / (nb_low + nb_upp)
 end
 
-function solve_augmented_system_aff!(Δxy_aff, Δs_l_aff, Δs_u_aff, J_fact, rc, rb, x_m_lvar, uvar_m_x,
-                                     s_l, s_u, ilow, iupp, n_cols)
-
-    Δxy_aff[1:n_cols] .= .-rc
-    Δxy_aff[n_cols+1:end] .= .-rb
-    Δxy_aff[ilow] .+= s_l
-    Δxy_aff[iupp] .-= s_u
-
-    ldiv!(J_fact, Δxy_aff)
-    Δs_l_aff .= @views .-s_l .- s_l.*Δxy_aff[ilow]./x_m_lvar
-    Δs_u_aff .= @views .-s_u .+ s_u.*Δxy_aff[iupp]./uvar_m_x
-end
-
-function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_aff, Δxy_aff, Δs_l_aff, Δs_u_aff, 
-                        x_m_lvar, uvar_m_x, s_l, s_u, α_aff_pri, α_aff_dual, ilow, iupp)
-    x_m_l_αΔ_aff .= @views x_m_lvar .+ α_aff_pri .* Δxy_aff[ilow]
-    u_m_x_αΔ_aff .= @views uvar_m_x .- α_aff_pri .* Δxy_aff[iupp]
-    s_l_αΔ_aff .= s_l .+ α_aff_dual .* Δs_l_aff
-    s_u_αΔ_aff .= s_u .+ α_aff_dual .* Δs_u_aff
-end
-
-function solve_augmented_system_cc!(J_fact, Δxy_cc, Δs_l_cc, Δs_u_cc, x_m_lvar, uvar_m_x, rxs_l, rxs_u, 
-                                    s_l, s_u, ilow, iupp)
-
-    Δxy_cc .= 0
-    Δxy_cc[ilow] .+= rxs_l./x_m_lvar
-    Δxy_cc[iupp] .+= rxs_u./uvar_m_x
-
-    ldiv!(J_fact, Δxy_cc)
-    Δs_l_cc .= @views .-(rxs_l.+s_l.*Δxy_cc[ilow])./x_m_lvar
-    Δs_u_cc .= @views (rxs_u.+s_u.*Δxy_cc[iupp])./uvar_m_x
-end
-
 function update_pt!(x, y, s_l, s_u, α_pri, α_dual, Δxy, Δs_l, Δs_u, n_rows, n_cols)
     x .= @views x .+ α_pri .* Δxy[1:n_cols]
     y .= @views y .+ α_dual .* Δxy[n_cols+1: n_rows+n_cols]
@@ -110,7 +78,7 @@ function boundary_safety!(x_m_lvar, uvar_m_x, n_low, n_upp, T)
     end
 end
 
-function update_iter_data!(itd, pt, fd, id, safety) 
+function update_IterData!(itd, pt, fd, id, safety) 
 
     T = eltype(itd.x_m_lvar)
     itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
@@ -129,15 +97,15 @@ function update_iter_data!(itd, pt, fd, id, safety)
     itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj))                     
 end
 
-function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_data{T}, pad :: preallocated_data{T}, 
-                      res :: residuals{T}, fd :: QM_FloatData{T}, id :: QM_IntData) where {T<:Real}
+function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData{T}, pad :: PreallocatedData{T}, 
+                      res :: Residuals{T}, fd :: QM_FloatData{T}, id :: QM_IntData) where {T<:Real}
 
     # (x, y, s_l, s_u) += α * Δ
-    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_rows, id.n_cols)
-    update_iter_data!(itd, pt, fd, id, true)
+    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_rows, id.n_cols)
+    update_IterData!(itd, pt, fd, id, true)
     
-    #update residuals
-    res.n_Δx = @views α_pri * norm(pad.Δxy[1:id.n_cols])
+    #update Residuals
+    res.n_Δx = @views α_pri * norm(itd.Δxy[1:id.n_cols])
     res.rb .= itd.Ax .- fd.b
     res.rc .= itd.ATy .- itd.Qx .- fd.c
     res.rc[id.ilow] .+= pt.s_l
@@ -151,28 +119,26 @@ function update_data!(pt :: point{T}, α_pri :: T, α_dual :: T, itd :: iter_dat
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
 end
 
-function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: residuals{T}, 
-               sc :: stop_crit{Tc}, pad :: preallocated_data{T}, ϵ :: tolerances{T}, solve! :: Function, 
-               cnts :: counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
+function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
+               sc :: StopCrit{Tc}, dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T},
+               cnts :: Counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
-    if itd.regu.regul == :dynamic
-        itd.regu.ρ, itd.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
-        itd.J_fact.r1, itd.J_fact.r2 = itd.regu.ρ, itd.regu.δ
-    elseif itd.regu.regul == :none
-        itd.regu.ρ, itd.regu.δ = zero(T), zero(T)
+    if pad.regu.regul == :dynamic
+        pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
+        pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
+    elseif pad.regu.regul == :none
+        pad.regu.ρ, pad.regu.δ = zero(T), zero(T)
     end
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
-        out = solve!(pt, itd, fd, id, res, pad, cnts, T, T0)
+        out = update_dda!(pt, itd, fd, id, res, dda, pad, cnts, T0)
         out == 1 && break
 
-        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, pad.Δxy, pad.Δs_l, pad.Δs_u, id.n_cols)
+        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
         
-        if cnts.K > 0   # centrality corrections
-            α_pri, α_dual = multi_centrality_corr!(pad, pt, α_pri, α_dual, itd.J_fact, itd.μ, 
-                                                   fd.lvar, fd.uvar, itd.x_m_lvar, itd.uvar_m_x, 
-                                                   id, cnts.K, T)
+        if cnts.kc > 0   # centrality corrections
+            α_pri, α_dual = multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
             ## TODO replace by centrality_corr.jl, deal with α
         end
 
@@ -194,7 +160,7 @@ function iter!(pt :: point{T}, itd :: iter_data{T}, fd :: Abstract_QM_FloatData{
         sc.tired = sc.Δt > sc.max_time
 
         if display == true
-            @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, itd.regu.ρ, itd.regu.δ])
+            @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, pad.regu.ρ, pad.regu.δ])
         end
     end
 end

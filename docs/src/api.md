@@ -7,6 +7,11 @@ Pages = ["api.md"]
 
 ```@docs
 ripqp
-input_config
-input_tol
+```
+
+## Input Types
+
+```@docs
+InputConfig
+InputTol
 ```

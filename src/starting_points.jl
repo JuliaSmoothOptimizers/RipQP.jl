@@ -1,4 +1,4 @@
-function starting_points!(pt0 :: point{T}, fd :: Abstract_QM_FloatData{T}, id:: QM_IntData, itd :: iter_data{T}) where {T<:Real}
+function starting_points!(pt0 :: Point{T}, fd :: Abstract_QM_FloatData{T}, id:: QM_IntData, itd :: IterData{T}) where {T<:Real}
 
     itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt0.x)
     itd.ATy = mul!(itd.ATy, fd.AT, pt0.y)
@@ -65,6 +65,6 @@ function starting_points!(pt0 :: point{T}, fd :: Abstract_QM_FloatData{T}, id:: 
     @assert all(pt0.s_l .> zero(T)) && all(pt0.s_u .> zero(T))
 
     # update itd
-    update_iter_data!(itd, pt0, fd, id, false)
+    update_IterData!(itd, pt0, fd, id, false)
 
 end

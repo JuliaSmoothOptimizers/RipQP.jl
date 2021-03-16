@@ -123,7 +123,7 @@ function div_D1_A_D2D3!(AT_colptr, AT_rowval, AT_nzval, d1, d2, d3, n)
     end
 end
 
-function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: point{T}, res :: residuals{T},
+function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: Point{T}, res :: Residuals{T},
                     fd_T0 :: QM_FloatData{T}, id :: QM_IntData, Qx :: Vector{T}, ATy :: Vector{T},
                     Ax :: Vector{T}, cTx :: T, pri_obj :: T, dual_obj :: T, xTQx_2 :: T) where {T<:Real}
                     

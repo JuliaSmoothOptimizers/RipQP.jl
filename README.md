@@ -30,5 +30,5 @@ stats = ripqp(qm)
 
 To use the multi precision mode (default to :mono) and change the maximum number of iterations:
 ```julia
-stats = ripqp(qm, iconf = input_config(mode=:multi), itol = input_tol(max_iter=100))
+stats = ripqp(qm, iconf = InputConfig(mode=:multi), itol = InputTol(max_iter=100))
 ```

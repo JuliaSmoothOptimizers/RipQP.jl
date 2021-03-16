@@ -30,58 +30,53 @@ function update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_α�
     end
 end
 
-function centrality_corr!(Δxy_p, Δs_l_p, Δs_u_p, Δxy, Δs_l, Δs_u, α_p, α_d, J_fact, x, y, s_l, s_u, μ, 
-                          rxs_l, rxs_u, lvar, uvar, x_m_lvar, uvar_m_x, x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp,
-                          ilow, iupp, n_low, n_upp, n_rows, n_cols, corr_flag, k_corr, T) 
-    # Δp = Δ_aff + Δ_cc
-    δα, γ, βmin, βmax = T(0.1), T(0.1), T(0.1), T(10)
-    α_p2, α_d2 = min(α_p + δα, one(T)), min(α_d + δα, one(T))
-    update_pt_aff!(x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp, Δxy_p, Δs_l_p, Δs_u_p, x_m_lvar, uvar_m_x, 
-                   s_l, s_u, α_p2, α_d2, ilow, iupp)
-    μ_p = compute_μ(x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp, n_low, n_upp)
+function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: PreallocatedData{T}, pt :: Point{T}, α_pri :: T, α_dual :: T, 
+                                itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, cnts :: Counters, res :: Residuals{T}, 
+                                T0 :: DataType) where {T<:Real}
 
-    σ = (μ_p / μ)^3
-    Hmin, Hmax = βmin * σ * μ, βmax * σ * μ
-
-    update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp, n_low, n_upp)
-    solve_augmented_system_cc!(J_fact, Δxy, Δs_l, Δs_u, x_m_lvar, uvar_m_x, rxs_l, rxs_u, s_l, s_u, ilow, iupp)
-    
-    Δxy .+= Δxy_p
-    Δs_l .+= Δs_l_p 
-    Δs_u .+= Δs_u_p
-    α_p2, α_d2 = compute_αs(x, s_l, s_u, lvar, uvar, Δxy, Δs_l, Δs_u, n_cols)
-
-    if α_p2 >= α_p + γ*δα && α_d2 >= α_d + γ*δα
-        k_corr += 1
-        Δxy_p .= Δxy
-        Δs_l_p .= Δs_l
-        Δs_u_p .= Δs_u
-        α_p, α_d = α_p2, α_d2
-    else
-        Δxy .= Δxy_p
-        Δs_l .= Δs_l_p
-        Δs_u .= Δs_u_p
-        corr_flag = false
-    end
-
-    return α_p, α_d, k_corr, corr_flag
-end
-
-function multi_centrality_corr!(pad, pt, α_pri, α_dual, J_fact, μ, lvar, uvar, x_m_lvar, uvar_m_x, id, K, T)
-
-    k_corr = 0
+    iter_c = 0 # current number of correction iterations
     corr_flag = true #stop correction if false
     # for storage issues Δ_aff = Δp  and Δ_cc = Δm
-    pad.Δxy_aff .= pad.Δxy 
-    pad.Δs_l_aff .= pad.Δs_l
-    pad.Δs_u_aff .= pad.Δs_u
-    @inbounds while k_corr < K && corr_flag
-        α_pri, α_dual, k_corr,
-            corr_flag = centrality_corr!(pad.Δxy_aff, pad.Δs_l_aff, pad.Δs_u_aff, pad.Δxy, pad.Δs_l, pad.Δs_u, 
-                                         α_pri, α_dual, J_fact, pt.x, pt.y, pt.s_l, pt.s_u, μ, pad.rxs_l, pad.rxs_u,
-                                         lvar, uvar, x_m_lvar, uvar_m_x, pad.x_m_l_αΔ_aff,
-                                         pad.u_m_x_αΔ_aff, pad.s_l_αΔ_aff, pad.s_u_αΔ_aff, id.ilow, id.iupp,
-                                         id.n_low, id.n_upp, id.n_rows, id.n_cols, corr_flag, k_corr, T)
+    dda.Δxy_aff .= itd.Δxy 
+    dda.Δs_l_aff .= itd.Δs_l
+    dda.Δs_u_aff .= itd.Δs_u
+    @inbounds while iter_c < cnts.kc && corr_flag
+        # Δp = Δ_aff + Δ_cc
+        δα, γ, βmin, βmax = T(0.1), T(0.1), T(0.1), T(10)
+        α_p2, α_d2 = min(α_pri + δα, one(T)), min(α_dual + δα, one(T))
+        update_pt_aff!(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, 
+                        itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_p2, α_d2, id.ilow, id.iupp)
+        μ_p = compute_μ(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
+
+        σ = (μ_p / itd.μ)^3
+        Hmin, Hmax = βmin * σ * itd.μ, βmax * σ * itd.μ
+
+        # corrector-centering step
+        update_rxs!(dda.rxs_l, dda.rxs_u, Hmin, Hmax, dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
+        itd.Δxy .= 0
+        itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
+        itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
+        out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :cc)
+        itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
+        itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
+        
+        itd.Δxy .+= dda.Δxy_aff
+        itd.Δs_l .+= dda.Δs_l_aff 
+        itd.Δs_u .+= dda.Δs_u_aff
+        α_p2, α_d2 = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
+
+        if α_p2 >= α_pri + γ*δα && α_d2 >= α_dual + γ*δα
+            iter_c += 1
+            dda.Δxy_aff .= itd.Δxy
+            dda.Δs_l_aff .= itd.Δs_l
+            dda.Δs_u_aff .= itd.Δs_u
+            α_pri, α_dual = α_p2, α_d2
+        else
+            itd.Δxy .= dda.Δxy_aff
+            itd.Δs_l .= dda.Δs_l_aff
+            itd.Δs_u .= dda.Δs_u_aff
+            corr_flag = false
+        end
     end
     return α_pri, α_dual
 end
@@ -96,19 +91,19 @@ function nb_corrector_steps(J_colptr, n_rows, n_cols, T)
     end
     rfs = T(Ef / Es)
     if rfs <= 10
-        K = 0
+        kc = 0
     elseif 10 < rfs <= 30
-        K = 1
+        kc = 1
     elseif 30 < rfs <= 50
-        K = 2
+        kc = 2
     elseif rfs > 50
-        K = 3
+        kc = 3
     else
         p = Int(rfs / 50)
-        K = p + 2
-        if K > 10
-            K = 10
+        kc = p + 2
+        if kc > 10
+            kc = 10
         end
     end
-    return K
+    return kc
 end

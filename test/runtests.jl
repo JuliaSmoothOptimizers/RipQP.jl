@@ -32,51 +32,51 @@ end
 
 @testset "multi_mode" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(mode = :multi), display=false)
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :multi), display=false)
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(mode = :multi), display=false)
+    stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(mode = :multi), display=false)
     @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
     @test stats2.status == :acceptable
 
     qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(mode = :multi), display=false)
+    stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(mode = :multi), display=false)
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
 
 @testset "dynamic_regularization" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(regul=:dynamic), display=false)
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(regul=:dynamic), display=false)
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(regul=:dynamic), display=false)
+    stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(regul=:dynamic), display=false)
     @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
     @test stats2.status == :acceptable
 
     qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(regul=:dynamic), display=false)
+    stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(regul=:dynamic), display=false)
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
 
 @testset "centrality_corrections" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(K=-1), display=false) # automatic centrality corrections computation
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(kc=-1), display=false) # automatic centrality corrections computation
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(K=2), display=false)
+    stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(kc=2), display=false)
     @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
     @test stats2.status == :acceptable
 
     qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(K=2), display=false)
+    stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(kc=2), display=false)
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
@@ -84,7 +84,7 @@ end
 @testset "Float128" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
     qm128_1 = createQuadraticModel128(qps1)
-    stats1 = ripqp(qm128_1, itol = input_tol(ϵ_rb32=0.1, ϵ_rb64=0.01), iconf = input_config(mode=:multi, normalize_rtol=false), display=false)
+    stats1 = ripqp(qm128_1, itol = InputTol(ϵ_rb32=0.1, ϵ_rb64=0.01), iconf = InputConfig(mode=:multi, normalize_rtol=false), display=false)
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
@@ -97,39 +97,39 @@ end
 
 @testset "refinement" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(refinement=:zoom), display=false) # automatic centrality corrections computation
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement=:zoom), display=false) # automatic centrality corrections computation
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), iconf = input_config(refinement=:ref), display=false) # automatic centrality corrections computation
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement=:ref), display=false) # automatic centrality corrections computation
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), iconf = input_config(mode=:multi, refinement=:multizoom),  display=false)
+    stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(mode=:multi, refinement=:multizoom),  display=false)
     @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
     @test stats2.status == :acceptable
 
     qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), iconf = input_config(mode=:multi, refinement=:multiref),  display=false)
+    stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(mode=:multi, refinement=:multiref),  display=false)
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
 
 @testset "K2_5" begin
     qps1 = readqps("QAFIRO.SIF") #lower bounds
-    stats1 = ripqp(QuadraticModel(qps1), display=false, iconf = input_config(solve! = solve_K2_5!))
+    stats1 = ripqp(QuadraticModel(qps1), display=false, iconf = InputConfig(solver = :K2_5))
     @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
     @test stats1.status == :acceptable
 
     qps2 = readqps("HS21.SIF") # low/upp bounds
-    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = input_config(solve! = solve_K2_5!, mode = :multi))
+    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = InputConfig(solver = :K2_5, mode = :multi))
     @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
     @test stats2.status == :acceptable
 
     qps3 = readqps("HS52.SIF") # free bounds
-    stats3 = ripqp(QuadraticModel(qps3), display=false, iconf = input_config(solve! = solve_K2_5!, regul = :dynamic))
+    stats3 = ripqp(QuadraticModel(qps3), display=false, iconf = InputConfig(solver = :K2_5, regul = :dynamic))
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
