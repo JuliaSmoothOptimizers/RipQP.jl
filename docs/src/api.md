@@ -15,3 +15,10 @@ ripqp
 InputConfig
 InputTol
 ```
+
+## Solve Methods
+
+```@docs
+DescentDirectionAllocs
+DescentDirectionAllocsPC
+```

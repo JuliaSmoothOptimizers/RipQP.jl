@@ -1,7 +1,28 @@
-export solve_PC!
+export update_dd!, DescentDirectionAllocs, DescentDirectionAllocsPC, DescentDirectionAllocsIPF
 
+"""
+Abstract type that wraps data relative to the method used to solve the problem,
+such as the Predictor-Corrector Algorithm.
+"""
 abstract type DescentDirectionAllocs{T<:Real} end
 
+"""
+Type that wraps data relative to the Predictor-Corrector algorithm.
+To use the Predictor-Corrector algorithm, you should set `solve_method` to `:PC` in the [`RipQP.InputConfig`](@ref) type.
+
+The attributes are :
+
+- `Δxy_aff` : [Δxaff; Δyaff] 
+- `Δs_l_aff`
+- `Δs_u_aff`
+- `x_m_l_αΔ_aff` : x + αaff * Δxaff - lvar
+- `u_m_x_αΔ_aff` : uvar - (x + αaff * Δxaff)
+- `s_l_αΔ_aff` : sl + αaff * Δslaff
+- `s_u_αΔ_aff` : u + αaff * Δsuaff
+- `rxs_l` : - σ * μ * e + ΔXaff * ΔSlaff
+- `rxs_u` : σ * μ * e + ΔXaff * ΔSuaff
+
+"""
 mutable struct DescentDirectionAllocsPC{T<:Real} <: DescentDirectionAllocs{T}
     Δxy_aff          :: Vector{T} # affine-step solution of the augmented system
     Δs_l_aff         :: Vector{T}
@@ -47,8 +68,8 @@ function update_pt_aff!(x_m_l_αΔ_aff, u_m_x_αΔ_aff, s_l_αΔ_aff, s_u_αΔ_a
 end
 
 # Mehrotra's Predictor-Corrector algorithm
-function update_dda!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
-                     dda :: DescentDirectionAllocsPC{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType) where {T<:Real} 
+function update_dd!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
+                    dda :: DescentDirectionAllocsPC{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType) where {T<:Real} 
 
     # solve system aff
     dda.Δxy_aff[1:id.n_cols] .= .- res.rc
@@ -88,4 +109,37 @@ function update_dda!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_Float
     itd.Δs_u .+= dda.Δs_u_aff
 
     return out
+end
+
+mutable struct DescentDirectionAllocsIPF{T<:Real} <: DescentDirectionAllocs{T}
+    check_type :: T # no additional vector required, we use this field only for compat with other methods
+end
+
+DescentDirectionAllocsIPF(id :: QM_IntData, T :: DataType) = DescentDirectionAllocsIPF{T}(one(T))
+
+convert(::Type{<:DescentDirectionAllocs{T}}, dda :: DescentDirectionAllocsIPF{T0}) where {T<:Real, T0<:Real} = 
+    DescentDirectionAllocsIPF(T(dda.check_type))
+
+function update_dd!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
+                    dda :: DescentDirectionAllocsIPF{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType) where {T<:Real} 
+
+    r, γ =  T(0.999), T(0.05)
+    # D = [s_l (x-lvar) + s_u (uvar-x)]
+    pad.D .= 0
+    pad.D[id.ilow] .+= pt.s_l .* itd.x_m_lvar 
+    pad.D[id.iupp] .+= pt.s_u .* itd.uvar_m_x 
+    pad.D[id.ifree] .= one(T)
+    ξ = minimum(pad.D) / itd.μ
+    σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3 
+
+    # rhs = [sqrt(x1x2) (-rc + s_l - s_u) - σμ x1^{-1/2} sqrt(x2) +	σμ sqrt(x1) x2^{-1/2} ]
+    #       [                                   -rb                                       ]
+    itd.Δxy[1:id.n_cols] .= .-res.rc
+    itd.Δxy[id.n_cols+1:end] .= .-res.rb
+    itd.Δxy[id.ilow] .+= pt.s_l - σ * itd.μ ./ itd.x_m_lvar
+    itd.Δxy[id.iupp] .-= pt.s_u - σ * itd.μ ./ itd.uvar_m_x
+    out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :IPF)
+    out == 1 && return out
+    itd.Δs_l .= @views (σ * itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l 
+    itd.Δs_u .= @views (σ * itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
 end

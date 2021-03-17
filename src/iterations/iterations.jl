@@ -4,6 +4,8 @@ include("regularization.jl")
 include("direct_methods/K2.jl")
 include("direct_methods/K2_5.jl")
 
+export solver!
+
 function compute_α_dual(v, dir_v)
     n = length(v)
     T = eltype(v)
@@ -132,7 +134,7 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
-        out = update_dda!(pt, itd, fd, id, res, dda, pad, cnts, T0)
+        out = update_dd!(pt, itd, fd, id, res, dda, pad, cnts, T0)
         out == 1 && break
 
         α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)

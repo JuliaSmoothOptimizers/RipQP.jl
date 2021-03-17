@@ -6,7 +6,7 @@ function get_QM_data(QM :: QuadraticModel)
     dropzeros!(AT)
     Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  
     dropzeros!(Q)
-    id = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
+    id = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, QM.meta.ifree,
                     QM.meta.ncon, QM.meta.nvar, 0, 0)
     id.n_low, id.n_upp = length(id.ilow), length(id.iupp) # number of finite constraints
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)

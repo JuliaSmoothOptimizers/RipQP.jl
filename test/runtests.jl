@@ -133,3 +133,37 @@ end
     @test isapprox(stats3.objective, 5.32664756, atol=1e-2)
     @test stats3.status == :acceptable
 end
+
+@testset "IPF" begin
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(QuadraticModel(qps1), display=false, iconf = InputConfig(solve_method = :IPF, mode=:multi))
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = InputConfig(solve_method = :IPF))
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = InputConfig(solve_method = :IPF, solver = :K2_5, refinement=:zoom))
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(QuadraticModel(qps1), display=false, iconf = InputConfig(solve_method = :IPF, mode=:multi, refinement=:multiref))
+    @test isapprox(stats1.objective, -1.59078179, atol=1e-2)
+    @test stats1.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = InputConfig(solve_method = :IPF, mode=:multi, 
+                                                                            refinement=:multizoom, solver = :K2_5))
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(QuadraticModel(qps2), display=false, iconf = InputConfig(solve_method = :IPF, solver = :K2, refinement=:zoom, 
+                                                                            regul=:dynamic))
+    @test isapprox(stats2.objective, -9.99599999e1, atol=1e-2)
+    @test stats2.status == :acceptable
+end

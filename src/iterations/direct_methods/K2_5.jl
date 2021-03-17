@@ -12,6 +12,7 @@ mutable struct PreallocatedData_K2_5{T<:Real} <: PreallocatedData{T}
     K_fact           :: LDLFactorizations.LDLFactorization{T,Int,Int,Int} # factorized matrix
     fact_fail        :: Bool # true if factorization failed 
     diagind_K        :: Vector{Int} # diagonal indices of J
+    K_scaled         :: Bool # true if K is scaled with X1X2
 end
 
 function PreallocatedData_K2_5(fd :: QM_FloatData{T}, id :: QM_IntData, iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real} 
@@ -45,7 +46,8 @@ function PreallocatedData_K2_5(fd :: QM_FloatData{T}, id :: QM_IntData, iconf ::
                                  K, #K
                                  K_fact, #K_fact
                                  false,
-                                 diagind_K #diagind_K
+                                 diagind_K, #diagind_K
+                                 false,
                                  )
 end
                 
@@ -56,7 +58,8 @@ convert(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2_5{T0}) where {
                           convert(SparseMatrixCSC{T,Int}, pad.K),
                           convertldl(T, pad.K_fact),
                           pad.fact_fail,
-                          pad.diagind_K
+                          pad.diagind_K,
+                          pad.K_scaled
                           )
 
 # solver LDLFactorization
@@ -71,25 +74,61 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
                               pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
                               id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
         out == 1 && return out
+        pad.K_scaled = true
 
         dda.Δxy_aff[1:id.n_cols] .*= pad.D
         LDLFactorizations.ldiv!(pad.K_fact, dda.Δxy_aff) 
         dda.Δxy_aff[1:id.n_cols] .*= pad.D
-    else
+
+    elseif step == :cc # corrector-centering step
+        if pad.K_scaled
+            itd.Δxy[1:id.n_cols] .*= pad.D
+            LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
+            itd.Δxy[1:id.n_cols] .*= pad.D
+        else
+            LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
+        end
+
+        out = 0
+        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
+            out = update_regu_diagJ_K2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
+        end
+    
+        # restore J for next iteration
+        if pad.K_scaled
+            pad.D .= one(T) 
+            pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
+            pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
+            lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.n_cols)
+            pad.K_scaled = false
+        end
+
+        out == 1 && return out
+
+    elseif step == :IPF # only for IPF algorithm
+        out = factorize_K2_5!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
+                              pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
+                              id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+        out == 1 && return out
+        pad.K_scaled = true
+
         itd.Δxy[1:id.n_cols] .*= pad.D
         LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
         itd.Δxy[1:id.n_cols] .*= pad.D
 
         if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
             out = update_regu_diagJ_K2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
-            out == 1 && return out
         end
-    
+
         # restore J for next iteration
         pad.D .= one(T) 
         pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
         pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
         lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.n_cols)
+        pad.K_scaled = false
+
+        out == 1 && return out
+
     end
     return 0
 end

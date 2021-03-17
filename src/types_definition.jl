@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol
+export InputConfig, InputTol, QM_FloatData, QM_IntData, Point, Residuals, IterData, Counters, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{T<:Real} end
@@ -19,6 +19,7 @@ mutable struct QM_IntData
     ilow   :: Vector{Int}
     iupp   :: Vector{Int}
     irng   :: Vector{Int}
+    ifree  :: Vector{Int}
     n_rows :: Int
     n_cols :: Int
     n_low  :: Int

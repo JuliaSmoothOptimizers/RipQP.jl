@@ -67,6 +67,7 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
     
     if step == :init # only for starting points
         ldiv!(pad.K_fact, itd.Δxy)
+
     elseif step == :aff # affine predictor step
         out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
                             pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
@@ -77,7 +78,23 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
             return out
         end
         ldiv!(pad.K_fact, dda.Δxy_aff) 
-    else # corrector-centering step
+
+    elseif step == :cc # corrector-centering step
+        ldiv!(pad.K_fact, itd.Δxy)
+        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
+            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.n_cols, itd.pdd, 
+                                     itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
+            out == 1 && return out
+        end
+
+    elseif step == :IPF # single step Infeasible Path Following, facultative if you only use PC algorithm
+        out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
+                            pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
+                            id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+        if out == 1 
+            pad.fact_fail = true
+            return out
+        end
         ldiv!(pad.K_fact, itd.Δxy)
         if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
             out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.n_cols, itd.pdd, 
