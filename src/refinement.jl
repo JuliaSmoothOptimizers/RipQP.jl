@@ -24,7 +24,7 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
         # if pad.fact_fail # re-factorize if it failed in a lower precision system
         #     out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
         #                         pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-        #                         id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+        #                         id.ncon, id.nvar, cnts, itd.qp, T, T0)
         # end
         # dda.rxs_l .= -itd.μ 
         # dda.rxs_u .= itd.μ 
@@ -34,14 +34,14 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
         itd.Δxy[id.ilow] .-= itd.μ  ./ itd.x_m_lvar
         itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
         if pad.fact_fail
-            out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :IPF)
+            out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
         else
-            out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :cc)
+            out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
         end
         itd.Δs_l .= @views .-(.-itd.μ .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
         itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
 
-        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
+        α_pri, α_dual = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
         update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
     end
 
@@ -53,11 +53,11 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
         Δref = one(T)
         αref = T(1.0e12)
         δd = norm(c_ref, Inf) 
-        if id.n_low == 0 && id.n_upp > 0
+        if id.nlow == 0 && id.nupp > 0
             δp  = max(res.rbNorm, maximum(itd.uvar_m_x))
-        elseif id.n_low > 0 && id.n_upp == 0
+        elseif id.nlow > 0 && id.nupp == 0
             δp  = max(res.rbNorm, maximum(itd.x_m_lvar))
-        elseif id.n_low == 0 && id.n_upp == 0
+        elseif id.nlow == 0 && id.nupp == 0
             δp  = max(res.rbNorm)
         else
             δp  = max(res.rbNorm, maximum(itd.x_m_lvar), maximum(itd.uvar_m_x))
@@ -71,7 +71,7 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
                              fd.c, copy(itd.pri_obj))
 
     # init zoom Point
-    pt_z = Point(zeros(T, id.n_cols), zeros(T, id.n_rows), max.(abs.(c_ref[id.ilow]), eps(T)), max.(abs.(c_ref[id.iupp]), eps(T)))
+    pt_z = Point(zeros(T, id.nvar), zeros(T, id.ncon), max.(abs.(c_ref[id.ilow]), eps(T)), max.(abs.(c_ref[id.iupp]), eps(T)))
     starting_points!(pt_z, fd_ref, id, itd)
 
     # update residuals
@@ -118,14 +118,14 @@ function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData
                       res :: Residuals{T}, fd :: QM_FloatData_ref{T}, id :: QM_IntData) where {T<:Real}
 
     # (x, y, s_l, s_u) += α * Δ
-    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_rows, id.n_cols)
+    update_pt!(pt.x, pt.y, pt.s_l, pt.s_u, α_pri, α_dual, itd.Δxy, itd.Δs_l, itd.Δs_u, id.ncon, id.nvar)
 
     # update IterData
     itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
     itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
-    boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.n_low, id.n_upp, T)
+    boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.nlow, id.nupp, T)
 
-    itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.n_low, id.n_upp)
+    itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
     itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
     x_approxQx = dot(fd.x_approx, itd.Qx)
     itd.xTQx_2 =  dot(pt.x, itd.Qx) / 2
@@ -140,7 +140,7 @@ function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData
     itd.pdd = abs(itd.pri_obj - itd.dual_obj ) / (one(T) + abs(itd.pri_obj)) 
 
     #update Residuals
-    res.n_Δx = @views α_pri * norm(itd.Δxy[1:id.n_cols])
+    res.n_Δx = @views α_pri * norm(itd.Δxy[1:id.nvar])
     res.rb .= itd.Ax .- fd.b
     res.rc .= itd.ATy .- itd.Qx .- fd.c
     res.rc[id.ilow] .+= pt.s_l

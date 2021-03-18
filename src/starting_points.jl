@@ -9,13 +9,13 @@ function starting_points!(pt0 :: Point{T}, fd :: Abstract_QM_FloatData{T}, id:: 
     # check distance to bounds δ for x, s_l and s_u
     itd.x_m_lvar .= @views pt0.x[id.ilow] .- fd.lvar[id.ilow]
     itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt0.x[id.iupp]
-    if id.n_low == 0
+    if id.nlow == 0
         δx_l1, δs_l1 = zero(T), zero(T)
     else
         δx_l1 = max(-T(1.5)*minimum(itd.x_m_lvar), T(1.e-2))
         δs_l1 = max(-T(1.5)*minimum(pt0.s_l), T(1.e-4))
     end
-    if id.n_upp == 0
+    if id.nupp == 0
         δx_u1, δs_u1 = zero(T), zero(T)
     else
         δx_u1 = max(-T(1.5)*minimum(itd.uvar_m_x), T(1.e-2))
@@ -28,13 +28,13 @@ function starting_points!(pt0 :: Point{T}, fd :: Abstract_QM_FloatData{T}, id:: 
     s0_l1 = pt0.s_l .+ δs_l1
     s0_u1 = pt0.s_u .+ δs_u1
     xs_l1, xs_u1 = dot(s0_l1, itd.x_m_lvar), dot(s0_u1, itd.uvar_m_x)
-    if id.n_low == 0
+    if id.nlow == 0
         δx_l2, δs_l2 = zero(T), zero(T)
     else
         δx_l2 = δx_l1 + xs_l1 / sum(s0_l1) / 2
         δs_l2 = δs_l1 + xs_l1 / sum(itd.x_m_lvar) / 2
     end
-    if id.n_upp == 0
+    if id.nupp == 0
         δx_u2, δs_u2 = zero(T), zero(T)
     else
         δx_u2 = δx_u1 + xs_u1 / sum(s0_u1) / 2

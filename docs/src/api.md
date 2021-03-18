@@ -23,10 +23,3 @@ SolverParams
 K2LDLParams
 K2_5LDLParams
 ```
-
-## Solve Methods
-
-```@docs
-DescentDirectionAllocs
-DescentDirectionAllocsPC
-```

@@ -56,22 +56,18 @@ end
 function scaling_Ruiz!(fd_T0 :: QM_FloatData{T}, id :: QM_IntData, ϵ :: T;
                        max_iter :: Int = 100) where {T<:Real}
 
-    d1, d2 = ones(T, id.n_rows), ones(T, id.n_cols)
-    r_k, c_k = zeros(T, id.n_cols), zeros(T, id.n_rows)
+    d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
+    r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
     # r (resp. c) norm of rows of AT (resp. cols) 
     # scaling: D2 * AT * D1
-    get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, 
-                 id.n_rows, :row)
-    get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, 
-                 id.n_rows,:col)
+    get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :row)
+    get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :col)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
     mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
     k = 1
     while !convergence && k < max_iter
-        get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, 
-                     id.n_rows, :row)
-        get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, 
-                     id.n_rows,:col)
+        get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :row)
+        get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :col)
         convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
         mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
         k += 1
@@ -84,16 +80,14 @@ function scaling_Ruiz!(fd_T0 :: QM_FloatData{T}, id :: QM_IntData, ϵ :: T;
     fd_T0.uvar ./= d2
 
     # scaling Q (symmetric)
-    d3 = ones(T, id.n_cols)
+    d3 = ones(T, id.nvar)
     r_k .= zero(T) # r_k is now norm of rows of Q
-    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, 
-                 id.n_cols,:row)
+    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar,:row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
     mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
     k = 1
     while !convergence && k < max_iter
-        get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, 
-                     id.n_cols,:row)
+        get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar,:row)
         convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
         mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
         k += 1
@@ -128,10 +122,10 @@ function post_scale(d1 :: Vector{T}, d2 :: Vector{T}, d3 :: Vector{T}, pt :: Poi
                     Ax :: Vector{T}, cTx :: T, pri_obj :: T, dual_obj :: T, xTQx_2 :: T) where {T<:Real}
                     
     pt.x .*= d2 .* d3
-    div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.n_cols)
+    div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.nvar)
     Qx = mul!(Qx, Symmetric(fd_T0.Q, :U), pt.x)
     xTQx_2 =  dot(pt.x, Qx) / 2
-    div_D1_A_D2D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, d3, id.n_rows)
+    div_D1_A_D2D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, d3, id.ncon)
     pt.y .*= d1
     ATy = mul!(ATy, fd_T0.AT, pt.y)
     Ax = mul!(Ax, fd_T0.AT', pt.x)

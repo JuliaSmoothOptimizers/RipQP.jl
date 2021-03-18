@@ -9,7 +9,6 @@ makedocs(
   sitename = "RipQP.jl",
   pages = ["Home" => "index.md",
            "Tutorial" => "tutorial.md",
-           "Configuration" => "configuration.md",
            "API" => "api.md",
            "Reference" => "reference.md",
           ]

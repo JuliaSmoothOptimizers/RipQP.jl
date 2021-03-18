@@ -41,22 +41,22 @@ function PreallocatedData(sp :: K2LDLParams, fd :: QM_FloatData{T}, id :: QM_Int
     # init Regularization values
     if iconf.mode == :mono
         regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), sp.regul)
-        D = -T(1.0e0)/2 .* ones(T, id.n_cols)
+        D = -T(1.0e0)/2 .* ones(T, id.nvar)
     else
         regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), sp.regul)
-        D = -T(1.0e-2) .* ones(T, id.n_cols)
+        D = -T(1.0e-2) .* ones(T, id.nvar)
     end
-    diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.n_cols)
+    diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.nvar)
     K = create_K2(id, D, fd.Q, fd.AT, diag_Q, regu)
 
-    diagind_K = get_diag_sparseCSC(K.colptr, id.n_rows+id.n_cols)
+    diagind_K = get_diag_sparseCSC(K.colptr, id.ncon+id.nvar)
     K_fact = ldl_analyze(Symmetric(K, :U))
     if regu.regul == :dynamic
         Amax = @views norm(K.nzval[diagind_K], Inf)
         regu.ρ, regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
         K_fact.r1, K_fact.r2 = regu.ρ, regu.δ
         K_fact.tol = Amax*T(eps(T))
-        K_fact.n_d = id.n_cols
+        K_fact.n_d = id.nvar
     elseif regu.regul == :none
         regu.ρ, regu.δ = zero(T), zero(T)
     end
@@ -101,8 +101,8 @@ end
 
 # function used to solve problems
 # solver LDLFactorization
-function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
-                 dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData_K2{T}, cnts :: Counters, T0 :: DataType, 
+function solver!(pad :: PreallocatedData_K2{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
+                 fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType, 
                  step :: Symbol) where {T<:Real}
     
     if step == :init # only for starting points
@@ -111,7 +111,7 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
     elseif step == :aff # affine predictor step
         out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
                             pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                            id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+                            id.ncon, id.nvar, cnts, itd.qp, T, T0)
         
         if out == 1 
             pad.fact_fail = true
@@ -122,7 +122,7 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
     elseif step == :cc # corrector-centering step
         ldiv!(pad.K_fact, itd.Δxy)
         if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.n_cols, itd.pdd, 
+            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.nvar, itd.pdd, 
                                      itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
             out == 1 && return out
         end
@@ -130,14 +130,14 @@ function solver!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData
     elseif step == :IPF # single step Infeasible Path Following, facultative if you only use PC algorithm
         out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
                             pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                            id.n_rows, id.n_cols, cnts, itd.qp, T, T0)
+                            id.ncon, id.nvar, cnts, itd.qp, T, T0)
         if out == 1 
             pad.fact_fail = true
             return out
         end
         ldiv!(pad.K_fact, itd.Δxy)
         if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.n_cols, itd.pdd, 
+            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.nvar, itd.pdd, 
                                      itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
             out == 1 && return out
         end
@@ -147,12 +147,12 @@ end
 
 # Init functions for the K2 system
 function fill_K2!(K_colptr, K_rowval, K_nzval, D, Q_colptr, Q_rowval, Q_nzval,
-                  AT_colptr, AT_rowval, AT_nzval, diag_Q_nzind, δ, n_rows, n_cols, regul)
+                  AT_colptr, AT_rowval, AT_nzval, diag_Q_nzind, δ, ncon, nvar, regul)
 
     added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
     n_nz = length(diag_Q_nzind)
     c_nz = n_nz > 0 ? 1 : 0
-    @inbounds for j=1:n_cols  # Q coeffs, tmp diag coefs. 
+    @inbounds for j=1:nvar  # Q coeffs, tmp diag coefs. 
         K_colptr[j+1] = Q_colptr[j+1] + added_coeffs_diag 
         for k=Q_colptr[j]:(Q_colptr[j+1]-2)
             nz_idx = k + added_coeffs_diag 
@@ -175,22 +175,22 @@ function fill_K2!(K_colptr, K_rowval, K_nzval, D, Q_colptr, Q_rowval, Q_nzval,
         end
     end
 
-    countsum = K_colptr[n_cols+1] # current value of K_colptr[Q.n+j+1]
+    countsum = K_colptr[nvar+1] # current value of K_colptr[Q.n+j+1]
     nnz_top_left = countsum # number of coefficients + 1 already added
-    @inbounds for j=1:n_rows
+    @inbounds for j=1:ncon
         countsum += AT_colptr[j+1] - AT_colptr[j] 
         if regul == :classic 
             countsum += 1
         end
-        K_colptr[n_cols+j+1] = countsum
+        K_colptr[nvar+j+1] = countsum
         for k=AT_colptr[j]:(AT_colptr[j+1]-1)
             nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
             K_rowval[nz_idx] = AT_rowval[k]
             K_nzval[nz_idx] = AT_nzval[k]
         end
         if regul == :classic
-            nz_idx = K_colptr[n_cols+j+1] - 1
-            K_rowval[nz_idx] = n_cols + j 
+            nz_idx = K_colptr[nvar+j+1] - 1
+            K_rowval[nz_idx] = nvar + j 
             K_nzval[nz_idx] = δ
         end
     end   
@@ -201,9 +201,9 @@ function create_K2(id, D, Q, AT, diag_Q, regu)
     n_nz = length(D) - length(diag_Q.nzind) + length(AT.nzval) + length(Q.nzval) 
     T = eltype(D)
     if regu.regul == :classic
-        n_nz += id.n_rows
+        n_nz += id.ncon
     end
-    K_colptr = Vector{Int}(undef, id.n_rows+id.n_cols+1) 
+    K_colptr = Vector{Int}(undef, id.ncon+id.nvar+1) 
     K_colptr[1] = 1
     K_rowval = Vector{Int}(undef, n_nz)
     K_nzval = Vector{T}(undef, n_nz)
@@ -211,26 +211,26 @@ function create_K2(id, D, Q, AT, diag_Q, regu)
     # [0        δI]
 
     fill_K2!(K_colptr, K_rowval, K_nzval, D, Q.colptr, Q.rowval, Q.nzval,
-             AT.colptr, AT.rowval, AT.nzval, diag_Q.nzind, regu.δ, id.n_rows, id.n_cols, regu.regul)
+             AT.colptr, AT.rowval, AT.nzval, diag_Q.nzind, regu.δ, id.ncon, id.nvar, regu.regul)
 
-    return SparseMatrixCSC(id.n_rows+id.n_cols, id.n_rows+id.n_cols,
+    return SparseMatrixCSC(id.ncon+id.nvar, id.ncon+id.nvar,
                            K_colptr, K_rowval, K_nzval)
 end
 
 # iteration functions for the K2 system
 function factorize_K2!(K, K_fact, D, diag_Q , diagind_K, regu, s_l, s_u, x_m_lvar, uvar_m_x, 
-                       ilow, iupp, n_rows, n_cols, cnts, qp, T, T0) 
+                       ilow, iupp, ncon, nvar, cnts, qp, T, T0) 
 
     if regu.regul == :classic
         D .= -regu.ρ
-        K.nzval[view(diagind_K, n_cols+1:n_rows+n_cols)] .= regu.δ
+        K.nzval[view(diagind_K, nvar+1:ncon+nvar)] .= regu.δ
     else
         D .= zero(T)
     end
     D[ilow] .-= s_l ./ x_m_lvar
     D[iupp] .-= s_u ./ uvar_m_x
     D[diag_Q.nzind] .-= diag_Q.nzval
-    K.nzval[view(diagind_K,1:n_cols)] = D 
+    K.nzval[view(diagind_K,1:nvar)] = D 
 
     if regu.regul == :dynamic
         Amax = @views norm(K.nzval[diagind_K], Inf)
@@ -256,8 +256,8 @@ function factorize_K2!(K, K_fact, D, diag_Q , diagind_K, regu, s_l, s_u, x_m_lva
             D[ilow] .-= s_l ./ x_m_lvar
             D[iupp] .-= s_u ./ uvar_m_x
             D[diag_Q.nzind] .-= diag_Q.nzval
-            K.nzval[view(diagind_K,1:n_cols)] = D 
-            K.nzval[view(diagind_K, n_cols+1:n_rows+n_cols)] .= regu.δ
+            K.nzval[view(diagind_K,1:nvar)] = D 
+            K.nzval[view(diagind_K, nvar+1:ncon+nvar)] .= regu.δ
             K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
         end
 

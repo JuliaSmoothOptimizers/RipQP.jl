@@ -6,24 +6,24 @@ export InputConfig, InputTol, SolverParams, PreallocatedData
 abstract type Abstract_QM_FloatData{T<:Real} end
 
 mutable struct QM_FloatData{T<:Real} <: Abstract_QM_FloatData{T}
-    Q     :: SparseMatrixCSC{T,Int}
-    AT    :: SparseMatrixCSC{T,Int} # using AT is easier to form systems
-    b     :: Vector{T}
-    c     :: Vector{T}
+    Q     :: SparseMatrixCSC{T,Int} # size nvar * nvar
+    AT    :: SparseMatrixCSC{T,Int} # size ncon * nvar, using Aᵀ is easier to form systems
+    b     :: Vector{T} # size ncon
+    c     :: Vector{T} # size nvar
     c0    :: T
-    lvar  :: Vector{T}
-    uvar  :: Vector{T}
+    lvar  :: Vector{T} # size nvar
+    uvar  :: Vector{T} # size nvar
 end
 
 mutable struct QM_IntData
-    ilow   :: Vector{Int}
-    iupp   :: Vector{Int}
-    irng   :: Vector{Int}
-    ifree  :: Vector{Int}
-    n_rows :: Int
-    n_cols :: Int
-    n_low  :: Int
-    n_upp  :: Int
+    ilow   :: Vector{Int} # indices of finite elements in lvar
+    iupp   :: Vector{Int} # indices of finite elements in uvar
+    irng   :: Vector{Int} # indices of finite elements in both lvar and uvar
+    ifree  :: Vector{Int} # indices of infinite elements in both lvar and uvar
+    ncon   :: Int # number of equality constraints after SlackModel! (= size of b)
+    nvar   :: Int # number of variables
+    nlow   :: Int # length(ilow)
+    nupp   :: Int # length(iupp)
 end
 
 """
@@ -54,12 +54,16 @@ Type to specify the configuration used by RipQP.
     refinements
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
-- `solve_method :: Symbol` : used to solve the system at each iteration
+- `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
+    use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
+    Following algorithm
 
 The constructor
 
-    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, normalize_rtol :: Bool = true, kc :: I = 0, 
-                        refinement :: Symbol = :none, max_ref :: I = 0, sp :: SolverParams = K2LDLParams(),
+    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, 
+                        normalize_rtol :: Bool = true, kc :: I = 0, 
+                        refinement :: Symbol = :none, max_ref :: I = 0, 
+                        sp :: SolverParams = K2LDLParams(),
                         solve_method :: Symbol = :PC) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
@@ -174,21 +178,21 @@ mutable struct Tolerances{T<:Real}
 end
 
 mutable struct Point{T<:Real}
-    x    :: Vector{T}
-    y    :: Vector{T}
-    s_l  :: Vector{T}
-    s_u  :: Vector{T}
+    x    :: Vector{T} # size nvar
+    y    :: Vector{T} # size ncon
+    s_l  :: Vector{T} # size nlow (useless zeros corresponding to infinite lower bounds are not stored)
+    s_u  :: Vector{T} # size nupp (useless zeros corresponding to infinite upper bounds are not stored)
 end
 
 convert(::Type{Point{T}}, pt) where {T<:Real} = Point(convert(Array{T}, pt.x), convert(Array{T}, pt.y),
                                                       convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u))
 
 mutable struct Residuals{T<:Real}
-    rb      :: Vector{T} # primal residuals
-    rc      :: Vector{T} # dual residuals
-    rbNorm  :: T       
-    rcNorm  :: T
-    n_Δx    :: T
+    rb      :: Vector{T} # primal residuals Ax - b
+    rc      :: Vector{T} # dual residuals -Qx + Aᵀy + s_l - s_u
+    rbNorm  :: T # ||rb||
+    rcNorm  :: T # ||rc||
+    n_Δx    :: T # ||Δx||
 end
 
 convert(::Type{Residuals{T}}, res) where {T<:Real} = Residuals(convert(Array{T}, res.rb), convert(Array{T}, res.rc),
@@ -216,22 +220,22 @@ convert(::Type{Regularization{T}}, regu::Regularization{T0}) where {T<:Real, T0<
     Regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
 mutable struct IterData{T<:Real} 
-    Δxy         :: Vector{T}                                        # Newton step
+    Δxy         :: Vector{T} # Newton step [Δx; Δy]
     Δs_l        :: Vector{T} 
     Δs_u        :: Vector{T}
-    x_m_lvar    :: Vector{T}                                        # x - lvar
-    uvar_m_x    :: Vector{T}                                        # uvar - x
+    x_m_lvar    :: Vector{T} # x - lvar
+    uvar_m_x    :: Vector{T} # uvar - x
     Qx          :: Vector{T}                                        
-    ATy         :: Vector{T}
+    ATy         :: Vector{T} # Aᵀy
     Ax          :: Vector{T}
-    xTQx_2      :: T
-    cTx         :: T
-    pri_obj     :: T                                                
-    dual_obj    :: T
-    μ           :: T                                                # duality measure
-    pdd         :: T                                                # primal dual difference (relative)
-    l_pdd       :: Vector{T}                                        # list of the 5 last pdd
-    mean_pdd    :: T                                                # mean of the 5 last pdd
+    xTQx_2      :: T # xᵀQx
+    cTx         :: T # cᵀx
+    pri_obj     :: T # 1/2 xᵀQx + cᵀx + c0                                             
+    dual_obj    :: T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
+    μ           :: T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
+    pdd         :: T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
+    l_pdd       :: Vector{T} # list of the 5 last pdd
+    mean_pdd    :: T # mean of the 5 last pdd
     qp          :: Bool # true if qp false if lp
 end
 
