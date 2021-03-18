@@ -1,8 +1,8 @@
 # Gondzio's multiple centrality correctors method
 
-function update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp, n_low, n_upp)
+function update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_αΔp, s_u_αΔp, nlow, nupp)
     
-    @inbounds @simd for i=1:n_low
+    @inbounds @simd for i=1:nlow
         rxs_l[i] = s_l_αΔp[i] * x_m_l_αΔp[i]
         if Hmin <= rxs_l[i] <= Hmax
             rxs_l[i] = 0
@@ -15,7 +15,7 @@ function update_rxs!(rxs_l, rxs_u, Hmin, Hmax, x_m_l_αΔp, u_m_x_αΔp, s_l_α�
             rxs_l[i] = Hmax
         end
     end
-    @inbounds @simd for i=1:n_upp
+    @inbounds @simd for i=1:nupp
         rxs_u[i] = -s_u_αΔp[i]*u_m_x_αΔp[i]
         if Hmin <= -rxs_u[i] <= Hmax
             rxs_u[i] = 0
@@ -46,24 +46,24 @@ function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: Preal
         α_p2, α_d2 = min(α_pri + δα, one(T)), min(α_dual + δα, one(T))
         update_pt_aff!(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, 
                         itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_p2, α_d2, id.ilow, id.iupp)
-        μ_p = compute_μ(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
+        μ_p = compute_μ(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.nlow, id.nupp)
 
         σ = (μ_p / itd.μ)^3
         Hmin, Hmax = βmin * σ * itd.μ, βmax * σ * itd.μ
 
         # corrector-centering step
-        update_rxs!(dda.rxs_l, dda.rxs_u, Hmin, Hmax, dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.n_low, id.n_upp)
+        update_rxs!(dda.rxs_l, dda.rxs_u, Hmin, Hmax, dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, id.nlow, id.nupp)
         itd.Δxy .= 0
         itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
         itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
-        out = solver!(pt, itd, fd, id, res, dda, pad, cnts, T0, :cc)
+        out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
         itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
         itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
         
         itd.Δxy .+= dda.Δxy_aff
         itd.Δs_l .+= dda.Δs_l_aff 
         itd.Δs_u .+= dda.Δs_u_aff
-        α_p2, α_d2 = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.n_cols)
+        α_p2, α_d2 = compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
 
         if α_p2 >= α_pri + γ*δα && α_d2 >= α_dual + γ*δα
             iter_c += 1
@@ -82,9 +82,9 @@ function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: Preal
 end
 
 # function to determine the number of centrality corrections (Gondzio's procedure)
-function nb_corrector_steps(J_colptr, n_rows, n_cols, T) 
-    Ef, Es, rfs = 0, 16 * n_cols, zero(T) # 14n = ratio tests and vector initializations
-    @inbounds @simd for j=1:n_rows+n_cols
+function nb_corrector_steps(J_colptr, ncon, nvar, T) 
+    Ef, Es, rfs = 0, 16 * nvar, zero(T) # 14n = ratio tests and vector initializations
+    @inbounds @simd for j=1:ncon+nvar
         lj = (J_colptr[j+1]-J_colptr[j])
         Ef += lj^2
         Es += lj

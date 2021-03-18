@@ -1,29 +1,42 @@
 import Base: convert
 
-export InputConfig, InputTol
+export InputConfig, InputTol, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{T<:Real} end
 
 mutable struct QM_FloatData{T<:Real} <: Abstract_QM_FloatData{T}
-    Q     :: SparseMatrixCSC{T,Int}
-    AT    :: SparseMatrixCSC{T,Int} # using AT is easier to form systems
-    b     :: Vector{T}
-    c     :: Vector{T}
+    Q     :: SparseMatrixCSC{T,Int} # size nvar * nvar
+    AT    :: SparseMatrixCSC{T,Int} # size ncon * nvar, using Aᵀ is easier to form systems
+    b     :: Vector{T} # size ncon
+    c     :: Vector{T} # size nvar
     c0    :: T
-    lvar  :: Vector{T}
-    uvar  :: Vector{T}
+    lvar  :: Vector{T} # size nvar
+    uvar  :: Vector{T} # size nvar
 end
 
 mutable struct QM_IntData
-    ilow   :: Vector{Int}
-    iupp   :: Vector{Int}
-    irng   :: Vector{Int}
-    n_rows :: Int
-    n_cols :: Int
-    n_low  :: Int
-    n_upp  :: Int
+    ilow   :: Vector{Int} # indices of finite elements in lvar
+    iupp   :: Vector{Int} # indices of finite elements in uvar
+    irng   :: Vector{Int} # indices of finite elements in both lvar and uvar
+    ifree  :: Vector{Int} # indices of infinite elements in both lvar and uvar
+    ncon   :: Int # number of equality constraints after SlackModel! (= size of b)
+    nvar   :: Int # number of variables
+    nlow   :: Int # length(ilow)
+    nupp   :: Int # length(iupp)
 end
+
+"""
+Abstract type for tuning the parameters of the different solvers. 
+Each solver has its own `SolverParams` type.
+
+The `SolverParams` currently implemented within RipQP are:
+
+- [`RipQP.K2LDLParams`](@ref)
+- [`RipQP.K2_5LDLParams`](@ref)
+
+"""
+abstract type SolverParams end 
 
 """
 Type to specify the configuration used by RipQP.
@@ -31,9 +44,6 @@ Type to specify the configuration used by RipQP.
 - `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
-- `regul :: Symbol`: if `:classic`, then the regularization is performed prior the factorization,
-    if `:dynamic`, then the regularization is performed during the factorization, and if `:none`,
-    no regularization is used
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
@@ -42,22 +52,24 @@ Type to specify the configuration used by RipQP.
     with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
     refinements
-- `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the 
-    initialization (the Symbol should correspond to the specific `PreallocatedData` used by the solver) 
-- `solve_method :: Symbol` : used to solve the system at each iteration
+- `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
+    initialization, see [`RipQP.SolverParams`](@ref)
+- `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
+    use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
+    Following algorithm
 
 The constructor
 
-    iconf = InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
-                        scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                        kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
-                        solver :: Symbol = :K2, solve_method :: Symbol = :PC) where {I<:Integer}
+    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, 
+                        normalize_rtol :: Bool = true, kc :: I = 0, 
+                        refinement :: Symbol = :none, max_ref :: I = 0, 
+                        sp :: SolverParams = K2LDLParams(),
+                        solve_method :: Symbol = :PC) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
 struct InputConfig{I<:Integer}
     mode                :: Symbol
-    regul               :: Symbol
     scaling             :: Bool 
     normalize_rtol      :: Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
     kc                  :: I # multiple centrality corrections, -1 = automatic computation
@@ -67,20 +79,20 @@ struct InputConfig{I<:Integer}
     max_ref             :: I # maximum number of refinements
 
     # Functions to choose formulations
-    solver              :: Symbol 
+    sp                  :: SolverParams
     solve_method        :: Symbol
 end
 
-function InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, solver :: Symbol = :K2,
+function InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, normalize_rtol :: Bool = true, 
+                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, sp :: SolverParams = K2LDLParams(),
                       solve_method :: Symbol = :PC) where {I<:Integer}
 
     mode == :mono || mode == :multi || error("mode should be :mono or :multi")
-    regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
+    solve_method == :IPF && kc != 0 && error("IPF method should not be used with centrality corrections") 
 
-    return InputConfig{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method)
+    return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method)
 end
 
 """
@@ -166,21 +178,21 @@ mutable struct Tolerances{T<:Real}
 end
 
 mutable struct Point{T<:Real}
-    x    :: Vector{T}
-    y    :: Vector{T}
-    s_l  :: Vector{T}
-    s_u  :: Vector{T}
+    x    :: Vector{T} # size nvar
+    y    :: Vector{T} # size ncon
+    s_l  :: Vector{T} # size nlow (useless zeros corresponding to infinite lower bounds are not stored)
+    s_u  :: Vector{T} # size nupp (useless zeros corresponding to infinite upper bounds are not stored)
 end
 
 convert(::Type{Point{T}}, pt) where {T<:Real} = Point(convert(Array{T}, pt.x), convert(Array{T}, pt.y),
                                                       convert(Array{T}, pt.s_l), convert(Array{T}, pt.s_u))
 
 mutable struct Residuals{T<:Real}
-    rb      :: Vector{T} # primal residuals
-    rc      :: Vector{T} # dual residuals
-    rbNorm  :: T       
-    rcNorm  :: T
-    n_Δx    :: T
+    rb      :: Vector{T} # primal residuals Ax - b
+    rc      :: Vector{T} # dual residuals -Qx + Aᵀy + s_l - s_u
+    rbNorm  :: T # ||rb||
+    rcNorm  :: T # ||rc||
+    n_Δx    :: T # ||Δx||
 end
 
 convert(::Type{Residuals{T}}, res) where {T<:Real} = Residuals(convert(Array{T}, res.rb), convert(Array{T}, res.rc),
@@ -208,22 +220,22 @@ convert(::Type{Regularization{T}}, regu::Regularization{T0}) where {T<:Real, T0<
     Regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
 mutable struct IterData{T<:Real} 
-    Δxy         :: Vector{T}                                        # Newton step
+    Δxy         :: Vector{T} # Newton step [Δx; Δy]
     Δs_l        :: Vector{T} 
     Δs_u        :: Vector{T}
-    x_m_lvar    :: Vector{T}                                        # x - lvar
-    uvar_m_x    :: Vector{T}                                        # uvar - x
+    x_m_lvar    :: Vector{T} # x - lvar
+    uvar_m_x    :: Vector{T} # uvar - x
     Qx          :: Vector{T}                                        
-    ATy         :: Vector{T}
+    ATy         :: Vector{T} # Aᵀy
     Ax          :: Vector{T}
-    xTQx_2      :: T
-    cTx         :: T
-    pri_obj     :: T                                                
-    dual_obj    :: T
-    μ           :: T                                                # duality measure
-    pdd         :: T                                                # primal dual difference (relative)
-    l_pdd       :: Vector{T}                                        # list of the 5 last pdd
-    mean_pdd    :: T                                                # mean of the 5 last pdd
+    xTQx_2      :: T # xᵀQx
+    cTx         :: T # cᵀx
+    pri_obj     :: T # 1/2 xᵀQx + cᵀx + c0                                             
+    dual_obj    :: T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
+    μ           :: T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
+    pdd         :: T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
+    l_pdd       :: Vector{T} # list of the 5 last pdd
+    mean_pdd    :: T # mean of the 5 last pdd
     qp          :: Bool # true if qp false if lp
 end
 

@@ -6,9 +6,9 @@ function get_QM_data(QM :: QuadraticModel)
     dropzeros!(AT)
     Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  
     dropzeros!(Q)
-    id = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, 
+    id = QM_IntData([QM.meta.ilow; QM.meta.irng], [QM.meta.iupp; QM.meta.irng], QM.meta.irng, QM.meta.ifree,
                     QM.meta.ncon, QM.meta.nvar, 0, 0)
-    id.n_low, id.n_upp = length(id.ilow), length(id.iupp) # number of finite constraints
+    id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
     @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
     fd_T = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
     return fd_T, id, T
@@ -17,14 +17,14 @@ end
 function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, iconf :: InputConfig{Tconf}, 
                     T0 :: DataType) where {T<:Real, Tconf<:Real}
 
-    itd = IterData(zeros(T, id.n_cols+id.n_rows), # Δxy
-                   zeros(T, id.n_low), # Δs_l
-                   zeros(T, id.n_upp), # Δs_u
-                   zeros(T, id.n_low), # x_m_lvar
-                   zeros(T, id.n_upp), # uvar_m_x
-                   zeros(T, id.n_cols), # init Qx
-                   zeros(T, id.n_cols), # init ATy
-                   zeros(T, id.n_rows), # Ax
+    itd = IterData(zeros(T, id.nvar+id.ncon), # Δxy
+                   zeros(T, id.nlow), # Δs_l
+                   zeros(T, id.nupp), # Δs_u
+                   zeros(T, id.nlow), # x_m_lvar
+                   zeros(T, id.nupp), # uvar_m_x
+                   zeros(T, id.nvar), # init Qx
+                   zeros(T, id.nvar), # init ATy
+                   zeros(T, id.ncon), # Ax
                    zero(T), #xTQx
                    zero(T), #cTx
                    zero(T), #pri_obj
@@ -39,22 +39,20 @@ function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}
     dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
     dda = eval(dda_type)(id, T)
     
-    pad_type = Symbol(:PreallocatedData_, iconf.solver)
-    pad = eval(pad_type)(fd, id, iconf)
+    pad = PreallocatedData(iconf.sp, fd, id, iconf)
     
     # init system
     # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
     #       [  A     0  ] [y] = [0]
-    itd.Δxy[id.n_cols+1: end] = fd.b
+    itd.Δxy[id.nvar+1: end] = fd.b
 
-    cnts = Counters(zero(Int), zero(Int), 0, 0, 
-                    iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.n_rows, id.n_cols, T) : iconf.kc,
+    cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.ncon, id.nvar, T) : iconf.kc,
                     iconf.max_ref, zero(Int))
 
-    pt0 = Point(zeros(T, id.n_cols), zeros(T, id.n_rows), zeros(T, id.n_low), zeros(T, id.n_upp))
-    out = solver!(pt0, itd, fd, id, res, dda, pad, cnts, T0, :init)
-    pt0.x .= itd.Δxy[1:id.n_cols]
-    pt0.y .= itd.Δxy[id.n_cols+1:end]
+    pt0 = Point(zeros(T, id.nvar), zeros(T, id.ncon), zeros(T, id.nlow), zeros(T, id.nupp))
+    out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)
+    pt0.x .= itd.Δxy[1:id.nvar]
+    pt0.y .= itd.Δxy[id.nvar+1:end]
 
     return itd, dda, pad, pt0, cnts
 end
@@ -62,7 +60,7 @@ end
 function init_params(fd_T :: QM_FloatData{T}, id :: QM_IntData, ϵ :: Tolerances{T}, sc :: StopCrit{Tc},
                      iconf :: InputConfig{Tconf}, T0 :: DataType) where {T<:Real, Tc<:Real, Tconf<:Real}
 
-    res = Residuals(zeros(T, id.n_rows), zeros(T, id.n_cols), zero(T), zero(T), zero(T))
+    res = Residuals(zeros(T, id.ncon), zeros(T, id.nvar), zero(T), zero(T), zero(T))
     
     itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 
