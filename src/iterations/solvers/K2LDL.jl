@@ -1,6 +1,28 @@
 # Formulation K2: (if regul==:classic, adds additional regularization parmeters -ρ (top left) and δ (bottom right))
 # [-Q - D     A' ] [x] = rhs
 # [ A         0  ] [y]
+export K2LDLParams
+
+"""
+Type to use the K2 formulation with a LDLᵀ factorization, using the package 
+[`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
+The outer constructor 
+
+    sp = K2LDLParams(; regul :: Symbol = :classic) 
+
+creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+`regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
+encounters a pivot that has a small magnitude).
+`regul = :none` uses no regularization (not recommended).
+"""
+struct K2LDLParams <: SolverParams
+    regul :: Symbol
+end
+
+function K2LDLParams(; regul :: Symbol = :classic) 
+    regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
+    return K2LDLParams(regul)
+end
 
 mutable struct PreallocatedData_K2{T<:Real} <: PreallocatedData{T} 
     D                :: Vector{T}                                        # temporary top-left diagonal
@@ -13,14 +35,15 @@ mutable struct PreallocatedData_K2{T<:Real} <: PreallocatedData{T}
 end
 
 # outer constructor
-function PreallocatedData_K2(fd :: QM_FloatData{T}, id :: QM_IntData, iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
+function PreallocatedData(sp :: K2LDLParams, fd :: QM_FloatData{T}, id :: QM_IntData, 
+                          iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
 
     # init Regularization values
     if iconf.mode == :mono
-        regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), iconf.regul)
+        regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), 1e-5*sqrt(eps(T)), 1e0*sqrt(eps(T)), sp.regul)
         D = -T(1.0e0)/2 .* ones(T, id.n_cols)
     else
-        regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), iconf.regul)
+        regu = Regularization(T(sqrt(eps())*1e5), T(sqrt(eps())*1e5), T(sqrt(eps(T))*1e0), T(sqrt(eps(T))*1e0), sp.regul)
         D = -T(1.0e-2) .* ones(T, id.n_cols)
     end
     diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.n_cols)
@@ -30,11 +53,12 @@ function PreallocatedData_K2(fd :: QM_FloatData{T}, id :: QM_IntData, iconf :: I
     K_fact = ldl_analyze(Symmetric(K, :U))
     if regu.regul == :dynamic
         Amax = @views norm(K.nzval[diagind_K], Inf)
-        K_fact.r1 = T(-eps(T)^(3/4))
-        K_fact.r2 = T(sqrt(eps(T)))
+        regu.ρ, regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
+        K_fact.r1, K_fact.r2 = regu.ρ, regu.δ
         K_fact.tol = Amax*T(eps(T))
         K_fact.n_d = id.n_cols
-        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    elseif regu.regul == :none
+        regu.ρ, regu.δ = zero(T), zero(T)
     end
     K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
     K_fact.__factorized = true
@@ -49,15 +73,31 @@ function PreallocatedData_K2(fd :: QM_FloatData{T}, id :: QM_IntData, iconf :: I
                                )
 end
                 
-convert(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2{T0}) where {T<:Real, T0<:Real} = 
-    PreallocatedData_K2(convert(Array{T}, pad.D),
-                        convert(Regularization{T}, pad.regu),
-                        convert(SparseVector{T,Int}, pad.diag_Q),
-                        convert(SparseMatrixCSC{T,Int}, pad.K),
-                        convertldl(T, pad.K_fact),
-                        pad.fact_fail,
-                        pad.diagind_K
-                        )
+function convertpad(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2{T_old}, T0 :: DataType) where {T<:Real, T_old<:Real} 
+    pad = PreallocatedData_K2(convert(Array{T}, pad.D),
+                              convert(Regularization{T}, pad.regu),
+                              convert(SparseVector{T,Int}, pad.diag_Q),
+                              convert(SparseMatrixCSC{T,Int}, pad.K),
+                              convertldl(T, pad.K_fact),
+                              pad.fact_fail,
+                              pad.diagind_K
+                              )
+
+    if pad.regu.regul == :classic
+        if T == Float64 && T0 == Float64
+            pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps())*1e-5), T(sqrt(eps())*1e0)
+        else
+            pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
+        end
+        pad.regu.ρ /= 10
+        pad.regu.δ /= 10
+    elseif pad.regu.regul == :dynamic
+        pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
+        pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
+    end
+
+    return pad
+end
 
 # function used to solve problems
 # solver LDLFactorization

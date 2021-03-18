@@ -72,12 +72,12 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
     
     # display
     if display == true
-        @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ, :ρ, :δ],
+        @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
         [Int, T, T, T, T, T, T, T, T, T, T, T],
         hdr_override=Dict(:k => "iter", :pri_obj => "obj", :pdd => "rgap",
         :rbNorm => "‖rb‖", :rcNorm => "‖rc‖",
         :n_Δx => "‖Δx‖"))
-        @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ, pad.regu.ρ, pad.regu.δ])
+        @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ])
     end
 
     if iconf.mode == :multi

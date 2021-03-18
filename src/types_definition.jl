@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol, QM_FloatData, QM_IntData, Point, Residuals, IterData, Counters, PreallocatedData
+export InputConfig, InputTol, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{T<:Real} end
@@ -27,14 +27,23 @@ mutable struct QM_IntData
 end
 
 """
+Abstract type for tuning the parameters of the different solvers. 
+Each solver has its own `SolverParams` type.
+
+The `SolverParams` currently implemented within RipQP are:
+
+- [`RipQP.K2LDLParams`](@ref)
+- [`RipQP.K2_5LDLParams`](@ref)
+
+"""
+abstract type SolverParams end 
+
+"""
 Type to specify the configuration used by RipQP.
 
 - `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
-- `regul :: Symbol`: if `:classic`, then the regularization is performed prior the factorization,
-    if `:dynamic`, then the regularization is performed during the factorization, and if `:none`,
-    no regularization is used
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
@@ -43,22 +52,20 @@ Type to specify the configuration used by RipQP.
     with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
     to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
     refinements
-- `solver :: Symbol` : choose a solver to solve linear systems that occurs at each iteration and during the 
-    initialization (the Symbol should correspond to the specific `PreallocatedData` used by the solver) 
+- `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
+    initialization, see [`RipQP.SolverParams`](@ref)
 - `solve_method :: Symbol` : used to solve the system at each iteration
 
 The constructor
 
-    iconf = InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, 
-                        scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                        kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, 
-                        solver :: Symbol = :K2, solve_method :: Symbol = :PC) where {I<:Integer}
+    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, normalize_rtol :: Bool = true, kc :: I = 0, 
+                        refinement :: Symbol = :none, max_ref :: I = 0, sp :: SolverParams = K2LDLParams(),
+                        solve_method :: Symbol = :PC) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
 struct InputConfig{I<:Integer}
     mode                :: Symbol
-    regul               :: Symbol
     scaling             :: Bool 
     normalize_rtol      :: Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
     kc                  :: I # multiple centrality corrections, -1 = automatic computation
@@ -68,20 +75,20 @@ struct InputConfig{I<:Integer}
     max_ref             :: I # maximum number of refinements
 
     # Functions to choose formulations
-    solver              :: Symbol 
+    sp                  :: SolverParams
     solve_method        :: Symbol
 end
 
-function InputConfig(; mode :: Symbol = :mono, regul :: Symbol = :classic, scaling :: Bool = true, normalize_rtol :: Bool = true, 
-                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, solver :: Symbol = :K2,
+function InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, normalize_rtol :: Bool = true, 
+                      kc :: I = 0, refinement :: Symbol = :none, max_ref :: I = 0, sp :: SolverParams = K2LDLParams(),
                       solve_method :: Symbol = :PC) where {I<:Integer}
 
     mode == :mono || mode == :multi || error("mode should be :mono or :multi")
-    regul == :classic || regul == :dynamic || regul == :none || error("regul should be :classic or :dynamic or :none")
     refinement == :zoom || refinement == :multizoom || refinement == :ref || refinement == :multiref || 
         refinement == :none || error("not a valid refinement parameter")
+    solve_method == :IPF && kc != 0 && error("IPF method should not be used with centrality corrections") 
 
-    return InputConfig{I}(mode, regul, scaling, normalize_rtol, kc, refinement, max_ref, solver, solve_method)
+    return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method)
 end
 
 """

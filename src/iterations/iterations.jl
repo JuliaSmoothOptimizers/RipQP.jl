@@ -1,8 +1,8 @@
 include("solve_method.jl")
 include("centrality_corr.jl")
 include("regularization.jl")
-include("direct_methods/K2.jl")
-include("direct_methods/K2_5.jl")
+include("solvers/K2LDL.jl")
+include("solvers/K2_5LDL.jl")
 
 export solver!
 
@@ -125,12 +125,6 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
                sc :: StopCrit{Tc}, dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T},
                cnts :: Counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
-    if pad.regu.regul == :dynamic
-        pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
-        pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
-    elseif pad.regu.regul == :none
-        pad.regu.ρ, pad.regu.δ = zero(T), zero(T)
-    end
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
         # Solve system to find a direction of descent 
@@ -162,7 +156,7 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
         sc.tired = sc.Δt > sc.max_time
 
         if display == true
-            @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ, pad.regu.ρ, pad.regu.δ])
+            @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ])
         end
     end
 end

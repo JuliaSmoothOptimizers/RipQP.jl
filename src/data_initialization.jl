@@ -39,8 +39,7 @@ function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}
     dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
     dda = eval(dda_type)(id, T)
     
-    pad_type = Symbol(:PreallocatedData_, iconf.solver)
-    pad = eval(pad_type)(fd, id, iconf)
+    pad = PreallocatedData(iconf.sp, fd, id, iconf)
     
     # init system
     # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
