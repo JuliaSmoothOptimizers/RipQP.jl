@@ -244,28 +244,27 @@ function factorize_K2!(K, K_fact, D, diag_Q , diagind_K, regu, s_l, s_u, x_m_lva
             end
         end
         K_fact.tol = Amax * T(eps(T))
-        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+        ldl_factorize!(Symmetric(K, :U), K_fact)
 
     elseif regu.regul == :classic
-        K_fact = try ldl_factorize!(Symmetric(K, :U), K_fact)
-        catch
+        ldl_factorize!(Symmetric(K, :U), K_fact)
+        while !factorized(K_fact)
             out = update_regu_trycatch!(regu, cnts, T, T0)
             out == 1 && return out
             cnts.c_catch += 1
+            cnts.c_catch >= 4 && return 1
             D .= -regu.ρ
             D[ilow] .-= s_l ./ x_m_lvar
             D[iupp] .-= s_u ./ uvar_m_x
             D[diag_Q.nzind] .-= diag_Q.nzval
             K.nzval[view(diagind_K,1:nvar)] = D 
             K.nzval[view(diagind_K, nvar+1:ncon+nvar)] .= regu.δ
-            K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+            ldl_factorize!(Symmetric(K, :U), K_fact)
         end
 
     else # no Regularization
-        K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+        ldl_factorize!(Symmetric(K, :U), K_fact)
     end
-
-    cnts.c_catch >= 4 && return 1
 
     return 0 # factorization succeeded
 end
