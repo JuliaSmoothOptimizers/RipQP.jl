@@ -125,6 +125,9 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
     
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
+        out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0) # update data for the solver! function used
+        out == 1 && break
+
         # Solve system to find a direction of descent 
         out = update_dd!(dda, pt, itd, fd, id, res, pad, cnts, T0)
         out == 1 && break
@@ -136,7 +139,7 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
             ## TODO replace by centrality_corr.jl, deal with α
         end
 
-        update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
+        update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id) # update point, residuals, objectives...
 
         sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ

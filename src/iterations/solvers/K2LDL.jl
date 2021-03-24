@@ -89,8 +89,6 @@ function convertpad(::Type{<:PreallocatedData{T}}, pad :: PreallocatedData_K2{T_
         else
             pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T))*1e1), T(sqrt(eps(T))*1e1)
         end
-        pad.regu.ρ /= 10
-        pad.regu.δ /= 10
     elseif pad.regu.regul == :dynamic
         pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3/4)), T(eps(T)^(0.45))
         pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
@@ -103,45 +101,30 @@ end
 # solver LDLFactorization
 function solver!(pad :: PreallocatedData_K2{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
                  fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType, 
-                 step :: Symbol) where {T<:Real}
-    
-    if step == :init # only for starting points
-        ldiv!(pad.K_fact, itd.Δxy)
+                 step :: Symbol) where {T<:Real}  
+    # erase dda.Δxy_aff only for affine predictor step with PC method
+    step == :aff ? ldiv!(pad.K_fact, dda.Δxy_aff) : ldiv!(pad.K_fact, itd.Δxy)
+    return 0
+end
 
-    elseif step == :aff # affine predictor step
-        out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
-                            pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                            id.ncon, id.nvar, cnts, itd.qp, T, T0)
-        
-        if out == 1 
-            pad.fact_fail = true
-            return out
-        end
-        ldiv!(pad.K_fact, dda.Δxy_aff) 
+function update_pad!(pad :: PreallocatedData_K2{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
+                     fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType) where {T<:Real}
 
-    elseif step == :cc # corrector-centering step
-        ldiv!(pad.K_fact, itd.Δxy)
-        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.nvar, itd.pdd, 
-                                     itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
-            out == 1 && return out
-        end
-
-    elseif step == :IPF # single step Infeasible Path Following, facultative if you only use PC algorithm
-        out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
-                            pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                            id.ncon, id.nvar, cnts, itd.qp, T, T0)
-        if out == 1 
-            pad.fact_fail = true
-            return out
-        end
-        ldiv!(pad.K_fact, itd.Δxy)
-        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ!(pad.regu, pad.K.nzval, pad.diagind_K, id.nvar, itd.pdd, 
-                                     itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
-            out == 1 && return out
-        end
+    if pad.regu.regul == :classic && cnts.k != 0 # update ρ and δ values, check K diag magnitude 
+        out = update_regu_diagK2!(pad.regu, pad.K.nzval, pad.diagind_K, id.nvar, itd.pdd, 
+                                    itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
+        out == 1 && return out
     end
+
+    out = factorize_K2!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
+                        pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
+                        id.ncon, id.nvar, cnts, itd.qp, T, T0) # update D and factorize K
+
+    if out == 1 
+        pad.fact_fail = true
+        return out
+    end
+
     return 0
 end
 

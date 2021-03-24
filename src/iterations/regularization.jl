@@ -39,7 +39,7 @@ function update_regu!(regu)
 end
 
 # update regularization, and corrects if the magnitude of the diagonal of the matrix is too high
-function update_regu_diagJ!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pdd, cnts, T, T0)
+function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pdd, cnts, T, T0)
 
     l_pdd[cnts.k%6+1] = pdd
     mean_pdd = mean(l_pdd)
@@ -69,7 +69,7 @@ function update_regu_diagJ!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pdd
     return 0
 end
 
-function update_regu_diagJ_K2_5!(regu, D, pdd, l_pdd, mean_pdd, cnts, T, T0)
+function update_regu_diagK2_5!(regu, D, pdd, l_pdd, mean_pdd, cnts, T, T0)
 
     l_pdd[cnts.k%6+1] = pdd
     mean_pdd = mean(l_pdd)
