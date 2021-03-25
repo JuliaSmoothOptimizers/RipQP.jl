@@ -123,6 +123,30 @@ function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
 end
 ``` 
 
+Then, you need to write a `RipQP.update_pad!` function that will update the `RipQP.PreallocatedData` 
+struct before computing the direction of descent.
+
+```julia
+function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.DescentDirectionAllocs{T}, 
+                           pt :: RipQP.Point{T}, itd :: RipQP.IterData{T}, 
+                           fd :: RipQP.Abstract_QM_FloatData{T}, id :: RipQP.QM_IntData, 
+                           res :: RipQP.Residuals{T}, cnts :: RipQP.Counters, 
+                           T0 :: RipQP.DataType) where {T<:Real}
+
+    # update the diagonal of K2
+    pad.D .= -pad.ρ
+    pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
+    pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+    pad.D .-= fd.Q[diagind(fd.Q)]
+    pad.K[diagind(pad.K)[1:id.nvar]] = pad.D 
+    pad.K[diagind(pad.K)[id.nvar+1:end]] .= pad.δ
+
+    # factorize K2
+    ldl_factorize!(Symmetric(pad.K, :U), pad.K_fact)
+
+end
+```
+
 Finally, you need to write a `RipQP.solver!` function that compute directions of descent. 
 Note that this function solves in-place the linear system by overwriting the direction of descent. 
 That is why the direction of descent `itd.Δxy` (resp. `dda.Δxy_aff` for the Predictor step)
@@ -136,28 +160,12 @@ function RipQP.solver!(pad :: PreallocatedData_K2basic{T},
                        cnts :: RipQP.Counters, T0 :: DataType, 
                        step :: Symbol) where {T<:Real}
     
-    if step == :init # only for starting points, K is already factorized
-        ldiv!(pad.K_fact, itd.Δxy)
-
-    elseif step == :aff # affine predictor step
-        # update the diagonal of K2
-        pad.D .= -pad.ρ
-        pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-        pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
-        pad.D .-= fd.Q[diagind(fd.Q)]
-        pad.K[diagind(pad.K)[1:id.nvar]] = pad.D 
-        pad.K[diagind(pad.K)[id.nvar+1:end]] .= pad.δ
-
-        # factorize K2
-        ldl_factorize!(Symmetric(pad.K, :U), pad.K_fact)
-
+    if step == :aff # affine predictor step
         # solve the system and overwrite dda.Δxy_aff
         ldiv!(pad.K_fact, dda.Δxy_aff) 
-
-    elseif step == :cc # corrector-centering step
+    else # for all other steps including the initial point
         # solve the system and overwrite itd.Δxy
         ldiv!(pad.K_fact, itd.Δxy)
-
     end
 
     return 0
