@@ -89,24 +89,24 @@ function update_dd!(dda :: DescentDirectionAllocsPC{T}, pt :: Point{T}, itd :: I
 end
 
 mutable struct DescentDirectionAllocsIPF{T<:Real} <: DescentDirectionAllocs{T}
-    check_type :: T # no additional vector required, we use this field only for compat with other methods
+    compl :: Vector{T} # complementarity s_lᵀ(x-lvar) + s_uᵀ(uvar-x)
 end
 
-DescentDirectionAllocsIPF(id :: QM_IntData, T :: DataType) = DescentDirectionAllocsIPF{T}(one(T))
+DescentDirectionAllocsIPF(id :: QM_IntData, T :: DataType) = DescentDirectionAllocsIPF{T}(zeros(T, id.nvar))
 
 convert(::Type{<:DescentDirectionAllocs{T}}, dda :: DescentDirectionAllocsIPF{T0}) where {T<:Real, T0<:Real} = 
-    DescentDirectionAllocsIPF(T(dda.check_type))
+    DescentDirectionAllocsIPF(convert(Array{T}, dda.compl))
 
 function update_dd!(dda :: DescentDirectionAllocsIPF{T}, pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, 
                     id :: QM_IntData, res :: Residuals{T}, pad :: PreallocatedData{T}, cnts :: Counters, T0 :: DataType) where {T<:Real} 
 
     r, γ =  T(0.999), T(0.05)
     # D = [s_l (x-lvar) + s_u (uvar-x)]
-    pad.D .= 0
-    pad.D[id.ilow] .+= pt.s_l .* itd.x_m_lvar 
-    pad.D[id.iupp] .+= pt.s_u .* itd.uvar_m_x 
-    pad.D[id.ifree] .= one(T)
-    ξ = minimum(pad.D) / itd.μ
+    dda.compl .= 0
+    dda.compl[id.ilow] .+= pt.s_l .* itd.x_m_lvar 
+    dda.compl[id.iupp] .+= pt.s_u .* itd.uvar_m_x 
+    dda.compl[id.ifree] .= one(T)
+    ξ = minimum(dda.compl) / itd.μ
     σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3 
 
     itd.Δxy[1:id.nvar] .= .-res.rc

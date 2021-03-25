@@ -107,20 +107,11 @@ function solver!(pad :: PreallocatedData_K2_5{T}, dda :: DescentDirectionAllocs{
                  fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType, 
                  step :: Symbol) where {T<:Real} 
 
-    if step == :init 
-        LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
-    elseif step == :aff 
-        out = factorize_K2_5!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
-                              pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                              id.ncon, id.nvar, cnts, itd.qp, T, T0)
-        out == 1 && return out
-        pad.K_scaled = true
-
+    if step == :aff 
         dda.Δxy_aff[1:id.nvar] .*= pad.D
         LDLFactorizations.ldiv!(pad.K_fact, dda.Δxy_aff) 
         dda.Δxy_aff[1:id.nvar] .*= pad.D
-
-    elseif step == :cc # corrector-centering step
+    else
         if pad.K_scaled
             itd.Δxy[1:id.nvar] .*= pad.D
             LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
@@ -128,10 +119,12 @@ function solver!(pad :: PreallocatedData_K2_5{T}, dda :: DescentDirectionAllocs{
         else
             LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
         end
+    end
 
+    if step == :cc || step == :IPF  # update regularization and restore K. Cannot be done in update_pad since x-lvar and uvar-x will change.
         out = 0
-        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ_K2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
+        if pad.regu.regul == :classic # update ρ and δ values, check K diag magnitude 
+            out = update_regu_diagK2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
         end
     
         # restore J for next iteration
@@ -142,35 +135,22 @@ function solver!(pad :: PreallocatedData_K2_5{T}, dda :: DescentDirectionAllocs{
             lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.nvar)
             pad.K_scaled = false
         end
-
         out == 1 && return out
-
-    elseif step == :IPF # only for IPF algorithm
-        out = factorize_K2_5!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
-                              pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
-                              id.ncon, id.nvar, cnts, itd.qp, T, T0)
-        out == 1 && return out
-        pad.K_scaled = true
-
-        itd.Δxy[1:id.nvar] .*= pad.D
-        LDLFactorizations.ldiv!(pad.K_fact, itd.Δxy)
-        itd.Δxy[1:id.nvar] .*= pad.D
-
-        if pad.regu.regul == :classic  # update ρ and δ values, check K diag magnitude 
-            out = update_regu_diagJ_K2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0) 
-        end
-
-        # restore J for next iteration
-        pad.D .= one(T) 
-        pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
-        pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
-        lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.nvar)
-        pad.K_scaled = false
-
-        out == 1 && return out
-
     end
     return 0
+end
+
+function update_pad!(pad :: PreallocatedData_K2_5{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
+                     fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType) where {T<:Real}
+
+    pad.K_scaled = false
+    out = factorize_K2_5!(pad.K, pad.K_fact, pad.D, pad.diag_Q, pad.diagind_K, pad.regu, 
+                          pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, id.ilow, id.iupp, 
+                          id.ncon, id.nvar, cnts, itd.qp, T, T0)
+    out == 1 && return out
+    pad.K_scaled = true
+
+    return out
 end
 
 function lrmultilply_J!(J_colptr, J_rowval, J_nzval, v, nvar)

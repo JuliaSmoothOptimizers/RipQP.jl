@@ -34,6 +34,7 @@ function fd_refinement(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals
         itd.Δxy[id.ilow] .-= itd.μ  ./ itd.x_m_lvar
         itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
         if pad.fact_fail
+            out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
             out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
         else
             out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
