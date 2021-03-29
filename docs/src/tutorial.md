@@ -2,7 +2,7 @@
 
 ## Input
 
-RipQP uses the package [QuadraticModels.jl](https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl) to model 
+RipQP uses the package [QuadraticModels.jl](https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl) to model
 convex quadratic problems.
 
 Here is a basic example:
@@ -21,7 +21,7 @@ u = [Inf; Inf; Inf]
 QM = QuadraticModel(c, Q, A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM")
 ```
 
-It is also possible to use the package [QPSReader.jl](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) in order to 
+It is also possible to use the package [QPSReader.jl](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) in order to
 read convex quadratic problems in MPS or SIF formats:
 
 ```julia
@@ -38,13 +38,13 @@ using RipQP
 stats = ripqp(QM)
 ```
 
-The `stats` output is a 
-[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverTools.jl/stable/api/#SolverTools.GenericExecutionStats) 
-from the package [SolverTools.jl](https://github.com/JuliaSmoothOptimizers/SolverTools.jl).
+The `stats` output is a
+[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/stable/api/#SolverCore.GenericExecutionStats)
+from the package [SolverCore.jl](https://github.com/JuliaSmoothOptimizers/SolverCore.jl).
 
 ## Logging
 
-RipQP displays some logs at each iterate. 
+RipQP displays some logs at each iterate.
 
 You can deactivate logging with
 
@@ -54,18 +54,18 @@ stats = ripqp(QM, display = false)
 
 ## Change configuration and tolerances
 
-The [`RipQP.InputConfig`](@ref) type allows the user to change the configuration of RipQP. 
+The [`RipQP.InputConfig`](@ref) type allows the user to change the configuration of RipQP.
 For example, you can use the multi-precision mode without scaling with:
 
 ```julia
 stats = ripqp(QM, iconf = InputConfig(mode = :multi, scaling = false))
 ```
 
-You can also change the [`RipQP.InputTol`](@ref) type to change the tolerances for the 
+You can also change the [`RipQP.InputTol`](@ref) type to change the tolerances for the
 stopping criteria:
 
 ```julia
-stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1.0e-4), 
+stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1.0e-4),
               iconf = InputConfig(mode = :multi, scaling = false))
 ```
 
@@ -80,7 +80,7 @@ First, you will need a [`RipQP.SolverParams`](@ref) to define parameters for you
 using RipQP, LinearAlgebra, LDLFactorizations, SparseArrays
 
 struct K2basicLDLParams{T<:Real} <: SolverParams
-    ρ :: T # dual regularization 
+    ρ :: T # dual regularization
     δ :: T # primal regularization
 end
 ```
@@ -88,11 +88,11 @@ end
 Then, you will have to create a type that allocates space for your solver, and a constructor using the following parameters:
 
 ```julia
-mutable struct PreallocatedData_K2basic{T<:Real} <: RipQP.PreallocatedData{T} 
+mutable struct PreallocatedData_K2basic{T<:Real} <: RipQP.PreallocatedData{T}
     D                :: Vector{T} # temporary top-left diagonal of the K2 system
     ρ                :: T # dual regularization
     δ                :: T # primal regularization
-    K                :: SparseMatrixCSC{T,Int} # K2 matrix 
+    K                :: SparseMatrixCSC{T,Int} # K2 matrix
     K_fact           :: LDLFactorizations.LDLFactorization{T,Int,Int,Int} # factorized K2
 end
 ```
@@ -100,14 +100,14 @@ end
 Now you need to write a `RipQP.PreallocatedData` function that returns your type:
 
 ```julia
-function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T}, 
-                                id :: RipQP.QM_IntData, 
+function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
+                                id :: RipQP.QM_IntData,
                                 iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
 
     ρ, δ = T(sp.ρ), T(sp.δ)
     K = spzeros(T, id.ncon+id.nvar, id.ncon + id.nvar)
-    K[1:id.nvar, 1:id.nvar] = .-fd.Q .- ρ .* Diagonal(ones(T, id.nvar))     
-    K[1:id.nvar, id.nvar+1:end] = fd.AT      
+    K[1:id.nvar, 1:id.nvar] = .-fd.Q .- ρ .* Diagonal(ones(T, id.nvar))
+    K[1:id.nvar, id.nvar+1:end] = fd.AT
     K[diagind(K)[id.nvar+1:end]] .= δ
 
     K_fact = ldl_analyze(Symmetric(K, :U))
@@ -121,16 +121,16 @@ function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
                                     K_fact #K_fact
                                     )
 end
-``` 
+```
 
-Then, you need to write a `RipQP.update_pad!` function that will update the `RipQP.PreallocatedData` 
+Then, you need to write a `RipQP.update_pad!` function that will update the `RipQP.PreallocatedData`
 struct before computing the direction of descent.
 
 ```julia
-function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.DescentDirectionAllocs{T}, 
-                           pt :: RipQP.Point{T}, itd :: RipQP.IterData{T}, 
-                           fd :: RipQP.Abstract_QM_FloatData{T}, id :: RipQP.QM_IntData, 
-                           res :: RipQP.Residuals{T}, cnts :: RipQP.Counters, 
+function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.DescentDirectionAllocs{T},
+                           pt :: RipQP.Point{T}, itd :: RipQP.IterData{T},
+                           fd :: RipQP.Abstract_QM_FloatData{T}, id :: RipQP.QM_IntData,
+                           res :: RipQP.Residuals{T}, cnts :: RipQP.Counters,
                            T0 :: RipQP.DataType) where {T<:Real}
 
     # update the diagonal of K2
@@ -138,7 +138,7 @@ function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.Desc
     pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
     pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
     pad.D .-= fd.Q[diagind(fd.Q)]
-    pad.K[diagind(pad.K)[1:id.nvar]] = pad.D 
+    pad.K[diagind(pad.K)[1:id.nvar]] = pad.D
     pad.K[diagind(pad.K)[id.nvar+1:end]] .= pad.δ
 
     # factorize K2
@@ -147,22 +147,22 @@ function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.Desc
 end
 ```
 
-Finally, you need to write a `RipQP.solver!` function that compute directions of descent. 
-Note that this function solves in-place the linear system by overwriting the direction of descent. 
+Finally, you need to write a `RipQP.solver!` function that compute directions of descent.
+Note that this function solves in-place the linear system by overwriting the direction of descent.
 That is why the direction of descent `itd.Δxy` (resp. `dda.Δxy_aff` for the Predictor step)
 countains the right hand side of the linear system to solve.
 
 ```julia
-function RipQP.solver!(pad :: PreallocatedData_K2basic{T}, 
-                       dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T}, 
-                       itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T}, 
-                       id :: RipQP.QM_IntData, res :: RipQP.Residuals{T}, 
-                       cnts :: RipQP.Counters, T0 :: DataType, 
+function RipQP.solver!(pad :: PreallocatedData_K2basic{T},
+                       dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T},
+                       itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T},
+                       id :: RipQP.QM_IntData, res :: RipQP.Residuals{T},
+                       cnts :: RipQP.Counters, T0 :: DataType,
                        step :: Symbol) where {T<:Real}
-    
+
     if step == :aff # affine predictor step
         # solve the system and overwrite dda.Δxy_aff
-        ldiv!(pad.K_fact, dda.Δxy_aff) 
+        ldiv!(pad.K_fact, dda.Δxy_aff)
     else # for all other steps including the initial point
         # solve the system and overwrite itd.Δxy
         ldiv!(pad.K_fact, itd.Δxy)
