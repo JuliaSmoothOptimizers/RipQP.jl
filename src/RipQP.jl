@@ -2,7 +2,7 @@ module RipQP
 
 using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
-using LDLFactorizations, QuadraticModels, SolverTools
+using LDLFactorizations, QuadraticModels, SolverCore
 
 export ripqp
 
@@ -15,8 +15,8 @@ include("scaling.jl")
 include("multi_precision.jl")
 
 """
-    stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
-                  itol :: InputTol{Tu, Int} = InputTol(), 
+    stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(),
+                  itol :: InputTol{Tu, Int} = InputTol(),
                   display :: Bool = true) where {Tu<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
@@ -27,13 +27,13 @@ Returns a `GenericExecutionStats` containing information about the solved proble
 - `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See `InputTol{T, I}`.
 - `display::Bool`: activate/deactivate iteration data display
 """
-function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), itol :: InputTol{Tu, Int} = InputTol(), 
+function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), itol :: InputTol{Tu, Int} = InputTol(),
                display :: Bool = true) where {Tu<:Real}
-    
+
     start_time = time()
     elapsed_time = 0.0
-    sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)    
-    
+    sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)
+
     nvar_init = QM.meta.nvar
     SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
@@ -65,10 +65,10 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
 
     Δt = time() - start_time
     sc.tired = Δt > itol.max_time
-    
+
     cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.ncon, id.nvar, T) : iconf.kc,
                     iconf.max_ref, zero(Int))
-    
+
     # display
     if display == true
         @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
@@ -81,12 +81,12 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
 
     if iconf.mode == :multi
         # iter in Float32 then convert data to Float64
-        pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd32, id, res, sc, dda, pad, ϵ32, ϵ, cnts, 
+        pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd32, id, res, sc, dda, pad, ϵ32, ϵ, cnts,
                                                     itol.max_iter32, Float64, display)
-      
-        if T0 == Float128 
+
+        if T0 == Float128
             # iters in Float64 then convert data to Float128
-            pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd64, id, res, sc, dda, pad, ϵ64, ϵ, cnts, 
+            pt, itd, res, dda, pad = iter_and_update_T!(pt, itd, fd64, id, res, sc, dda, pad, ϵ64, ϵ, cnts,
                                                         itol.max_iter64, Float128, display)
         end
         sc.max_iter = itol.max_iter
@@ -95,7 +95,7 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
     ## iter T0
     # refinement
     if iconf.refinement == :zoom || iconf.refinement == :ref
-        ϵz = Tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),  
+        ϵz = Tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),
                         T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
         iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
         sc.optimal = false
@@ -114,7 +114,7 @@ function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), 
         iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
     end
 
-    # output status                                                    
+    # output status
     if cnts.k>= itol.max_iter
         status = :max_iter
     elseif sc.tired
