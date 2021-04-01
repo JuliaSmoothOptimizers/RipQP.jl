@@ -107,3 +107,22 @@ function nb_corrector_steps(J_colptr, ncon, nvar, T)
     end
     return kc
 end
+
+function nb_corrector_steps!(cnts :: Counters, time_fact :: T, time_solve :: T) where {T<:Real}
+    rfs = time_fact / time_solve
+    if rfs <= T(10)
+        cnts.kc = 0
+    elseif T(10) < rfs <= T(30)
+        cnts.kc = 1
+    elseif T(30) < rfs <= T(50)
+        cnts.kc = 2
+    elseif rfs > T(50)
+        cnts.kc = 3
+    else
+        p = Int(round(rfs / 50))
+        cntd.kc = p + 2
+        if cnts.kc > 10
+            cnts.kc = 10
+        end
+    end
+end

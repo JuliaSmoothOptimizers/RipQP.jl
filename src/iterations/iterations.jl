@@ -119,14 +119,20 @@ function update_data!(pt :: Point{T}, α_pri :: T, α_dual :: T, itd :: IterData
     res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
 end
 
+
+
 function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, 
                sc :: StopCrit{Tc}, dda :: DescentDirectionAllocs{T}, pad :: PreallocatedData{T}, ϵ :: Tolerances{T},
                cnts :: Counters, T0 :: DataType, display :: Bool) where {T<:Real, Tc<:Real}
     
     @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired # && !small_μ && !small_μ
 
+        time_fact = (cnts.kc == -1) ? time_ns() : UInt(0) # timer centrality_corr factorization
         out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0) # update data for the solver! function used
+        time_fact = (cnts.kc == -1) ? time_ns() - time_fact : 0.
         out == 1 && break
+
+        time_solve = (cnts.kc == -1) ? time_ns() : 0. # timer centrality_corr solve
 
         # Solve system to find a direction of descent 
         out = update_dd!(dda, pt, itd, fd, id, res, pad, cnts, T0)
@@ -140,6 +146,8 @@ function iter!(pt :: Point{T}, itd :: IterData{T}, fd :: Abstract_QM_FloatData{T
         end
 
         update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id) # update point, residuals, objectives...
+        time_solve = (cnts.kc == -1) ? time_ns() - time_solve : UInt(0)
+        (cnts.kc == -1) && nb_corrector_steps!(cnts, time_fact, time_solve)
 
         sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
         sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
