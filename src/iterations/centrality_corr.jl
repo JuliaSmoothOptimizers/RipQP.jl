@@ -42,7 +42,7 @@ function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: Preal
     dda.Δs_u_aff .= itd.Δs_u
     @inbounds while iter_c < cnts.kc && corr_flag
         # Δp = Δ_aff + Δ_cc
-        δα, γ, βmin, βmax = T(0.1), T(0.1), T(0.1), T(10)
+        δα, γ, βmin, βmax = T(0.2), T(0.1), T(0.1), T(10)
         α_p2, α_d2 = min(α_pri + δα, one(T)), min(α_dual + δα, one(T))
         update_pt_aff!(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, 
                         itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_p2, α_d2, id.ilow, id.iupp)
