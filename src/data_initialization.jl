@@ -46,8 +46,7 @@ function initialize(fd :: QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}
     #       [  A     0  ] [y] = [0]
     itd.Δxy[id.nvar+1: end] = fd.b
 
-    cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc==-1 ? nb_corrector_steps(pad.K.colptr, id.ncon, id.nvar, T) : iconf.kc,
-                    iconf.max_ref, zero(Int))
+    cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int))
 
     pt0 = Point(zeros(T, id.nvar), zeros(T, id.ncon), zeros(T, id.nlow), zeros(T, id.nupp))
     out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)
