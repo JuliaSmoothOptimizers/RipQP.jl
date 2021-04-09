@@ -42,7 +42,7 @@ function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: Preal
     dda.Δs_u_aff .= itd.Δs_u
     @inbounds while iter_c < cnts.kc && corr_flag
         # Δp = Δ_aff + Δ_cc
-        δα, γ, βmin, βmax = T(0.2), T(0.1), T(0.1), T(10)
+        δα, γ, βmin, βmax = T(0.1), T(0.1), T(0.1), T(10)
         α_p2, α_d2 = min(α_pri + δα, one(T)), min(α_dual + δα, one(T))
         update_pt_aff!(dda.x_m_l_αΔ_aff, dda.u_m_x_αΔ_aff, dda.s_l_αΔ_aff, dda.s_u_αΔ_aff, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, 
                         itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, α_p2, α_d2, id.ilow, id.iupp)
@@ -81,33 +81,7 @@ function multi_centrality_corr!(dda :: DescentDirectionAllocsPC{T}, pad :: Preal
     return α_pri, α_dual
 end
 
-# function to determine the number of centrality corrections (Gondzio's procedure)
-function nb_corrector_steps(J_colptr, ncon, nvar, T) 
-    Ef, Es, rfs = 0, 16 * nvar, zero(T) # 14n = ratio tests and vector initializations
-    @inbounds @simd for j=1:ncon+nvar
-        lj = (J_colptr[j+1]-J_colptr[j])
-        Ef += lj^2
-        Es += lj
-    end
-    rfs = T(Ef / Es)
-    if rfs <= 10
-        kc = 0
-    elseif 10 < rfs <= 30
-        kc = 1
-    elseif 30 < rfs <= 50
-        kc = 2
-    elseif rfs > 50
-        kc = 3
-    else
-        p = Int(rfs / 50)
-        kc = p + 2
-        if kc > 10
-            kc = 10
-        end
-    end
-    return kc
-end
-
+# function to determine the number of centrality corrections 
 function nb_corrector_steps!(cnts :: Counters, time_fact :: T, time_solve :: T) where {T<:Real}
     rfs = time_fact / time_solve
     if rfs <= T(10)
