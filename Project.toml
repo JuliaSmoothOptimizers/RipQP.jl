@@ -1,7 +1,7 @@
 name = "RipQP"
 uuid = "1e40b3f8-35eb-4cd8-8edd-3e515bb9de08"
 authors = ["Geoffroy Leconte <gleconte50@gmail.com> and contributors"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 LDLFactorizations = "40e66cde-538c-5869-a4ad-c39174c6795b"
