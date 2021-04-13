@@ -26,7 +26,7 @@ function get_multipliers(s_l :: Vector{T}, s_u :: Vector{T}, ilow :: Vector{Int}
     multipliers[idi.jfix] .= @views y[idi.jfix] 
     multipliers[idi.jlow] .+= @views s_l[nlow+nrng+1: nlow+nrng+njlow]
     multipliers[idi.jupp] .-= @views s_u[nupp+nrng+1: nupp+nrng+njupp]
-    multipliers[idi.jrng] .+= @views s_l[nlow+nrng+njlow+1: end] .- s_u[nlow+nrng+njupp+1: end]
+    multipliers[idi.jrng] .+= @views s_l[nlow+nrng+njlow+1: end] .- s_u[nupp+nrng+njupp+1: end]
 
     return multipliers, multipliers_L, multipliers_U
 end
