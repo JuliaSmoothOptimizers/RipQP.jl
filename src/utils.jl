@@ -11,13 +11,17 @@ struct IntDataInit{I<:Integer}
     jfix :: Vector{I}
 end
 
-function get_multipliers(s_l :: Vector{T}, s_u :: Vector{T}, y :: Vector{T}, idi :: IntDataInit{Int}) where {T<:Real}
+function get_multipliers(s_l :: Vector{T}, s_u :: Vector{T}, ilow :: Vector{Int}, iupp :: Vector{Int}, nvar :: Int,
+                         y :: Vector{T}, idi :: IntDataInit{Int}) where {T<:Real}
 
     nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
     njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
-   
-    multipliers_L = SparseVector(idi.nvar, [idi.ilow; idi.irng], s_l[1:nlow+nrng])
-    multipliers_U = SparseVector(idi.nvar, [idi.iupp; idi.irng], s_u[1:nupp+nrng])
+
+    s_l_sp = SparseVector(nvar, ilow, s_l)
+    s_u_sp = SparseVector(nvar, iupp, s_u)
+    multipliers_L = s_l_sp[1:idi.nvar]
+    multipliers_U = s_u_sp[1:idi.nvar]
+    
     multipliers = zeros(T, idi.ncon)
     multipliers[idi.jfix] .= @views y[idi.jfix] 
     multipliers[idi.jlow] .+= @views s_l[nlow+nrng+1: nlow+nrng+njlow]

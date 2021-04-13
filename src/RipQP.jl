@@ -28,6 +28,57 @@ containing information about the solved problem.
 - `iconf :: InputConfig{Int}`: input RipQP configuration. See [`RipQP.InputConfig`](@ref).
 - `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See [`RipQP.InputTol`](@ref).
 - `display::Bool`: activate/deactivate iteration data display
+"""
+function ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(), itol :: InputTol{Tu, Int} = InputTol(),
+               display :: Bool = true) where {Tu<:Real}
+
+    start_time = time()
+    elapsed_time = 0.0
+    sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)
+
+    idi = IntDataInit(QM.meta.nvar, QM.meta.ncon, QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifix, 
+                      QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix)
+
+    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+
+    fd_T0, id, T = get_QM_data(QM)
+    T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
+    ϵ = Tolerances(T(itol.ϵ_pdd), T(itol.ϵ_rb), T(itol.ϵ_rc), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+
+    if iconf.scaling
+        fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
+    end
+
+    # initialization
+    if iconf.mode == :multi
+        T = Float32
+        ϵ32 = Tolerances(T(itol.ϵ_pdd32), T(itol.ϵ_rb32), T(itol.ϵ_rc32), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+        fd32 = convert_FloatData(T, fd_T0)
+        itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
+        set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
+        if T0 == Float128
+            T = Float64
+            fd64 = convert_FloatData(T, fd_T0)
+            ϵ64 = Tolerances(T(itol.ϵ_pdd64), T(itol.ϵ_rb64), T(itol.ϵ_rc64), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
+            set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
+            T = Float32
+        end
+    elseif iconf.mode == :mono
+        itd, ϵ, dda, pad, pt, res, sc, cnts = init_params(fd_T0, id, ϵ, sc, iconf, T0)
+    end
+
+    Δt = time() - start_time
+    sc.tired = Δt > itol.max_time
+
+    # display
+    if display == true
+        @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
+        [Int, T, T, T, T, T, T, T, T, T, T, T],
+        hdr_override=Dict(:k => "iter", :pri_obj => "obj", :pdd => "rgap",
+        :rbNorm => "‖rb‖", :rcNorm => "‖rc‖",
+        :n_Δx => "‖Δx‖"))
+        @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ])
+    end
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
 
@@ -219,9 +270,36 @@ function ripqp(
   return stats
 end
 
+<<<<<<< master
 function ripqp(LLS::LLSModel; kwargs...)
   FLLS = FeasibilityFormNLS(LLS)
   return ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); kwargs...)
+=======
+    if cnts.k>= itol.max_iter
+        status = :max_iter
+    elseif sc.tired
+        status = :max_time
+    elseif sc.optimal
+        status = :acceptable
+    else
+        status = :unknown
+    end
+    multipliers, multipliers_L, multipliers_U = get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
+
+    elapsed_time = time() - sc.start_time
+
+    stats = GenericExecutionStats(status, QM, solution = pt.x[1:idi.nvar],
+                                  objective = itd.pri_obj,
+                                  dual_feas = res.rcNorm,
+                                  primal_feas = res.rbNorm,
+                                  multipliers = multipliers,
+                                  multipliers_L = multipliers_L,
+                                  multipliers_U = multipliers_U,
+                                  iter = cnts.km,
+                                  elapsed_time = elapsed_time,
+                                  solver_specific = Dict(:absolute_iter_cnt=>cnts.k))
+    return stats
+>>>>>>> vcatsort, fix issue multipliers
 end
 
 end
