@@ -13,6 +13,7 @@ include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
 include("multi_precision.jl")
+include("utils.jl")
 
 """
     stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(),
@@ -40,25 +41,24 @@ function ripqp(
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
+
   start_time = time()
   elapsed_time = 0.0
   sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   nvar_init = QM.meta.nvar
+
+  idi = IntDataInit(QM.meta.nvar, QM.meta.ncon, QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifix, 
+                    QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix)
+  Q_init = Symmetric(sparse(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, idi.nvar, idi.nvar), :L)
+  A_init = sparse(QM.data.Arows, QM.data.Acols, QM.data.Avals, idi.ncon, idi.nvar)
+  c_init = copy(QM.data.c)
+
   SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
   fd_T0, id, T = get_QM_data(QM)
   T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
-  ϵ = Tolerances(
-    T(itol.ϵ_pdd),
-    T(itol.ϵ_rb),
-    T(itol.ϵ_rc),
-    one(T),
-    one(T),
-    T(itol.ϵ_μ),
-    T(itol.ϵ_Δx),
-    iconf.normalize_rtol,
-  )
+  ϵ = Tolerances(T(itol.ϵ_pdd), T(itol.ϵ_rb), T(itol.ϵ_rc), one(T), one(T), T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
 
   if iconf.scaling
     fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
@@ -166,94 +166,56 @@ function ripqp(
   ## iter T0
   # refinement
   if iconf.refinement == :zoom || iconf.refinement == :ref
-    ϵz = Tolerances(
-      T(1),
-      T(itol.ϵ_rbz),
-      T(itol.ϵ_rbz),
-      T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
-      one(T),
-      T(itol.ϵ_μ),
-      T(itol.ϵ_Δx),
-      iconf.normalize_rtol,
-    )
+    ϵz = Tolerances(T(1), T(itol.ϵ_rbz), T(itol.ϵ_rbz), T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), one(T),
+                    T(itol.ϵ_μ), T(itol.ϵ_Δx), iconf.normalize_rtol)
     iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
     sc.optimal = false
 
-    fd_ref, pt_ref =
-      fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
+    fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
   elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
-    fd_ref, pt_ref = fd_refinement(
-      fd_T0,
-      id,
-      res,
-      itd.Δxy,
-      pt,
-      itd,
-      ϵ,
-      dda,
-      pad,
-      cnts,
-      T0,
-      iconf.refinement,
-      centering = true,
-    )
-    iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
-    update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      fd_ref, pt_ref = fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement, centering = true)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
   else
-    # iters T0, no refinement
-    iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
-  end
-
-  # output status
-  if cnts.k >= itol.max_iter
-    status = :max_iter
-  elseif sc.tired
-    status = :max_time
-  elseif sc.optimal
-    status = :acceptable
-  else
-    status = :unknown
+      # iters T0, no refinement
+      iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
   end
 
   if iconf.scaling
-    pt, pri_obj, res = post_scale(
-      d1,
-      d2,
-      d3,
-      pt,
-      res,
-      fd_T0,
-      id,
-      itd.Qx,
-      itd.ATy,
-      itd.Ax,
-      itd.cTx,
-      itd.pri_obj,
-      itd.dual_obj,
-      itd.xTQx_2,
-    )
+      pt, pri_obj, res = post_scale(d1, d2, d3, pt, res, fd_T0, id, itd.Qx, itd.ATy,
+                                    itd.Ax, itd.cTx, itd.pri_obj, itd.dual_obj, itd.xTQx_2)
   end
+
+  if cnts.k>= itol.max_iter
+      status = :max_iter
+  elseif sc.tired
+      status = :max_time
+  elseif sc.optimal
+      status = :acceptable
+  else
+      status = :unknown
+  end
+
+  multipliers, multipliers_L, multipliers_U = get_multipliers(pt.s_l, pt.s_u, pt.y, idi)
 
   elapsed_time = time() - sc.start_time
 
-  stats = GenericExecutionStats(
-    status,
-    QM,
-    solution = pt.x[1:nvar_init],
-    objective = itd.pri_obj,
-    dual_feas = res.rcNorm,
-    primal_feas = res.rbNorm,
-    multipliers = pt.y,
-    multipliers_L = pt.s_l,
-    multipliers_U = pt.s_u,
-    iter = cnts.km,
-    elapsed_time = elapsed_time,
-    solver_specific = Dict(:absolute_iter_cnt => cnts.k),
-  )
+  println(norm(Q_init * pt.x[1:idi.nvar] + c_init - A_init' * multipliers - multipliers_L + multipliers_U))
+
+  stats = GenericExecutionStats(status, QM, solution = pt.x[1:idi.nvar],
+                                objective = itd.pri_obj,
+                                dual_feas = res.rcNorm,
+                                primal_feas = res.rbNorm,
+                                multipliers = multipliers,
+                                multipliers_L = multipliers_L,
+                                multipliers_U = multipliers_U,
+                                iter = cnts.km,
+                                elapsed_time = elapsed_time,
+                                solver_specific = Dict(:absolute_iter_cnt=>cnts.k))
   return stats
 end
 
