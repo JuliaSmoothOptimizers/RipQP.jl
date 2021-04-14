@@ -19,8 +19,14 @@ function get_multipliers(s_l :: Vector{T}, s_u :: Vector{T}, ilow :: Vector{Int}
 
     s_l_sp = SparseVector(nvar, ilow, s_l)
     s_u_sp = SparseVector(nvar, iupp, s_u)
-    multipliers_L = s_l_sp[1:idi.nvar]
-    multipliers_U = s_u_sp[1:idi.nvar]
+    
+    if idi.nvar != nvar
+        multipliers_L = s_l_sp[1:idi.nvar]
+        multipliers_U = s_u_sp[1:idi.nvar]
+    else
+        multipliers_L = s_l_sp
+        multipliers_U = s_u_sp
+    end
     
     multipliers = zeros(T, idi.ncon)
     multipliers[idi.jfix] .= @views y[idi.jfix] 
