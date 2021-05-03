@@ -236,25 +236,25 @@ end
 end
 
 @testset "LLS" begin
-    # least-square problem without constraints
-    m, n = 20, 10
-    A = rand(m, n)
-    b = rand(m)
-    nls = LLSModel(A, b)
-    statsnls = ripqp(nls, itol = InputTol(ϵ_rb = sqrt(eps()), ϵ_rc = sqrt(eps())), display=false) 
-    x, r = statsnls.solution[1:n], statsnls.solution[n+1:end] 
-    @test norm(x - A\b) ≤ norm(b) * sqrt(eps()) 
-    @test norm(A*x - b - r) ≤ norm(b) * sqrt(eps())
+  # least-square problem without constraints
+  m, n = 20, 10
+  A = rand(m, n)
+  b = rand(m)
+  nls = LLSModel(A, b)
+  statsnls = ripqp(nls, itol = InputTol(ϵ_rb = sqrt(eps()), ϵ_rc = sqrt(eps())), display = false)
+  x, r = statsnls.solution[1:n], statsnls.solution[(n + 1):end]
+  @test norm(x - A \ b) ≤ norm(b) * sqrt(eps())
+  @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps())
 
-    # least-square problem with constraints
-    A = rand(m, n)
-    b = rand(m)
-    lcon, ucon = zeros(m), fill(Inf, m)
-    C = ones(m, n)
-    lvar, uvar = fill(-10, n), fill(200, n)
-    nls = LLSModel(A, b, lvar=lvar, uvar=uvar, C=C, lcon=lcon, ucon=ucon)
-    statsnls = ripqp(nls, display=false) 
-    x, r = statsnls.solution[1:n], statsnls.solution[n+1:end] 
-    @test length(r) == m
-    @test norm(A*x - b - r) ≤ norm(b) * sqrt(eps())
+  # least-square problem with constraints
+  A = rand(m, n)
+  b = rand(m)
+  lcon, ucon = zeros(m), fill(Inf, m)
+  C = ones(m, n)
+  lvar, uvar = fill(-10, n), fill(200, n)
+  nls = LLSModel(A, b, lvar = lvar, uvar = uvar, C = C, lcon = lcon, ucon = ucon)
+  statsnls = ripqp(nls, display = false)
+  x, r = statsnls.solution[1:n], statsnls.solution[(n + 1):end]
+  @test length(r) == m
+  @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps())
 end
