@@ -2,7 +2,7 @@ module RipQP
 
 using LinearAlgebra, Quadmath, SparseArrays, Statistics
 
-using LDLFactorizations, QuadraticModels, SolverCore
+using LDLFactorizations, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore
 
 export ripqp
 
@@ -249,6 +249,11 @@ function ripqp(
     solver_specific = Dict(:absolute_iter_cnt => cnts.k),
   )
   return stats
+end
+
+function ripqp(nls :: LLSModel; kwargs...) 
+    fnls = FeasibilityFormNLS(nls)
+    return ripqp(QuadraticModel(fnls, fnls.meta.x0, name = nls.meta.name); kwargs...)
 end
 
 end
