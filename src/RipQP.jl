@@ -20,12 +20,12 @@ include("multi_precision.jl")
                   display :: Bool = true) where {Tu<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
-Returns a [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/api/#SolverCore.GenericExecutionStats) 
+Returns a [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats) 
 containing information about the solved problem.
 
 - `QM :: QuadraticModel`: problem to solve
-- `iconf :: InputConfig{Int}`: input RipQP configuration. See `InputConfig{I}`.
-- `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See `InputTol{T, I}`.
+- `iconf :: InputConfig{Int}`: input RipQP configuration. See [`RipQP.InputConfig`](@ref).
+- `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See [`RipQP.InputTol`](@ref).
 - `display::Bool`: activate/deactivate iteration data display
 """
 function ripqp(
