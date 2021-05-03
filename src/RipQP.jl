@@ -40,7 +40,6 @@ function ripqp(
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
-
   start_time = time()
   elapsed_time = 0.0
   sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
@@ -258,18 +257,9 @@ function ripqp(
   return stats
 end
 
-function ripqp(
-  LLS :: LLSModel; 
-  kwargs...) 
-
+function ripqp(LLS::LLSModel; kwargs...)
   FLLS = FeasibilityFormNLS(LLS)
-  return ripqp(
-    QuadraticModel(
-      FLLS, 
-      FLLS.meta.x0, 
-      name = LLS.meta.name
-      ); 
-    kwargs...)
+  return ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); kwargs...)
 end
 
 end
