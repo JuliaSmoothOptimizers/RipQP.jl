@@ -39,8 +39,7 @@ stats = ripqp(QM)
 ```
 
 The `stats` output is a
-[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
-from the package [SolverCore.jl](https://github.com/JuliaSmoothOptimizers/SolverCore.jl).
+[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats).
 
 ## Logging
 

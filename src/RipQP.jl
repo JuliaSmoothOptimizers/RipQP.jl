@@ -27,6 +27,12 @@ containing information about the solved problem.
 - `iconf :: InputConfig{Int}`: input RipQP configuration. See [`RipQP.InputConfig`](@ref).
 - `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See [`RipQP.InputTol`](@ref).
 - `display::Bool`: activate/deactivate iteration data display
+
+You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
+
+    stats = ripqp(LLS :: LLSModel; iconf :: InputConfig{Int} = InputConfig(),
+                  itol :: InputTol{Tu, Int} = InputTol(),
+                  display :: Bool = true) where {Tu<:Real}
 """
 function ripqp(
   QM::QuadraticModel;
@@ -34,6 +40,7 @@ function ripqp(
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
+
   start_time = time()
   elapsed_time = 0.0
   sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
@@ -251,9 +258,18 @@ function ripqp(
   return stats
 end
 
-function ripqp(nls :: LLSModel; kwargs...) 
-    fnls = FeasibilityFormNLS(nls)
-    return ripqp(QuadraticModel(fnls, fnls.meta.x0, name = nls.meta.name); kwargs...)
+function ripqp(
+  LLS :: LLSModel; 
+  kwargs...) 
+
+  FLLS = FeasibilityFormNLS(LLS)
+  return ripqp(
+    QuadraticModel(
+      FLLS, 
+      FLLS.meta.x0, 
+      name = LLS.meta.name
+      ); 
+    kwargs...)
 end
 
 end
