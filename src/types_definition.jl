@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol, SolverParams, PreallocatedData
+export InputConfig, InputTol, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{T <: Real} end
@@ -39,6 +39,31 @@ The `SolverParams` currently implemented within RipQP are:
 abstract type SolverParams end
 
 """
+Type to write the matrix (.mtx format) and the right hand side (.rhs format) of the system to solve at each iteration.
+
+- `write::Bool`: activate/deactivate writing of the system 
+- `name::String`: name of the sytem to solve 
+- `kfirst::Int`: first iteration where a system should be written
+- `kgap::Int`: iteration gap between two problem writings
+
+The constructor
+
+    SystemWrite(; write::Bool = false, name::String = "", 
+                kfirst::Int = 0, kgap::Int = 1)
+
+returns a `SystemWrite` structure that should be used to tell RipQP to save the system. 
+See the tutorial for more information. 
+"""
+struct SystemWrite
+  write::Bool
+  name::String
+  kfirst::Int
+  kgap::Int
+end
+
+SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int = 1) = SystemWrite(write, name, kfirst, kgap)
+
+"""
 Type to specify the configuration used by RipQP.
 
 - `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
@@ -57,6 +82,7 @@ Type to specify the configuration used by RipQP.
 - `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
     Following algorithm
+- `w :: SystemWrite`: configure writing of the systems to solve (no writing is done by default), see [`RipQP.SystemWrite`](@ref)
 
 The constructor
 
@@ -64,7 +90,8 @@ The constructor
                         normalize_rtol :: Bool = true, kc :: I = 0, 
                         refinement :: Symbol = :none, max_ref :: I = 0, 
                         sp :: SolverParams = K2LDLParams(),
-                        solve_method :: Symbol = :PC) where {I<:Integer}
+                        solve_method :: Symbol = :PC, 
+                        w :: SystemWrite = SystemWrite()) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
@@ -81,6 +108,9 @@ struct InputConfig{I <: Integer}
   # Functions to choose formulations
   sp::SolverParams
   solve_method::Symbol
+
+  # write systems 
+  w::SystemWrite
 end
 
 function InputConfig(;
@@ -92,6 +122,7 @@ function InputConfig(;
   max_ref::I = 0,
   sp::SolverParams = K2LDLParams(),
   solve_method::Symbol = :PC,
+  w::SystemWrite = SystemWrite()
 ) where {I <: Integer}
   mode == :mono || mode == :multi || error("mode should be :mono or :multi")
   refinement == :zoom ||
@@ -104,7 +135,7 @@ function InputConfig(;
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
 
-  return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method)
+  return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method, w)
 end
 
 """
@@ -344,4 +375,5 @@ mutable struct Counters
   kc::Int # maximum corrector steps
   max_ref::Int # maximum number of refinements
   c_ref::Int # current number of refinements
+  w::SystemWrite # store SystemWrite data
 end

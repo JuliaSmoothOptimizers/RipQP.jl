@@ -68,6 +68,28 @@ stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1.0e-4),
               iconf = InputConfig(mode = :multi, scaling = false))
 ```
 
+## Save the Interior-Point system
+
+At every iteration, RipQP solves two linear systems with the default Predictor-Corrector method (the affine system and the 
+corrector-centering system), or one linear system with the Infeasible Path-Following method.
+  
+To save these systems, you can use:
+
+```julia
+w = SystemWrite(write = true, name="test_", kfirst = 4, kgap=3) 
+stats1 = ripqp(QM, iconf = InputConfig(w = w))
+```
+
+This will save one matrix and the associated two right hand sides of the PC method every three iterations.
+Then, you can read the saved files with:
+
+```julia
+using DelimitedFiles, MatrixMarket
+K = MatrixMarket.mmread("test_K_iter4.mtx")
+rhs_aff = readdlm("test_rhs_iter4_aff.rhs", Float64)[:]
+rhs_cc =  readdlm("test_rhs_iter4_cc.rhs", Float64)[:] 
+```
+
 ## Advanced: write your own solver
 
 You can use your own solver to compute the direction of descent inside RipQP at each iteration.
