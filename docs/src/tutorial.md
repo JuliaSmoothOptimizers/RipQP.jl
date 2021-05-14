@@ -80,7 +80,8 @@ w = SystemWrite(write = true, name="test_", kfirst = 4, kgap=3)
 stats1 = ripqp(QM, iconf = InputConfig(w = w))
 ```
 
-This will save one matrix and the associated two right hand sides of the PC method every three iterations.
+This will save one matrix and the associated two right hand sides of the PC method every three iterations starting at 
+iteration four.
 Then, you can read the saved files with:
 
 ```julia
