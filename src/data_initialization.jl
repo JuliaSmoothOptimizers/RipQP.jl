@@ -59,7 +59,7 @@ function initialize(
   #       [  A     0  ] [y] = [0]
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
-  cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int))
+  cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
 
   pt0 = Point(zeros(T, id.nvar), zeros(T, id.ncon), zeros(T, id.nlow), zeros(T, id.nupp))
   out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)

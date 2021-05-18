@@ -9,6 +9,7 @@ ripqp
 ```@docs
 InputConfig
 InputTol
+SystemWrite
 ```
 
 ## Solvers

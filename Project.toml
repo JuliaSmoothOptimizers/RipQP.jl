@@ -4,9 +4,11 @@ authors = ["Geoffroy Leconte <gleconte50@gmail.com> and contributors"]
 version = "0.2.0"
 
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 LDLFactorizations = "40e66cde-538c-5869-a4ad-c39174c6795b"
 LLSModels = "39f5bc3e-5160-4bf8-ac48-504fd2534d24"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MatrixMarket = "4d4711f2-db25-561a-b6b3-d35e7d4047d3"
 NLPModelsModifiers = "e01155f1-5c6f-4375-a9d8-616dd036575f"
 Quadmath = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
 QuadraticModels = "f468eda6-eac5-11e8-05a5-ff9e497bcd19"
@@ -17,6 +19,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [compat]
 LDLFactorizations = "0.8.1"
 LLSModels = "0.1"
+MatrixMarket = "0.3"
 NLPModelsModifiers = "0.1.2"
 Quadmath = "0.5"
 QuadraticModels = "0.2, 0.3"
