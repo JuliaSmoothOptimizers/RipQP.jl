@@ -55,13 +55,13 @@ function ripqp(
   fd_T0, id, T = get_QM_data(QM)
   T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
   ϵ = Tolerances(
-    T(itol.ϵ_pdd), 
-    T(itol.ϵ_rb), 
-    T(itol.ϵ_rc), 
-    one(T), 
-    one(T), 
-    T(itol.ϵ_μ), 
-    T(itol.ϵ_Δx), 
+    T(itol.ϵ_pdd),
+    T(itol.ϵ_rb),
+    T(itol.ϵ_rc),
+    one(T),
+    one(T),
+    T(itol.ϵ_μ),
+    T(itol.ϵ_Δx),
     iconf.normalize_rtol,
   )
 
@@ -110,19 +110,20 @@ function ripqp(
 
   # display
   if display == true
-    @info log_header([:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
+    @info log_header(
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
       [Int, T, T, T, T, T, T, T, T, T, T, T],
-      hdr_override=Dict(
-        :k => "iter", 
-        :pri_obj => "obj", 
+      hdr_override = Dict(
+        :k => "iter",
+        :pri_obj => "obj",
         :pdd => "rgap",
-        :rbNorm => "‖rb‖", 
+        :rbNorm => "‖rb‖",
         :rcNorm => "‖rc‖",
-        :n_Δx => "‖Δx‖"
+        :n_Δx => "‖Δx‖",
       ),
     )
     @info log_row(
-      Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ]
+      Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ],
     )
   end
 
@@ -146,23 +147,23 @@ function ripqp(
     )
 
     if T0 == Float128
-        # iters in Float64 then convert data to Float128
-        pt, itd, res, dda, pad = iter_and_update_T!(
-          pt,
-          itd,
-          fd64,
-          id,
-          res,
-          sc,
-          dda,
-          pad,
-          ϵ64,
-          ϵ,
-          cnts,
-          itol.max_iter64,
-          Float128,
-          display,
-        )
+      # iters in Float64 then convert data to Float128
+      pt, itd, res, dda, pad = iter_and_update_T!(
+        pt,
+        itd,
+        fd64,
+        id,
+        res,
+        sc,
+        dda,
+        pad,
+        ϵ64,
+        ϵ,
+        cnts,
+        itol.max_iter64,
+        Float128,
+        display,
+      )
     end
     sc.max_iter = itol.max_iter
   end
@@ -183,7 +184,7 @@ function ripqp(
     iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
     sc.optimal = false
 
-    fd_ref, pt_ref = 
+    fd_ref, pt_ref =
       fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
