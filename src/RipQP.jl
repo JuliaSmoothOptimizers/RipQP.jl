@@ -36,10 +36,10 @@ You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.git
                   display :: Bool = true) where {Tu<:Real}
 """
 function ripqp(
-  QM::QuadraticModel; 
-  iconf::InputConfig{Int} = InputConfig(), 
+  QM::QuadraticModel;
+  iconf::InputConfig{Int} = InputConfig(),
   itol::InputTol{Tu, Int} = InputTol(),
-  display::Bool = true
+  display::Bool = true,
 ) where {Tu<:Real}
 
   start_time = time()
@@ -80,7 +80,7 @@ function ripqp(
       one(T),
       T(itol.ϵ_μ),
       T(itol.ϵ_Δx),
-      iconf.normalize_rtol
+      iconf.normalize_rtol,
     )
     fd32 = convert_FloatData(T, fd_T0)
     itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
@@ -257,7 +257,7 @@ function ripqp(
     multipliers_U = multipliers_U,
     iter = cnts.km,
     elapsed_time = elapsed_time,
-    solver_specific = Dict(:absolute_iter_cnt=>cnts.k),
+    solver_specific = Dict(:absolute_iter_cnt => cnts.k),
   )
   return stats
 end

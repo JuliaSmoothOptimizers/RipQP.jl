@@ -32,12 +32,20 @@ function get_QM_data(QM :: QuadraticModel)
   T = eltype(QM.meta.lvar)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
-  AT = sparse(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.nvar, QM.meta.ncon) 
+  AT = sparse(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
   dropzeros!(AT)
-  Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)  
+  Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   dropzeros!(Q)
-  id = QM_IntData(vcatsort(QM.meta.ilow, QM.meta.irng), vcatsort(QM.meta.iupp, QM.meta.irng), QM.meta.irng, QM.meta.ifree,
-                  QM.meta.ncon, QM.meta.nvar, 0, 0)
+  id = QM_IntData(
+    vcatsort(QM.meta.ilow, QM.meta.irng),
+    vcatsort(QM.meta.iupp, QM.meta.irng),
+    QM.meta.irng,
+    QM.meta.ifree,
+    QM.meta.ncon,
+    QM.meta.nvar,
+    0,
+    0,
+  )
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
   @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
   fd_T = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
