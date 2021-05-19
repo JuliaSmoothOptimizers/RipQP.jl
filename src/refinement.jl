@@ -191,9 +191,7 @@ function update_data!(
   itd.Ax = mul!(itd.Ax, fd.AT', pt.x)
   itd.cTx = dot(fd.c_init, pt.x)
   itd.pri_obj =
-    fd.pri_obj_approx +
-    x_approxQx / fd.Δref +
-    itd.xTQx_2 / fd.Δref^2 +
+    fd.pri_obj_approx + x_approxQx / fd.Δref + itd.xTQx_2 / fd.Δref^2 +
     dot(fd.c_init, pt.x) / fd.Δref
   itd.dual_obj = @views fd.bTy_approx + dot(fd.b_init, pt.y) / fd.Δref - fd.x_approxQx_approx_2 -
          dot(fd.x_approx, itd.Qx) / fd.Δref - itd.xTQx_2 / fd.Δref^2 +
