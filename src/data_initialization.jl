@@ -1,4 +1,34 @@
-function get_QM_data(QM::QuadraticModel)
+function vcatsort(v1, v2)
+  n2 = length(v2)
+  n2 == 0 && return v1
+  n1 = length(v1)
+  n1 == 0 && return v2
+  
+  n = n1 + n2
+  res = similar(v1, n)
+  c1, c2 = 1, 1
+  @inbounds for i=1:n
+    if c2 == n2 + 1 
+      res[i] = v1[c1]
+      c1 += 1
+    elseif c1 == n1 + 1
+      res[i] = v2[c2]
+      c2 += 1
+    else 
+      if v1[c1] < v2[c2]
+          res[i] = v1[c1]
+          c1 += 1
+      else
+          res[i] = v2[c2]
+          c2 += 1
+      end
+    end
+  end 
+
+  return res
+end
+
+function get_QM_data(QM :: QuadraticModel)
   T = eltype(QM.meta.lvar)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
@@ -7,8 +37,8 @@ function get_QM_data(QM::QuadraticModel)
   Q = sparse(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   dropzeros!(Q)
   id = QM_IntData(
-    [QM.meta.ilow; QM.meta.irng],
-    [QM.meta.iupp; QM.meta.irng],
+    vcatsort(QM.meta.ilow, QM.meta.irng),
+    vcatsort(QM.meta.iupp, QM.meta.irng),
     QM.meta.irng,
     QM.meta.ifree,
     QM.meta.ncon,

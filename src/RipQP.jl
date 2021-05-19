@@ -13,6 +13,7 @@ include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
 include("multi_precision.jl")
+include("utils.jl")
 
 """
     stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(),
@@ -39,12 +40,16 @@ function ripqp(
   iconf::InputConfig{Int} = InputConfig(),
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
-) where {Tu <: Real}
+) where {Tu<:Real}
+
   start_time = time()
   elapsed_time = 0.0
   sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
-  nvar_init = QM.meta.nvar
+  # save inital IntData to compute multipliers at the end of the algorithm
+  idi = IntDataInit(QM.meta.nvar, QM.meta.ncon, QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifix, 
+                    QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix) 
+
   SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
   fd_T0, id, T = get_QM_data(QM)
@@ -208,17 +213,6 @@ function ripqp(
     iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
   end
 
-  # output status
-  if cnts.k >= itol.max_iter
-    status = :max_iter
-  elseif sc.tired
-    status = :max_time
-  elseif sc.optimal
-    status = :acceptable
-  else
-    status = :unknown
-  end
-
   if iconf.scaling
     pt, pri_obj, res = post_scale(
       d1,
@@ -238,18 +232,29 @@ function ripqp(
     )
   end
 
+  if cnts.k>= itol.max_iter
+    status = :max_iter
+  elseif sc.tired
+    status = :max_time
+  elseif sc.optimal
+    status = :acceptable
+  else
+    status = :unknown
+  end
+  multipliers, multipliers_L, multipliers_U = get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
+
   elapsed_time = time() - sc.start_time
 
   stats = GenericExecutionStats(
     status,
     QM,
-    solution = pt.x[1:nvar_init],
+    solution = pt.x[1:idi.nvar],
     objective = itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,
-    multipliers = pt.y,
-    multipliers_L = pt.s_l,
-    multipliers_U = pt.s_u,
+    multipliers = multipliers,
+    multipliers_L = multipliers_L,
+    multipliers_U = multipliers_U,
     iter = cnts.km,
     elapsed_time = elapsed_time,
     solver_specific = Dict(:absolute_iter_cnt => cnts.k),
