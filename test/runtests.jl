@@ -264,12 +264,13 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
-    iconf = InputConfig(w = SystemWrite(write = true, name="test_", kfirst = 4, kgap=1000)))
+    iconf = InputConfig(w = SystemWrite(write = true, name = "test_", kfirst = 4, kgap = 1000)),
+  )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
   K = MatrixMarket.mmread("test_K_iter4.mtx")
   rhs_aff = readdlm("test_rhs_iter4_aff.rhs", Float64)[:]
-  rhs_cc =  readdlm("test_rhs_iter4_cc.rhs", Float64)[:]
+  rhs_cc = readdlm("test_rhs_iter4_cc.rhs", Float64)[:]
   @test size(K, 1) == size(K, 2) == length(rhs_aff) == length(rhs_cc)
 end

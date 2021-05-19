@@ -40,15 +40,24 @@ function ripqp(
   iconf::InputConfig{Int} = InputConfig(),
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
-) where {Tu<:Real}
-
+) where {Tu <: Real}
   start_time = time()
   elapsed_time = 0.0
   sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   # save inital IntData to compute multipliers at the end of the algorithm
-  idi = IntDataInit(QM.meta.nvar, QM.meta.ncon, QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifix, 
-                    QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix) 
+  idi = IntDataInit(
+    QM.meta.nvar,
+    QM.meta.ncon,
+    QM.meta.ilow,
+    QM.meta.iupp,
+    QM.meta.irng,
+    QM.meta.ifix,
+    QM.meta.jlow,
+    QM.meta.jupp,
+    QM.meta.jrng,
+    QM.meta.jfix,
+  )
 
   SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
@@ -232,7 +241,7 @@ function ripqp(
     )
   end
 
-  if cnts.k>= itol.max_iter
+  if cnts.k >= itol.max_iter
     status = :max_iter
   elseif sc.tired
     status = :max_time
@@ -241,14 +250,15 @@ function ripqp(
   else
     status = :unknown
   end
-  multipliers, multipliers_L, multipliers_U = get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
+  multipliers, multipliers_L, multipliers_U =
+    get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 
   elapsed_time = time() - sc.start_time
 
   stats = GenericExecutionStats(
     status,
     QM,
-    solution = pt.x[1:idi.nvar],
+    solution = pt.x[1:(idi.nvar)],
     objective = itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,

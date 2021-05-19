@@ -61,7 +61,8 @@ struct SystemWrite
   kgap::Int
 end
 
-SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int = 1) = SystemWrite(write, name, kfirst, kgap)
+SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int = 1) =
+  SystemWrite(write, name, kfirst, kgap)
 
 """
 Type to specify the configuration used by RipQP.
@@ -122,7 +123,7 @@ function InputConfig(;
   max_ref::I = 0,
   sp::SolverParams = K2LDLParams(),
   solve_method::Symbol = :PC,
-  w::SystemWrite = SystemWrite()
+  w::SystemWrite = SystemWrite(),
 ) where {I <: Integer}
   mode == :mono || mode == :multi || error("mode should be :mono or :multi")
   refinement == :zoom ||
