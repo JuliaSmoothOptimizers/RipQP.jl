@@ -36,18 +36,19 @@ You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.git
                   display :: Bool = true) where {Tu<:Real}
 """
 function ripqp(
-  QM :: QuadraticModel; 
-  iconf :: InputConfig{Int} = InputConfig(), 
-  itol :: InputTol{Tu, Int} = InputTol(),
-  display :: Bool = true
-  ) where {Tu<:Real}
+  QM::QuadraticModel; 
+  iconf::InputConfig{Int} = InputConfig(), 
+  itol::InputTol{Tu, Int} = InputTol(),
+  display::Bool = true
+) where {Tu<:Real}
 
   start_time = time()
   elapsed_time = 0.0
-  sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.)
+  sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
+  # save inital IntData to compute multipliers at the end of the algorithm
   idi = IntDataInit(QM.meta.nvar, QM.meta.ncon, QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifix, 
-                    QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix)
+                    QM.meta.jlow, QM.meta.jupp, QM.meta.jrng, QM.meta.jfix) 
 
   SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
 
@@ -61,8 +62,8 @@ function ripqp(
     one(T), 
     T(itol.ϵ_μ), 
     T(itol.ϵ_Δx), 
-    iconf.normalize_rtol
-    )
+    iconf.normalize_rtol,
+  )
 
   if iconf.scaling
     fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
@@ -72,15 +73,15 @@ function ripqp(
   if iconf.mode == :multi
     T = Float32
     ϵ32 = Tolerances(
-      T(itol.ϵ_pdd32), 
-      T(itol.ϵ_rb32), 
-      T(itol.ϵ_rc32), 
-      one(T), 
-      one(T), 
-      T(itol.ϵ_μ), 
-      T(itol.ϵ_Δx), 
+      T(itol.ϵ_pdd32),
+      T(itol.ϵ_rb32),
+      T(itol.ϵ_rc32),
+      one(T),
+      one(T),
+      T(itol.ϵ_μ),
+      T(itol.ϵ_Δx),
       iconf.normalize_rtol
-      )
+    )
     fd32 = convert_FloatData(T, fd_T0)
     itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
     set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
@@ -88,15 +89,15 @@ function ripqp(
       T = Float64
       fd64 = convert_FloatData(T, fd_T0)
       ϵ64 = Tolerances(
-        T(itol.ϵ_pdd64), 
-        T(itol.ϵ_rb64), 
-        T(itol.ϵ_rc64), 
-        one(T), 
-        one(T), 
-        T(itol.ϵ_μ), 
-        T(itol.ϵ_Δx), 
-        iconf.normalize_rtol
-        )
+        T(itol.ϵ_pdd64),
+        T(itol.ϵ_rb64),
+        T(itol.ϵ_rc64),
+        one(T),
+        one(T),
+        T(itol.ϵ_μ),
+        T(itol.ϵ_Δx),
+        iconf.normalize_rtol,
+      )
       set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
       T = Float32
     end
@@ -118,49 +119,50 @@ function ripqp(
         :rbNorm => "‖rb‖", 
         :rcNorm => "‖rc‖",
         :n_Δx => "‖Δx‖"
-        ),
-      )
+      ),
+    )
     @info log_row(
       Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ]
-      )
+    )
   end
 
   if iconf.mode == :multi
     # iter in Float32 then convert data to Float64
     pt, itd, res, dda, pad = iter_and_update_T!(
-      pt, 
-      itd, 
-      fd32, 
-      id, 
-      res, 
-      sc, 
-      dda, 
-      pad, 
-      ϵ32, 
-      ϵ, 
+      pt,
+      itd,
+      fd32,
+      id,
+      res,
+      sc,
+      dda,
+      pad,
+      ϵ32,
+      ϵ,
       cnts,
-      itol.max_iter32, 
-      Float64, 
-      display
-      )
+      itol.max_iter32,
+      Float64,
+      display,
+    )
 
     if T0 == Float128
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(
-          pt, 
-          itd, 
-          fd64, 
-          id, 
-          res, 
-          sc, 
-          dda, 
-          pad, 
-          ϵ64, 
-          ϵ, 
+          pt,
+          itd,
+          fd64,
+          id,
+          res,
+          sc,
+          dda,
+          pad,
+          ϵ64,
+          ϵ,
           cnts,
           itol.max_iter64,
-          Float128, 
-          display)
+          Float128,
+          display,
+        )
     end
     sc.max_iter = itol.max_iter
   end
@@ -169,15 +171,15 @@ function ripqp(
   # refinement
   if iconf.refinement == :zoom || iconf.refinement == :ref
     ϵz = Tolerances(
-      T(1), 
-      T(itol.ϵ_rbz), 
-      T(itol.ϵ_rbz), 
-      T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)), 
+      T(1),
+      T(itol.ϵ_rbz),
+      T(itol.ϵ_rbz),
+      T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
       one(T),
       T(itol.ϵ_μ),
-      T(itol.ϵ_Δx), 
-      iconf.normalize_rtol
-      )
+      T(itol.ϵ_Δx),
+      iconf.normalize_rtol,
+    )
     iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
     sc.optimal = false
 
@@ -188,20 +190,20 @@ function ripqp(
 
   elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
     fd_ref, pt_ref = fd_refinement(
-      fd_T0, 
-      id, 
-      res, 
-      itd.Δxy, 
-      pt, 
-      itd, 
-      ϵ, 
-      dda, 
-      pad, 
-      cnts, 
-      T0, 
-      iconf.refinement, 
-      centering = true
-      )
+      fd_T0,
+      id,
+      res,
+      itd.Δxy,
+      pt,
+      itd,
+      ϵ,
+      dda,
+      pad,
+      cnts,
+      T0,
+      iconf.refinement,
+      centering = true,
+    )
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
@@ -212,21 +214,21 @@ function ripqp(
 
   if iconf.scaling
     pt, pri_obj, res = post_scale(
-      d1, 
-      d2, 
-      d3, 
-      pt, 
-      res, 
-      fd_T0, 
-      id, 
-      itd.Qx, 
+      d1,
+      d2,
+      d3,
+      pt,
+      res,
+      fd_T0,
+      id,
+      itd.Qx,
       itd.ATy,
-      itd.Ax, 
-      itd.cTx, 
-      itd.pri_obj, 
-      itd.dual_obj, 
-      itd.xTQx_2
-      )
+      itd.Ax,
+      itd.cTx,
+      itd.pri_obj,
+      itd.dual_obj,
+      itd.xTQx_2,
+    )
   end
 
   if cnts.k>= itol.max_iter
@@ -243,8 +245,8 @@ function ripqp(
   elapsed_time = time() - sc.start_time
 
   stats = GenericExecutionStats(
-    status, 
-    QM, 
+    status,
+    QM,
     solution = pt.x[1:idi.nvar],
     objective = itd.pri_obj,
     dual_feas = res.rcNorm,
@@ -254,8 +256,8 @@ function ripqp(
     multipliers_U = multipliers_U,
     iter = cnts.km,
     elapsed_time = elapsed_time,
-    solver_specific = Dict(:absolute_iter_cnt=>cnts.k)
-    )
+    solver_specific = Dict(:absolute_iter_cnt=>cnts.k),
+  )
   return stats
 end
 
