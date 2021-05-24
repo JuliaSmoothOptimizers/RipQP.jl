@@ -12,16 +12,16 @@ mutable struct DescentDirectionAllocsPC{T <: Real} <: DescentDirectionAllocs{T}
   rxs_u::Vector{T} # σ * μ * e + ΔX_aff * Δ_S_u_aff , size nupp
 end
 
-DescentDirectionAllocsPC(id::QM_IntData, T::DataType) = DescentDirectionAllocsPC{T}(
-  zeros(T, id.nvar + id.ncon), # Δxy_aff
-  zeros(T, id.nlow), # Δs_l_aff
-  zeros(T, id.nupp), # Δs_u_aff
-  zeros(T, id.nlow), # x_m_l_αΔ_aff
-  zeros(T, id.nupp), # u_m_x_αΔ_aff
-  zeros(T, id.nlow), # s_l_αΔ_aff
-  zeros(T, id.nupp), # s_u_αΔ_aff
-  zeros(T, id.nlow), # rxs_l
-  zeros(T, id.nupp),  # rxs_u
+DescentDirectionAllocsPC(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} = DescentDirectionAllocsPC{T}(
+  similar(fd.c, id.nvar + id.ncon), # Δxy_aff
+  similar(fd.c, id.nlow), # Δs_l_aff
+  similar(fd.c, id.nupp), # Δs_u_aff
+  similar(fd.c, id.nlow), # x_m_l_αΔ_aff
+  similar(fd.c, id.nupp), # u_m_x_αΔ_aff
+  similar(fd.c, id.nlow), # s_l_αΔ_aff
+  similar(fd.c, id.nupp), # s_u_αΔ_aff
+  similar(fd.c, id.nlow), # rxs_l
+  similar(fd.c, id.nupp),  # rxs_u
 )
 
 convert(
@@ -147,8 +147,8 @@ mutable struct DescentDirectionAllocsIPF{T <: Real} <: DescentDirectionAllocs{T}
   compl::Vector{T} # complementarity s_lᵀ(x-lvar) + s_uᵀ(uvar-x)
 end
 
-DescentDirectionAllocsIPF(id::QM_IntData, T::DataType) =
-  DescentDirectionAllocsIPF{T}(zeros(T, id.nvar))
+DescentDirectionAllocsIPF(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} =
+  DescentDirectionAllocsIPF{T}(similar(fd.c, id.nvar))
 
 convert(
   ::Type{<:DescentDirectionAllocs{T}},

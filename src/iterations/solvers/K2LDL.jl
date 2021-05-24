@@ -46,6 +46,7 @@ function PreallocatedData(
 ) where {T <: Real, Tconf <: Real}
 
   # init Regularization values
+  D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
     regu = Regularization(
       T(sqrt(eps()) * 1e5),
@@ -54,7 +55,7 @@ function PreallocatedData(
       1e0 * sqrt(eps(T)),
       sp.regul,
     )
-    D = -T(1.0e0) / 2 .* ones(T, id.nvar)
+    D .= -T(1.0e0) / 2
   else
     regu = Regularization(
       T(sqrt(eps()) * 1e5),
@@ -63,7 +64,7 @@ function PreallocatedData(
       T(sqrt(eps(T)) * 1e0),
       sp.regul,
     )
-    D = -T(1.0e-2) .* ones(T, id.nvar)
+    D .= -T(1.0e-2)
   end
   diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.nvar)
   K = create_K2(id, D, fd.Q, fd.AT, diag_Q, regu)

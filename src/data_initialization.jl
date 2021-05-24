@@ -60,14 +60,14 @@ function initialize(
   T0::DataType,
 ) where {T <: Real, Tconf <: Real}
   itd = IterData(
-    zeros(T, id.nvar + id.ncon), # Δxy
-    zeros(T, id.nlow), # Δs_l
-    zeros(T, id.nupp), # Δs_u
-    zeros(T, id.nlow), # x_m_lvar
-    zeros(T, id.nupp), # uvar_m_x
-    zeros(T, id.nvar), # init Qx
-    zeros(T, id.nvar), # init ATy
-    zeros(T, id.ncon), # Ax
+    similar(fd.c, id.nvar + id.ncon), # Δxy
+    similar(fd.c, id.nlow), # Δs_l
+    similar(fd.c, id.nupp), # Δs_u
+    similar(fd.c, id.nlow), # x_m_lvar
+    similar(fd.c, id.nupp), # uvar_m_x
+    similar(fd.c, id.nvar), # init Qx
+    similar(fd.c, id.nvar), # init ATy
+    similar(fd.c, id.ncon), # Ax
     zero(T), #xTQx
     zero(T), #cTx
     zero(T), #pri_obj
@@ -80,18 +80,19 @@ function initialize(
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
-  dda = eval(dda_type)(id, T)
+  dda = eval(dda_type)(id, fd)
 
   pad = PreallocatedData(iconf.sp, fd, id, iconf)
 
   # init system
   # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [0]
+  itd.Δxy[1:id.nvar] .= 0 
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
   cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
 
-  pt0 = Point(zeros(T, id.nvar), zeros(T, id.ncon), zeros(T, id.nlow), zeros(T, id.nupp))
+  pt0 = Point(similar(fd.c, id.nvar), similar(fd.c, id.ncon), similar(fd.c, id.nlow), similar(fd.c, id.nupp))
   out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)
   pt0.x .= itd.Δxy[1:(id.nvar)]
   pt0.y .= itd.Δxy[(id.nvar + 1):end]
@@ -107,7 +108,7 @@ function init_params(
   iconf::InputConfig{Tconf},
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  res = Residuals(zeros(T, id.ncon), zeros(T, id.nvar), zero(T), zero(T), zero(T))
+  res = Residuals(similar(fd_T.c, id.ncon), similar(fd_T.c, id.nvar), zero(T), zero(T), zero(T))
 
   itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 
