@@ -84,22 +84,22 @@ function scaling_Ruiz!(
 
   # scaling Q (symmetric)
   d3 = ones(T, id.nvar)
-  r_k .= zero(T) # r_k is now norm of rows of Q
-  get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-  convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-  mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
-  k = 1
-  while !convergence && k < max_iter
-    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-    mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
-    k += 1
-  end
+#   r_k .= zero(T) # r_k is now norm of rows of Q
+#   get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+#   convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
+#   mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+#   k = 1
+#   while !convergence && k < max_iter
+#     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+#     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
+#     mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+#     k += 1
+#   end
 
-  mul_AT_D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, fd_T0.AT.n, d3)
-  fd_T0.c .*= d3
-  fd_T0.lvar ./= d3
-  fd_T0.uvar ./= d3
+#   mul_AT_D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, fd_T0.AT.n, d3)
+#   fd_T0.c .*= d3
+#   fd_T0.lvar ./= d3
+#   fd_T0.uvar ./= d3
 
   return fd_T0, d1, d2, d3
 end
