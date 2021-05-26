@@ -18,26 +18,6 @@ function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
   end
 end
 
-function get_norm_rk_AT!(v, AT_colptr, AT_rowval, AT_nzval, n, d3)
-  T = eltype(v)
-  v .= zero(T)
-  @inbounds @simd for j = 1:n
-    for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
-      k = AT_rowval[i]
-      if d3[k] == one(T) && abs(AT_nzval[i]) > v[k]
-        v[k] = abs(AT_nzval[i])
-      end
-    end
-  end
-
-  v .= sqrt.(v)
-  @inbounds @simd for i = 1:length(v)
-    if v[i] == zero(T)
-      v[i] = one(T)
-    end
-  end
-end
-
 function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c)
   @inbounds @simd for j = 1:length(c)
     for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
@@ -83,8 +63,8 @@ function scaling_Ruiz!(
 	r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
   # scaling Q (symmetric)
   d3 = ones(T, id.nvar)
-  if length(fd_T0.Q.rowval) > 0
-    # r_k .= zero(T) # r_k is now norm of rows of Q
+  if length(fd_T0.Q.rowval) > 0 
+    r_k .= zero(T) # r_k is now norm of rows of Q
     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
     mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
@@ -95,31 +75,30 @@ function scaling_Ruiz!(
       mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
       k += 1
     end
-
     mul_AT_D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, fd_T0.AT.n, d3)
     fd_T0.c .*= d3
     fd_T0.lvar ./= d3
     fd_T0.uvar ./= d3
-  end 
+  end
 
   d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
   # r (resp. c) norm of rows of AT (resp. cols) 
   # scaling: D2 * AT * D1
 	r_k .= zero(T)
-  get_norm_rk_AT!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, d3)
+  get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :row)
   get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :col)
-  convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
+  convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
   mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
   k = 1
   while !convergence && k < max_iter
-    get_norm_rk_AT!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, d3)
+    get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :row)
     get_norm_rc!(c_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :col)
-    convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
+    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
     mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
     k += 1
   end
 
-  # mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
+  mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
