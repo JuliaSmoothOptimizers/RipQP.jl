@@ -60,7 +60,7 @@ function scaling_Ruiz!(
   max_iter::Int = 100,
 ) where {T <: Real}
 
-	r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
+  r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
   d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
   # scaling Q (symmetric)
   d3 = ones(T, id.nvar)
