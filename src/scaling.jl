@@ -59,12 +59,11 @@ function scaling_Ruiz!(
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
-
   r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
   d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
   # scaling Q (symmetric)
   d3 = ones(T, id.nvar)
-  if length(fd_T0.Q.rowval) > 0 
+  if length(fd_T0.Q.rowval) > 0
     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
     mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
