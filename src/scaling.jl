@@ -1,8 +1,8 @@
 function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
   T = eltype(v)
   v .= zero(T)
-  @inbounds for j = 1:n
-    @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       k = ax == :row ? AT_rowval[i] : j
       if abs(AT_nzval[i]) > v[k]
         v[k] = abs(AT_nzval[i])
@@ -19,8 +19,8 @@ function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
 end
 
 function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c)
-  @inbounds for j = 1:length(c)
-    @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:length(c)
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] /= r[AT_rowval[i]] * c[j]
     end
   end
@@ -29,16 +29,16 @@ function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c)
 end
 
 function mul_AT_D3!(AT_colptr, AT_rowval, AT_nzval, n, d3)
-  @inbounds for j = 1:n
-    @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] *= d3[AT_rowval[i]]
     end
   end
 end
 
 function mul_Q_D!(Q_colptr, Q_rowval, Q_nzval, d, c)
-  @inbounds for j = 1:length(d)
-    @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:length(d)
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] /= c[Q_rowval[i]] * c[j]
     end
   end
@@ -46,8 +46,8 @@ function mul_Q_D!(Q_colptr, Q_rowval, Q_nzval, d, c)
 end
 
 function mul_Q_D2!(Q_colptr, Q_rowval, Q_nzval, d2)
-  @inbounds for j = 1:length(d2)
-    @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:length(d2)
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] *= d2[Q_rowval[i]] * d2[j]
     end
   end
@@ -105,16 +105,16 @@ function scaling_Ruiz!(
 end
 
 function div_D2D3_Q_D3D2!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
-  @inbounds for j = 1:n
-    @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] /= d2[Q_rowval[i]] * d2[j] * d3[Q_rowval[i]] * d3[j]
     end
   end
 end
 
 function div_D1_A_D2D3!(AT_colptr, AT_rowval, AT_nzval, d1, d2, d3, n)
-  @inbounds for j = 1:n
-    @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] /= d1[j] * d2[AT_rowval[i]] * d3[AT_rowval[i]]
     end
   end
