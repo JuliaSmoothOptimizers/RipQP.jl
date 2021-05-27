@@ -95,7 +95,7 @@ function scaling_Ruiz!(
     mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
     k += 1
   end
-  mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
+  length(fd_T0.Q.rowval) > 0 && mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
