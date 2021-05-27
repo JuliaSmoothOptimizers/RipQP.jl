@@ -1,8 +1,8 @@
 function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
   T = eltype(v)
   v .= zero(T)
-  @inbounds @simd for j = 1:n
-    for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       k = ax == :row ? AT_rowval[i] : j
       if abs(AT_nzval[i]) > v[k]
         v[k] = abs(AT_nzval[i])
@@ -19,8 +19,8 @@ function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
 end
 
 function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c)
-  @inbounds @simd for j = 1:length(c)
-    for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:length(c)
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] /= r[AT_rowval[i]] * c[j]
     end
   end
@@ -29,16 +29,16 @@ function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c)
 end
 
 function mul_AT_D3!(AT_colptr, AT_rowval, AT_nzval, n, d3)
-  @inbounds @simd for j = 1:n
-    for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] *= d3[AT_rowval[i]]
     end
   end
 end
 
 function mul_Q_D!(Q_colptr, Q_rowval, Q_nzval, d, c)
-  @inbounds @simd for j = 1:length(d)
-    for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:length(d)
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] /= c[Q_rowval[i]] * c[j]
     end
   end
@@ -46,8 +46,8 @@ function mul_Q_D!(Q_colptr, Q_rowval, Q_nzval, d, c)
 end
 
 function mul_Q_D2!(Q_colptr, Q_rowval, Q_nzval, d2)
-  @inbounds @simd for j = 1:length(d2)
-    for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:length(d2)
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] *= d2[Q_rowval[i]] * d2[j]
     end
   end
@@ -59,8 +59,28 @@ function scaling_Ruiz!(
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
-  d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
+
   r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
+  d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
+  # scaling Q (symmetric)
+  d3 = ones(T, id.nvar)
+  if length(fd_T0.Q.rowval) > 0 
+    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
+    mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+    k = 1
+    while !convergence && k < max_iter
+      get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+      convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
+      mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+      k += 1
+    end
+    mul_AT_D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, fd_T0.AT.n, d3)
+    fd_T0.c .*= d3
+    fd_T0.lvar ./= d3
+    fd_T0.uvar ./= d3
+  end
+
   # r (resp. c) norm of rows of AT (resp. cols) 
   # scaling: D2 * AT * D1
   get_norm_rc!(r_k, fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, id.ncon, :row)
@@ -75,46 +95,26 @@ function scaling_Ruiz!(
     mul_AT_D1_D2!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, r_k, c_k)
     k += 1
   end
-
-  mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
+  length(fd_T0.Q.rowval) > 0 && mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
   fd_T0.uvar ./= d2
 
-  # scaling Q (symmetric)
-  d3 = ones(T, id.nvar)
-  r_k .= zero(T) # r_k is now norm of rows of Q
-  get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-  convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-  mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
-  k = 1
-  while !convergence && k < max_iter
-    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-    mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
-    k += 1
-  end
-
-  mul_AT_D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, fd_T0.AT.n, d3)
-  fd_T0.c .*= d3
-  fd_T0.lvar ./= d3
-  fd_T0.uvar ./= d3
-
   return fd_T0, d1, d2, d3
 end
 
 function div_D2D3_Q_D3D2!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
-  @inbounds @simd for j = 1:n
-    for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] /= d2[Q_rowval[i]] * d2[j] * d3[Q_rowval[i]] * d3[j]
     end
   end
 end
 
 function div_D1_A_D2D3!(AT_colptr, AT_rowval, AT_nzval, d1, d2, d3, n)
-  @inbounds @simd for j = 1:n
-    for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+  for j = 1:n
+    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
       AT_nzval[i] /= d1[j] * d2[AT_rowval[i]] * d3[AT_rowval[i]]
     end
   end

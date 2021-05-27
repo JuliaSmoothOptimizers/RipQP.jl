@@ -12,7 +12,7 @@ function compute_α_dual(v, dir_v)
     return one(T)
   end
   α = one(T)
-  @inbounds @simd for i = 1:n
+  @inbounds for i = 1:n
     if dir_v[i] < zero(T)
       α_new = -v[i] * T(0.999) / dir_v[i]
       if α_new < α
@@ -27,7 +27,7 @@ function compute_α_primal(v, dir_v, lvar, uvar)
   n = length(v)
   T = eltype(v)
   α_l, α_u = one(T), one(T)
-  @inbounds @simd for i = 1:n
+  @inbounds for i = 1:n
     if dir_v[i] > zero(T)
       α_u_new = (uvar[i] - v[i]) * T(0.999) / dir_v[i]
       if α_u_new < α_u

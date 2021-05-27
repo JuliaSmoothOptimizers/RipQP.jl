@@ -179,47 +179,49 @@ function ripqp(
 
   ## iter T0
   # refinement
-  if iconf.refinement == :zoom || iconf.refinement == :ref
-    ϵz = Tolerances(
-      T(1),
-      T(itol.ϵ_rbz),
-      T(itol.ϵ_rbz),
-      T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
-      one(T),
-      T(itol.ϵ_μ),
-      T(itol.ϵ_Δx),
-      iconf.normalize_rtol,
-    )
-    iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
-    sc.optimal = false
+  if !sc.optimal
+    if iconf.refinement == :zoom || iconf.refinement == :ref
+      ϵz = Tolerances(
+        T(1),
+        T(itol.ϵ_rbz),
+        T(itol.ϵ_rbz),
+        T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
+        one(T),
+        T(itol.ϵ_μ),
+        T(itol.ϵ_Δx),
+        iconf.normalize_rtol,
+      )
+      iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
+      sc.optimal = false
 
-    fd_ref, pt_ref =
-      fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
-    iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
-    update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      fd_ref, pt_ref =
+        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
-  elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
-    fd_ref, pt_ref = fd_refinement(
-      fd_T0,
-      id,
-      res,
-      itd.Δxy,
-      pt,
-      itd,
-      ϵ,
-      dda,
-      pad,
-      cnts,
-      T0,
-      iconf.refinement,
-      centering = true,
-    )
-    iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
-    update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+    elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
+      fd_ref, pt_ref = fd_refinement(
+        fd_T0,
+        id,
+        res,
+        itd.Δxy,
+        pt,
+        itd,
+        ϵ,
+        dda,
+        pad,
+        cnts,
+        T0,
+        iconf.refinement,
+        centering = true,
+      )
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
-  else
-    # iters T0, no refinement
-    iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+    else
+      # iters T0, no refinement
+      iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+    end
   end
 
   if iconf.scaling
