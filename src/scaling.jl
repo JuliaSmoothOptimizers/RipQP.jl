@@ -59,10 +59,14 @@ function scaling_Ruiz!(
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
-  r_k, c_k = zeros(T, id.nvar), zeros(T, id.ncon)
-  d1, d2 = ones(T, id.ncon), ones(T, id.nvar)
+
+  r_k, c_k = similar(fd_T0.c, id.nvar), similar(fd_T0.c, id.ncon)
+  d1, d2 = similar(fd_T0.c, id.ncon), similar(fd_T0.c, id.nvar)
+  d1 .= one(T)
+  d2 .= one(T)
   # scaling Q (symmetric)
-  d3 = ones(T, id.nvar)
+  d3 = similar(fd_T0.c, id.nvar)
+  d3 .= one(T)
   if length(fd_T0.Q.rowval) > 0
     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
@@ -135,6 +139,7 @@ function post_scale(
   dual_obj::T,
   xTQx_2::T,
 ) where {T <: Real}
+
   pt.x .*= d2 .* d3
   div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.nvar)
   Qx = mul!(Qx, Symmetric(fd_T0.Q, :U), pt.x)
