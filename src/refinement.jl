@@ -104,6 +104,8 @@ function fd_refinement(
     max.(abs.(c_ref[id.ilow]), eps(T)),
     max.(abs.(c_ref[id.iupp]), eps(T)),
   )
+  pt_z.x .= 0
+  pt_z.y .= 0
   starting_points!(pt_z, fd_ref, id, itd)
 
   # update residuals

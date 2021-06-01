@@ -85,8 +85,8 @@ function initialize(
   pad = PreallocatedData(iconf.sp, fd, id, iconf)
 
   # init system
-  # solve [-Q-D    A' ] [x] = [b]  to initialize (x, y, s_l, s_u)
-  #       [  A     0  ] [y] = [0]
+  # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
+  #       [  A     0  ] [y] = [b]
   itd.Δxy[1:id.nvar] .= 0 
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
