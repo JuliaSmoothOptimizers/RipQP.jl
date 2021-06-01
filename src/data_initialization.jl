@@ -87,12 +87,17 @@ function initialize(
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [b]
-  itd.Δxy[1:id.nvar] .= 0 
+  itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
   cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
 
-  pt0 = Point(similar(fd.c, id.nvar), similar(fd.c, id.ncon), similar(fd.c, id.nlow), similar(fd.c, id.nupp))
+  pt0 = Point(
+    similar(fd.c, id.nvar),
+    similar(fd.c, id.ncon),
+    similar(fd.c, id.nlow),
+    similar(fd.c, id.nupp),
+  )
   out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)
   pt0.x .= itd.Δxy[1:(id.nvar)]
   pt0.y .= itd.Δxy[(id.nvar + 1):end]
