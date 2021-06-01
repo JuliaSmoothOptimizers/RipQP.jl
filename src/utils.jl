@@ -34,7 +34,8 @@ function get_multipliers(
     multipliers_U = s_u_sp
   end
 
-  multipliers = zeros(T, idi.ncon)
+  S = typeof(y)
+  multipliers = fill!(S(undef, idi.ncon), zero(T))
   multipliers[idi.jfix] .= @views y[idi.jfix]
   multipliers[idi.jlow] .+= @views s_l[(nlow + nrng + 1):(nlow + nrng + njlow)]
   multipliers[idi.jupp] .-= @views s_u[(nupp + nrng + 1):(nupp + nrng + njupp)]

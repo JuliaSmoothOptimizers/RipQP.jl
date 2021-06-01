@@ -4,6 +4,7 @@ function starting_points!(
   id::QM_IntData,
   itd::IterData{T},
 ) where {T <: Real}
+
   itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt0.x)
   itd.ATy = mul!(itd.ATy, fd.AT, pt0.y)
   dual_val = itd.Qx .- itd.ATy .+ fd.c
