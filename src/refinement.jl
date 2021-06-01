@@ -98,14 +98,13 @@ function fd_refinement(
   )
 
   # init zoom Point
+  S = typeof(fd.c)
   pt_z = Point(
-    similar(fd.c, id.nvar),
-    similar(fd.c, id.ncon),
+    fill!(S(undef, id.nvar), zero(T)),
+    fill!(S(undef, id.ncon), zero(T)),
     max.(abs.(c_ref[id.ilow]), eps(T)),
     max.(abs.(c_ref[id.iupp]), eps(T)),
   )
-  pt_z.x .= 0
-  pt_z.y .= 0
   starting_points!(pt_z, fd_ref, id, itd)
 
   # update residuals

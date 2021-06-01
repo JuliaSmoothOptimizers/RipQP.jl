@@ -61,12 +61,10 @@ function scaling_Ruiz!(
 ) where {T <: Real}
 
   r_k, c_k = similar(fd_T0.c, id.nvar), similar(fd_T0.c, id.ncon)
-  d1, d2 = similar(fd_T0.c, id.ncon), similar(fd_T0.c, id.nvar)
-  d1 .= one(T)
-  d2 .= one(T)
+  S = typeof(fd_T0.c)
+  d1, d2 = fill!(S(undef, id.ncon), one(T)), fill!(S(undef, id.nvar), one(T))
   # scaling Q (symmetric)
-  d3 = similar(fd_T0.c, id.nvar)
-  d3 .= one(T)
+  d3 = fill!(S(undef, id.nvar), one(T))
   if length(fd_T0.Q.rowval) > 0
     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
