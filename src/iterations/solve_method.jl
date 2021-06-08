@@ -1,19 +1,43 @@
-abstract type DescentDirectionAllocs{T <: Real} end
+abstract type DescentDirectionAllocs{T <: Real, S} end
 
-mutable struct DescentDirectionAllocsPC{T <: Real} <: DescentDirectionAllocs{T}
-  Δxy_aff::Vector{T} # affine-step solution of the augmented system [Δx_aff; Δy_aff], size nvar + ncon 
-  Δs_l_aff::Vector{T} # size nlow
-  Δs_u_aff::Vector{T} # size nupp
-  x_m_l_αΔ_aff::Vector{T} # x + α_aff * Δxy_aff - lvar , size nlow
-  u_m_x_αΔ_aff::Vector{T} # uvar - (x + α_aff * Δxy_aff) , size nupp
-  s_l_αΔ_aff::Vector{T} # s_l + α_aff * Δs_l_aff , size nlow
-  s_u_αΔ_aff::Vector{T} # s_u + α_aff * Δs_u_aff , size nupp
-  rxs_l::Vector{T} # - σ * μ * e + ΔX_aff * Δ_S_l_aff , size nlow
-  rxs_u::Vector{T} # σ * μ * e + ΔX_aff * Δ_S_u_aff , size nupp
+mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{T, S}
+  Δxy_aff::S # affine-step solution of the augmented system [Δx_aff; Δy_aff], size nvar + ncon 
+  Δs_l_aff::S # size nlow
+  Δs_u_aff::S # size nupp
+  x_m_l_αΔ_aff::S # x + α_aff * Δxy_aff - lvar , size nlow
+  u_m_x_αΔ_aff::S # uvar - (x + α_aff * Δxy_aff) , size nupp
+  s_l_αΔ_aff::S # s_l + α_aff * Δs_l_aff , size nlow
+  s_u_αΔ_aff::S # s_u + α_aff * Δs_u_aff , size nupp
+  rxs_l::S # - σ * μ * e + ΔX_aff * Δ_S_l_aff , size nlow
+  rxs_u::S # σ * μ * e + ΔX_aff * Δ_S_u_aff , size nupp
+  function DescentDirectionAllocsPC(
+    Δxy_aff::AbstractVector{T}, 
+    Δs_l_aff::AbstractVector{T},
+    Δs_u_aff::AbstractVector{T},
+    x_m_l_αΔ_aff::AbstractVector{T},
+    u_m_x_αΔ_aff::AbstractVector{T},
+    s_l_αΔ_aff::AbstractVector{T},
+    s_u_αΔ_aff::AbstractVector{T},
+    rxs_l::AbstractVector{T},
+    rxs_u::AbstractVector{T},
+  ) where {T <: Real}
+    S = typeof(Δxy_aff)
+    return new{T, S}(
+      Δxy_aff,
+      Δs_l_aff,
+      Δs_u_aff,
+      x_m_l_αΔ_aff,
+      u_m_x_αΔ_aff,
+      s_l_αΔ_aff,
+      s_u_αΔ_aff,
+      rxs_l,
+      rxs_u,
+      )
+  end
 end
 
 DescentDirectionAllocsPC(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} =
-  DescentDirectionAllocsPC{T}(
+  DescentDirectionAllocsPC(
     similar(fd.c, id.nvar + id.ncon), # Δxy_aff
     similar(fd.c, id.nlow), # Δs_l_aff
     similar(fd.c, id.nupp), # Δs_u_aff
@@ -26,18 +50,18 @@ DescentDirectionAllocsPC(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} 
   )
 
 convert(
-  ::Type{<:DescentDirectionAllocs{T}},
-  dda::DescentDirectionAllocsPC{T0},
-) where {T <: Real, T0 <: Real} = DescentDirectionAllocsPC(
-  convert(Array{T}, dda.Δxy_aff),
-  convert(Array{T}, dda.Δs_l_aff),
-  convert(Array{T}, dda.Δs_u_aff),
-  convert(Array{T}, dda.x_m_l_αΔ_aff),
-  convert(Array{T}, dda.u_m_x_αΔ_aff),
-  convert(Array{T}, dda.s_l_αΔ_aff),
-  convert(Array{T}, dda.s_u_αΔ_aff),
-  convert(Array{T}, dda.rxs_l),
-  convert(Array{T}, dda.rxs_u),
+  ::Type{<:DescentDirectionAllocs{T, S}},
+  dda::DescentDirectionAllocsPC{T0, S0},
+) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsPC(
+  convert(S.name.wrapper{T, 1}, dda.Δxy_aff),
+  convert(S.name.wrapper{T, 1}, dda.Δs_l_aff),
+  convert(S.name.wrapper{T, 1}, dda.Δs_u_aff),
+  convert(S.name.wrapper{T, 1}, dda.x_m_l_αΔ_aff),
+  convert(S.name.wrapper{T, 1}, dda.u_m_x_αΔ_aff),
+  convert(S.name.wrapper{T, 1}, dda.s_l_αΔ_aff),
+  convert(S.name.wrapper{T, 1}, dda.s_u_αΔ_aff),
+  convert(S.name.wrapper{T, 1}, dda.rxs_l),
+  convert(S.name.wrapper{T, 1}, dda.rxs_u),
 )
 
 function update_pt_aff!(
@@ -144,17 +168,21 @@ function update_dd!(
   return out
 end
 
-mutable struct DescentDirectionAllocsIPF{T <: Real} <: DescentDirectionAllocs{T}
-  compl::Vector{T} # complementarity s_lᵀ(x-lvar) + s_uᵀ(uvar-x)
+mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs{T, S}
+  compl::S # complementarity s_lᵀ(x-lvar) + s_uᵀ(uvar-x)
+  function DescentDirectionAllocsIPF(compl::AbstractVector{T}) where {T <: Real}
+    S = typeof(compl)
+    return new{T, S}(compl)
+  end
 end
 
 DescentDirectionAllocsIPF(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} =
-  DescentDirectionAllocsIPF{T}(similar(fd.c, id.nvar))
+  DescentDirectionAllocsIPF(similar(fd.c, id.nvar))
 
 convert(
-  ::Type{<:DescentDirectionAllocs{T}},
-  dda::DescentDirectionAllocsIPF{T0},
-) where {T <: Real, T0 <: Real} = DescentDirectionAllocsIPF(convert(Array{T}, dda.compl))
+  ::Type{<:DescentDirectionAllocs{T, S}},
+  dda::DescentDirectionAllocsIPF{T0, S0},
+) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl))
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},

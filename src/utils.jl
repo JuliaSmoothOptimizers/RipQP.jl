@@ -12,12 +12,12 @@ struct IntDataInit{I <: Integer}
 end
 
 function get_multipliers(
-  s_l::Vector{T},
-  s_u::Vector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
   ilow::Vector{Int},
   iupp::Vector{Int},
   nvar::Int,
-  y::Vector{T},
+  y::AbstractVector{T},
   idi::IntDataInit{Int},
 ) where {T <: Real}
   nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)

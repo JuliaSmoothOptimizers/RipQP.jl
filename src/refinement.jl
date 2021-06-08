@@ -1,17 +1,17 @@
-mutable struct QM_FloatData_ref{T <: Real} <: Abstract_QM_FloatData{T}
-  Q::SparseMatrixCSC{T, Int}
-  AT::SparseMatrixCSC{T, Int} # using AT is easier to form systems
-  b::Vector{T}
-  c::Vector{T}
+mutable struct QM_FloatData_ref{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
+  Q::Ssp
+  AT::Ssp # using AT is easier to form systems
+  b::S
+  c::S
   c0::T
-  lvar::Vector{T}
-  uvar::Vector{T}
+  lvar::S
+  uvar::S
   Δref::T
-  x_approx::Vector{T}
+  x_approx::S
   x_approxQx_approx_2::T
-  b_init::Vector{T}
+  b_init::S
   bTy_approx::T
-  c_init::Vector{T}
+  c_init::S
   pri_obj_approx::T
 end
 
