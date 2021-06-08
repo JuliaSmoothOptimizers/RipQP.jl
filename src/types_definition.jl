@@ -255,9 +255,9 @@ mutable struct Point{T <: Real, S}
   s_l::S # size nlow (useless zeros corresponding to infinite lower bounds are not stored)
   s_u::S # size nupp (useless zeros corresponding to infinite upper bounds are not stored)
   function Point(
-    x::AbstractVector{T}, 
-    y::AbstractVector{T}, 
-    s_l::AbstractVector{T}, 
+    x::AbstractVector{T},
+    y::AbstractVector{T},
+    s_l::AbstractVector{T},
     s_u::AbstractVector{T},
   ) where {T <: Real}
     S = typeof(x)
@@ -354,25 +354,26 @@ mutable struct IterData{T <: Real, S}
   qp::Bool # true if qp false if lp
 end
 
-convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <: Real, S0} = IterData(
-  convert(S.name.wrapper{T, 1}, itd.Δxy),
-  convert(S.name.wrapper{T, 1}, itd.Δs_l),
-  convert(S.name.wrapper{T, 1}, itd.Δs_u),
-  convert(S.name.wrapper{T, 1}, itd.x_m_lvar),
-  convert(S.name.wrapper{T, 1}, itd.uvar_m_x),
-  convert(S.name.wrapper{T, 1}, itd.Qx),
-  convert(S.name.wrapper{T, 1}, itd.ATy),
-  convert(S.name.wrapper{T, 1}, itd.Ax),
-  convert(T, itd.xTQx_2),
-  convert(T, itd.cTx),
-  convert(T, itd.pri_obj),
-  convert(T, itd.dual_obj),
-  convert(T, itd.μ),
-  convert(T, itd.pdd),
-  convert(S.name.wrapper{T, 1}, itd.l_pdd),
-  convert(T, itd.mean_pdd),
-  itd.qp,
-)
+convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <: Real, S0} =
+  IterData(
+    convert(S.name.wrapper{T, 1}, itd.Δxy),
+    convert(S.name.wrapper{T, 1}, itd.Δs_l),
+    convert(S.name.wrapper{T, 1}, itd.Δs_u),
+    convert(S.name.wrapper{T, 1}, itd.x_m_lvar),
+    convert(S.name.wrapper{T, 1}, itd.uvar_m_x),
+    convert(S.name.wrapper{T, 1}, itd.Qx),
+    convert(S.name.wrapper{T, 1}, itd.ATy),
+    convert(S.name.wrapper{T, 1}, itd.Ax),
+    convert(T, itd.xTQx_2),
+    convert(T, itd.cTx),
+    convert(T, itd.pri_obj),
+    convert(T, itd.dual_obj),
+    convert(T, itd.μ),
+    convert(T, itd.pdd),
+    convert(S.name.wrapper{T, 1}, itd.l_pdd),
+    convert(T, itd.mean_pdd),
+    itd.qp,
+  )
 
 abstract type PreallocatedData{T <: Real} end
 

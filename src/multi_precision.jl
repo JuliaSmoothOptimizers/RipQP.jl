@@ -1,4 +1,7 @@
-function convert_FloatData(T::DataType, fd_T0::QM_FloatData{T0, S0, Ssp0}) where {T0 <: Real, S0, Ssp0}
+function convert_FloatData(
+  T::DataType,
+  fd_T0::QM_FloatData{T0, S0, Ssp0},
+) where {T0 <: Real, S0, Ssp0}
   return QM_FloatData(
     Ssp0.name.wrapper{T, Int}(
       fd_T0.Q.m,
