@@ -11,7 +11,7 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
   rxs_l::S # - σ * μ * e + ΔX_aff * Δ_S_l_aff , size nlow
   rxs_u::S # σ * μ * e + ΔX_aff * Δ_S_u_aff , size nupp
   function DescentDirectionAllocsPC(
-    Δxy_aff::AbstractVector{T}, 
+    Δxy_aff::AbstractVector{T},
     Δs_l_aff::AbstractVector{T},
     Δs_u_aff::AbstractVector{T},
     x_m_l_αΔ_aff::AbstractVector{T},
@@ -32,7 +32,7 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
       s_u_αΔ_aff,
       rxs_l,
       rxs_u,
-      )
+    )
   end
 end
 
@@ -182,7 +182,8 @@ DescentDirectionAllocsIPF(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real}
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
-) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl))
+) where {T <: Real, S, T0 <: Real, S0} =
+  DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl))
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},
