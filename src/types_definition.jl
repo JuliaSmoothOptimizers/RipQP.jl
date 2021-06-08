@@ -3,16 +3,16 @@ import Base: convert
 export InputConfig, InputTol, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
-abstract type Abstract_QM_FloatData{T <: Real} end
+abstract type Abstract_QM_FloatData{T <: Real, S, Ssp} end
 
-mutable struct QM_FloatData{T <: Real} <: Abstract_QM_FloatData{T}
-  Q::SparseMatrixCSC{T, Int} # size nvar * nvar
-  AT::SparseMatrixCSC{T, Int} # size ncon * nvar, using Aᵀ is easier to form systems
-  b::Vector{T} # size ncon
-  c::Vector{T} # size nvar
+mutable struct QM_FloatData{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
+  Q::Ssp # size nvar * nvar
+  AT::Ssp # size ncon * nvar, using Aᵀ is easier to form systems
+  b::S # size ncon
+  c::S # size nvar
   c0::T
-  lvar::Vector{T} # size nvar
-  uvar::Vector{T} # size nvar
+  lvar::S # size nvar
+  uvar::S # size nvar
 end
 
 mutable struct QM_IntData
@@ -249,31 +249,50 @@ mutable struct Tolerances{T <: Real}
   normalize_rtol::Bool # true if normalize_rtol=true, then tol_rb, tol_rc = ϵ_rb, ϵ_rc
 end
 
-mutable struct Point{T <: Real}
-  x::Vector{T} # size nvar
-  y::Vector{T} # size ncon
-  s_l::Vector{T} # size nlow (useless zeros corresponding to infinite lower bounds are not stored)
-  s_u::Vector{T} # size nupp (useless zeros corresponding to infinite upper bounds are not stored)
+mutable struct Point{T <: Real, S}
+  x::S # size nvar
+  y::S # size ncon
+  s_l::S # size nlow (useless zeros corresponding to infinite lower bounds are not stored)
+  s_u::S # size nupp (useless zeros corresponding to infinite upper bounds are not stored)
+  function Point(
+    x::AbstractVector{T}, 
+    y::AbstractVector{T}, 
+    s_l::AbstractVector{T}, 
+    s_u::AbstractVector{T},
+  ) where {T <: Real}
+    S = typeof(x)
+    return new{T, S}(x, y, s_l, s_u)
+  end
 end
 
-convert(::Type{Point{T}}, pt) where {T <: Real} = Point(
-  convert(Array{T}, pt.x),
-  convert(Array{T}, pt.y),
-  convert(Array{T}, pt.s_l),
-  convert(Array{T}, pt.s_u),
+convert(::Type{Point{T, S}}, pt) where {T <: Real, S} = Point(
+  convert(S.name.wrapper{T, 1}, pt.x),
+  convert(S.name.wrapper{T, 1}, pt.y),
+  convert(S.name.wrapper{T, 1}, pt.s_l),
+  convert(S.name.wrapper{T, 1}, pt.s_u),
 )
 
-mutable struct Residuals{T <: Real}
-  rb::Vector{T} # primal residuals Ax - b
-  rc::Vector{T} # dual residuals -Qx + Aᵀy + s_l - s_u
+mutable struct Residuals{T <: Real, S}
+  rb::S # primal residuals Ax - b
+  rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
   rbNorm::T # ||rb||
   rcNorm::T # ||rc||
   n_Δx::T # ||Δx||
+  function Residuals(
+    rb::AbstractVector{T},
+    rc::AbstractVector{T},
+    rbNorm::T,
+    rcNorm::T,
+    n_Δx::T,
+  ) where {T <: Real}
+    S = typeof(rb)
+    return new{T, S}(rb, rc, rbNorm, rcNorm, n_Δx)
+  end
 end
 
-convert(::Type{Residuals{T}}, res) where {T <: Real} = Residuals(
-  convert(Array{T}, res.rb),
-  convert(Array{T}, res.rc),
+convert(::Type{Residuals{T, S}}, res) where {T <: Real, S} = Residuals(
+  convert(S.name.wrapper{T, 1}, res.rb),
+  convert(S.name.wrapper{T, 1}, res.rc),
   convert(T, res.rbNorm),
   convert(T, res.rcNorm),
   convert(T, res.n_Δx),
@@ -315,42 +334,42 @@ end
 convert(::Type{Regularization{T}}, regu::Regularization{T0}) where {T <: Real, T0 <: Real} =
   Regularization(T(regu.ρ), T(regu.δ), T(regu.ρ_min), T(regu.δ_min), regu.regul)
 
-mutable struct IterData{T <: Real}
-  Δxy::Vector{T} # Newton step [Δx; Δy]
-  Δs_l::Vector{T}
-  Δs_u::Vector{T}
-  x_m_lvar::Vector{T} # x - lvar
-  uvar_m_x::Vector{T} # uvar - x
-  Qx::Vector{T}
-  ATy::Vector{T} # Aᵀy
-  Ax::Vector{T}
+mutable struct IterData{T <: Real, S}
+  Δxy::S # Newton step [Δx; Δy]
+  Δs_l::S
+  Δs_u::S
+  x_m_lvar::S # x - lvar
+  uvar_m_x::S # uvar - x
+  Qx::S
+  ATy::S # Aᵀy
+  Ax::S
   xTQx_2::T # xᵀQx
   cTx::T # cᵀx
   pri_obj::T # 1/2 xᵀQx + cᵀx + c0                                             
   dual_obj::T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
   μ::T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
   pdd::T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
-  l_pdd::Vector{T} # list of the 5 last pdd
+  l_pdd::S # list of the 5 last pdd
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
 end
 
-convert(::Type{IterData{T}}, itd::IterData{T0}) where {T <: Real, T0 <: Real} = IterData(
-  convert(Array{T}, itd.Δxy),
-  convert(Array{T}, itd.Δs_l),
-  convert(Array{T}, itd.Δs_u),
-  convert(Array{T}, itd.x_m_lvar),
-  convert(Array{T}, itd.uvar_m_x),
-  convert(Array{T}, itd.Qx),
-  convert(Array{T}, itd.ATy),
-  convert(Array{T}, itd.Ax),
+convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <: Real, S0} = IterData(
+  convert(S.name.wrapper{T, 1}, itd.Δxy),
+  convert(S.name.wrapper{T, 1}, itd.Δs_l),
+  convert(S.name.wrapper{T, 1}, itd.Δs_u),
+  convert(S.name.wrapper{T, 1}, itd.x_m_lvar),
+  convert(S.name.wrapper{T, 1}, itd.uvar_m_x),
+  convert(S.name.wrapper{T, 1}, itd.Qx),
+  convert(S.name.wrapper{T, 1}, itd.ATy),
+  convert(S.name.wrapper{T, 1}, itd.Ax),
   convert(T, itd.xTQx_2),
   convert(T, itd.cTx),
   convert(T, itd.pri_obj),
   convert(T, itd.dual_obj),
   convert(T, itd.μ),
   convert(T, itd.pdd),
-  convert(Array{T}, itd.l_pdd),
+  convert(S.name.wrapper{T, 1}, itd.l_pdd),
   convert(T, itd.mean_pdd),
   itd.qp,
 )

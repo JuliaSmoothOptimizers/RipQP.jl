@@ -1,41 +1,42 @@
-function convert_FloatData(T::DataType, fd_T0::QM_FloatData{T0}) where {T0 <: Real}
+function convert_FloatData(T::DataType, fd_T0::QM_FloatData{T0, S0, Ssp0}) where {T0 <: Real, S0, Ssp0}
   return QM_FloatData(
-    SparseMatrixCSC{T, Int}(
+    Ssp0.name.wrapper{T, Int}(
       fd_T0.Q.m,
       fd_T0.Q.n,
       fd_T0.Q.colptr,
       fd_T0.Q.rowval,
-      Array{T}(fd_T0.Q.nzval),
+      S0.name.wrapper{T, 1}(fd_T0.Q.nzval),
     ),
-    SparseMatrixCSC{T, Int}(
+    Ssp0.name.wrapper{T, Int}(
       fd_T0.AT.m,
       fd_T0.AT.n,
       fd_T0.AT.colptr,
       fd_T0.AT.rowval,
-      Array{T}(fd_T0.AT.nzval),
+      S0.name.wrapper{T, 1}(fd_T0.AT.nzval),
     ),
-    Array{T}(fd_T0.b),
-    Array{T}(fd_T0.c),
+    S0.name.wrapper{T, 1}(fd_T0.b),
+    S0.name.wrapper{T, 1}(fd_T0.c),
     T(fd_T0.c0),
-    Array{T}(fd_T0.lvar),
-    Array{T}(fd_T0.uvar),
+    S0.name.wrapper{T, 1}(fd_T0.lvar),
+    S0.name.wrapper{T, 1}(fd_T0.uvar),
   )
 end
 
 function convert_types(
   T::DataType,
-  pt::Point{T_old},
-  itd::IterData{T_old},
-  res::Residuals{T_old},
-  dda::DescentDirectionAllocs{T_old},
+  pt::Point{T_old, S_old},
+  itd::IterData{T_old, S_old},
+  res::Residuals{T_old, S_old},
+  dda::DescentDirectionAllocs{T_old, S_old},
   pad::PreallocatedData{T_old},
   T0::DataType,
-) where {T_old <: Real}
-  pt = convert(Point{T}, pt)
-  res = convert(Residuals{T}, res)
-  itd = convert(IterData{T}, itd)
+) where {T_old <: Real, S_old}
+  S = S_old.name.wrapper{T, 1}
+  pt = convert(Point{T, S}, pt)
+  res = convert(Residuals{T, S}, res)
+  itd = convert(IterData{T, S}, itd)
   pad = convertpad(PreallocatedData{T}, pad, T0)
-  dda = convert(DescentDirectionAllocs{T}, dda)
+  dda = convert(DescentDirectionAllocs{T, S}, dda)
   return pt, itd, res, dda, pad
 end
 
