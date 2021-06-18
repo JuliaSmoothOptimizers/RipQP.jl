@@ -22,7 +22,7 @@ LLSModels = "0.1"
 MatrixMarket = "0.3"
 NLPModelsModifiers = "0.1.2"
 Quadmath = "0.5"
-QuadraticModels = "0.2, 0.3"
+QuadraticModels = "0.2, 0.3, 0.4"
 SolverCore = "0.1.1"
 julia = "1"
 
