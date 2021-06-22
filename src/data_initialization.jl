@@ -117,7 +117,7 @@ function init_params(
   iconf::InputConfig{Tconf},
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  res = Residuals(similar(fd_T.c, id.ncon), similar(fd_T.c, id.nvar), zero(T), zero(T), zero(T))
+  res = Residuals(similar(fd_T.c, id.ncon), similar(fd_T.c, id.nvar), zero(T), zero(T))
 
   itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 

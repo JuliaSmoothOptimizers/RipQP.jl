@@ -204,7 +204,6 @@ function update_data!(
   itd.pdd = abs(itd.pri_obj - itd.dual_obj) / (one(T) + abs(itd.pri_obj))
 
   #update Residuals
-  res.n_Δx = @views α_pri * norm(itd.Δxy[1:(id.nvar)])
   res.rb .= itd.Ax .- fd.b
   res.rc .= itd.ATy .- itd.Qx .- fd.c
   res.rc[id.ilow] .+= pt.s_l

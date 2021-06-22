@@ -120,7 +120,6 @@ function update_data!(
   update_IterData!(itd, pt, fd, id, true)
 
   #update Residuals
-  res.n_Δx = @views α_pri * norm(itd.Δxy[1:(id.nvar)])
   res.rb .= itd.Ax .- fd.b
   res.rc .= itd.ATy .- itd.Qx .- fd.c
   res.rc[id.ilow] .+= pt.s_l
@@ -174,7 +173,7 @@ function iter!(
     (cnts.kc == -1) && nb_corrector_steps!(cnts, time_fact, time_solve)
 
     sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-    sc.small_Δx, sc.small_μ = res.n_Δx < ϵ.Δx, itd.μ < ϵ.μ
+    sc.small_μ = itd.μ < ϵ.μ
 
     cnts.k += 1
     if T == Float32
@@ -190,7 +189,7 @@ function iter!(
 
     if display == true
       @info log_row(
-        Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, α_pri, α_dual, itd.μ],
+        Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, α_pri, α_dual, itd.μ],
       )
     end
   end
