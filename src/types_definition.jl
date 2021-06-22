@@ -375,7 +375,7 @@ convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <
     itd.qp,
   )
 
-abstract type PreallocatedData{T <: Real} end
+abstract type PreallocatedData{T <: Real, S} end
 
 mutable struct StopCrit{T}
   optimal::Bool

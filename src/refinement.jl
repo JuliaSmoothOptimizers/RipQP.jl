@@ -182,7 +182,7 @@ function update_data!(
   # update IterData
   itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
   itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
-  boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.nlow, id.nupp, T)
+  boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
 
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
   itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)

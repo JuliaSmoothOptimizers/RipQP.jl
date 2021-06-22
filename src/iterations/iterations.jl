@@ -61,29 +61,24 @@ function update_pt!(x, y, s_l, s_u, α_pri, α_dual, Δxy, Δs_l, Δs_u, ncon, n
   s_u .= s_u .+ α_dual .* Δs_u
 end
 
+function safe_boundary(v::T) where {T <: Real}
+  if v == 0
+    v = eps(T)^2
+  end
+  return v
+end
+
 # "security" if x is too close from lvar or uvar
-function boundary_safety!(x_m_lvar, uvar_m_x, nlow, nupp, T)
-  if 0 in x_m_lvar
-    @inbounds @simd for i = 1:nlow
-      if x_m_lvar[i] == 0
-        x_m_lvar[i] = eps(T)^2
-      end
-    end
-  end
-  if 0 in uvar_m_x
-    @inbounds @simd for i = 1:nupp
-      if uvar_m_x[i] == 0
-        uvar_m_x[i] = eps(T)^2
-      end
-    end
-  end
+function boundary_safety!(x_m_lvar, uvar_m_x)
+  x_m_lvar .= safe_boundary.(x_m_lvar)
+  uvar_m_x .= safe_boundary.(uvar_m_x)
 end
 
 function update_IterData!(itd, pt, fd, id, safety)
   T = eltype(itd.x_m_lvar)
   itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
   itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
-  safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x, id.nlow, id.nupp, T)
+  safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
 
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
   itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
