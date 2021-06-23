@@ -188,9 +188,7 @@ function iter!(
     sc.tired = sc.Δt > sc.max_time
 
     if display == true
-      @info log_row(
-        Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, α_pri, α_dual, itd.μ],
-      )
+      @info log_row(Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, α_pri, α_dual, itd.μ])
     end
   end
 end

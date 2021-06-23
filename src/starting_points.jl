@@ -62,7 +62,7 @@ function starting_points!(
   update_IterData!(itd, pt0, fd, id, false)
 end
 
-function update_rngbounds!(x :: Vector{T}, irng, lvar, uvar, ϵ) where {T <: Real}
+function update_rngbounds!(x::Vector{T}, irng, lvar, uvar, ϵ) where {T <: Real}
   @inbounds @simd for i in irng
     if lvar[i] >= x[i]
       x[i] = lvar[i] + ϵ
