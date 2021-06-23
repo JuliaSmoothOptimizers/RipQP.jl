@@ -43,7 +43,7 @@ function ripqp(
 ) where {Tu <: Real}
   start_time = time()
   elapsed_time = 0.0
-  sc = StopCrit(false, false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
+  sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   # save inital IntData to compute multipliers at the end of the algorithm
   idi = IntDataInit(
@@ -120,7 +120,7 @@ function ripqp(
   # display
   if display == true
     @info log_header(
-      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :n_Δx, :α_pri, :α_du, :μ],
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ],
       [Int, T, T, T, T, T, T, T, T, T, T, T],
       hdr_override = Dict(
         :k => "iter",
@@ -128,11 +128,10 @@ function ripqp(
         :pdd => "rgap",
         :rbNorm => "‖rb‖",
         :rcNorm => "‖rc‖",
-        :n_Δx => "‖Δx‖",
       ),
     )
     @info log_row(
-      Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, res.n_Δx, zero(T), zero(T), itd.μ],
+      Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, zero(T), zero(T), itd.μ],
     )
   end
 

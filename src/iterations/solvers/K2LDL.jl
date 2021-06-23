@@ -27,8 +27,8 @@ function K2LDLParams(; regul::Symbol = :classic)
   return K2LDLParams(regul)
 end
 
-mutable struct PreallocatedData_K2{T <: Real} <: PreallocatedData{T}
-  D::Vector{T}                                        # temporary top-left diagonal
+mutable struct PreallocatedData_K2{T <: Real, S} <: PreallocatedData{T, S}
+  D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
   K::SparseMatrixCSC{T, Int} # augmented matrix 

@@ -52,17 +52,7 @@ function starting_points!(
   pt0.s_u .= pt0.s_u .+ δs
 
   # deal with the compensation phaenomenon in x if irng != []
-  @inbounds @simd for i in id.irng
-    if fd.lvar[i] >= pt0.x[i]
-      pt0.x[i] = fd.lvar[i] + T(1e-4)
-    end
-    if pt0.x[i] >= fd.uvar[i]
-      pt0.x[i] = fd.uvar[i] - T(1e-4)
-    end
-    if (fd.lvar[i] < pt0.x[i] < fd.uvar[i]) == false
-      pt0.x[i] = (fd.lvar[i] + fd.uvar[i]) / 2
-    end
-  end
+  update_rngbounds!(pt0.x, id.irng, fd.lvar, fd.uvar, T(1e-4))
 
   # verify bounds 
   @assert all(pt0.x .> fd.lvar) && all(pt0.x .< fd.uvar)
@@ -70,4 +60,18 @@ function starting_points!(
 
   # update itd
   update_IterData!(itd, pt0, fd, id, false)
+end
+
+function update_rngbounds!(x :: Vector{T}, irng, lvar, uvar, ϵ) where {T <: Real}
+  @inbounds @simd for i in irng
+    if lvar[i] >= x[i]
+      x[i] = lvar[i] + ϵ
+    end
+    if x[i] >= uvar[i]
+      x[i] = uvar[i] - ϵ
+    end
+    if (lvar[i] < x[i] < uvar[i]) == false
+      x[i] = (lvar[i] + uvar[i]) / 2
+    end
+  end
 end

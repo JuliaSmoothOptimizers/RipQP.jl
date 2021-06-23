@@ -277,16 +277,14 @@ mutable struct Residuals{T <: Real, S}
   rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
   rbNorm::T # ||rb||
   rcNorm::T # ||rc||
-  n_Δx::T # ||Δx||
   function Residuals(
     rb::AbstractVector{T},
     rc::AbstractVector{T},
     rbNorm::T,
     rcNorm::T,
-    n_Δx::T,
   ) where {T <: Real}
     S = typeof(rb)
-    return new{T, S}(rb, rc, rbNorm, rcNorm, n_Δx)
+    return new{T, S}(rb, rc, rbNorm, rcNorm)
   end
 end
 
@@ -295,7 +293,6 @@ convert(::Type{Residuals{T, S}}, res) where {T <: Real, S} = Residuals(
   convert(S.name.wrapper{T, 1}, res.rc),
   convert(T, res.rbNorm),
   convert(T, res.rcNorm),
-  convert(T, res.n_Δx),
 )
 
 # LDLFactorization conversion function
@@ -349,7 +346,7 @@ mutable struct IterData{T <: Real, S}
   dual_obj::T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
   μ::T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
   pdd::T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
-  l_pdd::S # list of the 5 last pdd
+  l_pdd::Vector{T} # list of the 5 last pdd
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
 end
@@ -370,16 +367,15 @@ convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <
     convert(T, itd.dual_obj),
     convert(T, itd.μ),
     convert(T, itd.pdd),
-    convert(S.name.wrapper{T, 1}, itd.l_pdd),
+    convert(Array{T, 1}, itd.l_pdd),
     convert(T, itd.mean_pdd),
     itd.qp,
   )
 
-abstract type PreallocatedData{T <: Real} end
+abstract type PreallocatedData{T <: Real, S} end
 
 mutable struct StopCrit{T}
   optimal::Bool
-  small_Δx::Bool
   small_μ::Bool
   tired::Bool
   max_iter::Int
