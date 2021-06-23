@@ -28,7 +28,7 @@ function vcatsort(v1, v2)
   return res
 end
 
-function sparse_transpose_dropzeros(rows, cols, vals::Vector, nrows, ncols) 
+function sparse_transpose_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   MT = sparse(cols, rows, vals, ncols, nrows)
   dropzeros!(MT)
   return MT
@@ -38,8 +38,20 @@ function get_QM_data(QM::QuadraticModel)
   T = eltype(QM.meta.lvar)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
-  AT = sparse_transpose_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
-  Q = sparse_transpose_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
+  AT = sparse_transpose_dropzeros(
+    QM.data.Arows,
+    QM.data.Acols,
+    QM.data.Avals,
+    QM.meta.ncon,
+    QM.meta.nvar,
+  )
+  Q = sparse_transpose_dropzeros(
+    QM.data.Hrows,
+    QM.data.Hcols,
+    QM.data.Hvals,
+    QM.meta.nvar,
+    QM.meta.nvar,
+  )
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
@@ -154,9 +166,9 @@ function get_diag_sparseCSC(M_colptr, n; tri = :U)
   # we assume all columns of M are non empty, and M triangular (:L or :U)
   @assert tri == :U || tri == :L
   if tri == :U
-    diagind = M_colptr[2: end] .- one(Int)
+    diagind = M_colptr[2:end] .- one(Int)
   else
-    diagind = M_colptr[1: end-1]
+    diagind = M_colptr[1:(end - 1)]
   end
   return diagind
 end
