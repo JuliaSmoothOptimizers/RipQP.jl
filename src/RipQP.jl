@@ -78,7 +78,7 @@ function ripqp(
     fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
   end
 
-  # initialization
+  # allocate workspace
   if iconf.mode == :multi
     T = Float32
     ϵ32 = Tolerances(
@@ -92,8 +92,6 @@ function ripqp(
       iconf.normalize_rtol,
     )
     fd32 = convert_FloatData(T, fd_T0)
-    itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
-    set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
     if T0 == Float128
       T = Float64
       fd64 = convert_FloatData(T, fd_T0)
@@ -107,6 +105,14 @@ function ripqp(
         T(itol.ϵ_Δx),
         iconf.normalize_rtol,
       )
+    end    
+  end
+
+  # initialize
+  if iconf.mode == :multi
+    itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
+    set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
+    if T0 == Float128
       set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
       T = Float32
     end
