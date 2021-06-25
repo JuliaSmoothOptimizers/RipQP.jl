@@ -116,58 +116,23 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
     sd = ScaleData{T0, S0}(empty_v, empty_v, empty_v, empty_v, empty_v)
   end
 
+  # allocate data for iterations
   if iconf.mode == :multi
     T = Float32
-    ϵ32 = Tolerances(
-      T(itol.ϵ_pdd32),
-      T(itol.ϵ_rb32),
-      T(itol.ϵ_rc32),
-      one(T),
-      one(T),
-      T(itol.ϵ_μ),
-      T(itol.ϵ_Δx),
-      iconf.normalize_rtol,
-    )
-    fd32 = convert_FloatData(T, fd_T0)
-    res, itd, dda = allocate_iter_workspace_T(fd32, id, ϵ32, iconf, T0)
-    if T0 == Float64
-      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T, ϵ32, fd32
-    elseif T0 == Float128
-      T = Float64
-      fd64 = convert_FloatData(T, fd_T0)
-      ϵ64 = Tolerances(
-        T(itol.ϵ_pdd64),
-        T(itol.ϵ_rb64),
-        T(itol.ϵ_rc64),
-        one(T),
-        one(T),
-        T(itol.ϵ_μ),
-        T(itol.ϵ_Δx),
-        iconf.normalize_rtol,
-      )
-      T = Float32
-      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T, ϵ32, fd32, ϵ64, fd64
-    end
-  elseif iconf.mode == :mono
-    res, itd, dda = allocate_iter_workspace_T(fd_T0, id, ϵ, iconf, T0) 
-    return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T
   end
-end
+  S = S0.name.wrapper{T, 1}
 
-function allocate_iter_workspace_T(fd::QM_FloatData{T}, id::QM_IntData, ϵ::Tolerances{T}, iconf::InputConfig, 
-                                   T0::DataType) where {T <: Real}
-
-  res = Residuals(similar(fd.c, id.ncon), similar(fd.c, id.nvar), zero(T), zero(T))
+  res = Residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T))
 
   itd = IterData(
-    similar(fd.c, id.nvar + id.ncon), # Δxy
-    similar(fd.c, id.nlow), # Δs_l
-    similar(fd.c, id.nupp), # Δs_u
-    similar(fd.c, id.nlow), # x_m_lvar
-    similar(fd.c, id.nupp), # uvar_m_x
-    similar(fd.c, id.nvar), # init Qx
-    similar(fd.c, id.nvar), # init ATy
-    similar(fd.c, id.ncon), # Ax
+    S(undef, id.nvar + id.ncon), # Δxy
+    S(undef, id.nlow), # Δs_l
+    S(undef, id.nupp), # Δs_u
+    S(undef, id.nlow), # x_m_lvar
+    S(undef, id.nupp), # uvar_m_x
+    S(undef, id.nvar), # init Qx
+    S(undef, id.nvar), # init ATy
+    S(undef, id.ncon), # Ax
     zero(T), #xTQx
     zero(T), #cTx
     zero(T), #pri_obj
@@ -176,13 +141,60 @@ function allocate_iter_workspace_T(fd::QM_FloatData{T}, id::QM_IntData, ϵ::Tole
     zero(T),#pdd
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
-    nnz(fd.Q) > 0,
+    nnz(fd_T0.Q) > 0,
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
-  dda = eval(dda_type)(id, fd)
+  dda = eval(dda_type)(id, S)
 
-  return res, itd, dda
+  cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
+
+  #####
+
+  if iconf.mode == :multi
+    fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+    if T0 == Float64
+      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32
+    elseif T0 == Float128
+      fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
+      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32, ϵ64, fd64
+    end
+  elseif iconf.mode == :mono
+    return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T
+  end
+end
+
+function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+  T = Float32
+  ϵ32 = Tolerances(
+    T(itol.ϵ_pdd32),
+    T(itol.ϵ_rb32),
+    T(itol.ϵ_rc32),
+    one(T),
+    one(T),
+    T(itol.ϵ_μ),
+    T(itol.ϵ_Δx),
+    iconf.normalize_rtol,
+  )
+  fd32 = convert_FloatData(T, fd_T0)
+  return fd32, ϵ32, T
+end
+
+function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+  T = Float64
+  fd64 = convert_FloatData(T, fd_T0)
+  ϵ64 = Tolerances(
+    T(itol.ϵ_pdd64),
+    T(itol.ϵ_rb64),
+    T(itol.ϵ_rc64),
+    one(T),
+    one(T),
+    T(itol.ϵ_μ),
+    T(itol.ϵ_Δx),
+    iconf.normalize_rtol,
+  )
+  T = Float32
+  return fd64, ϵ64, T
 end
 
 function initialize(
@@ -192,6 +204,7 @@ function initialize(
   itd::IterData{T},
   dda::DescentDirectionAllocs{T},
   iconf::InputConfig{Tconf},
+  cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tconf <: Real}
 
@@ -203,8 +216,6 @@ function initialize(
   itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
-  cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
-
   pt0 = Point(
     similar(fd.c, id.nvar),
     similar(fd.c, id.ncon),
@@ -215,7 +226,7 @@ function initialize(
   pt0.x .= itd.Δxy[1:(id.nvar)]
   pt0.y .= itd.Δxy[(id.nvar + 1):end]
 
-  return pad, pt0, cnts
+  return pad, pt0
 end
 
 function init_params(
@@ -227,10 +238,11 @@ function init_params(
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
+  cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
 
-  pad, pt, cnts = initialize(fd_T, id, res, itd, dda, iconf, T0)
+  pad, pt = initialize(fd_T, id, res, itd, dda, iconf, cnts, T0)
 
   starting_points!(pt, fd_T, id, itd)
 
@@ -247,7 +259,7 @@ function init_params(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
 
-  return itd, ϵ, pad, pt, sc, cnts
+  return itd, ϵ, pad, pt, sc
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}
