@@ -156,8 +156,10 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
     S(undef, id.nupp),
   )
 
+  spd = StartingPointData{T, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
+
   #####
-  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, cnts, T
+  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T
 end
 
 function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
@@ -227,6 +229,7 @@ function init_params(
   itd::IterData{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
+  spd::StartingPointData{T},
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
@@ -236,7 +239,7 @@ function init_params(
 
   pad = initialize(fd_T, id, res, itd, dda, pt, iconf, cnts, T0)
 
-  starting_points!(pt, fd_T, id, itd)
+  starting_points!(pt, fd_T, id, itd, spd)
 
   # stopping criterion
   #     rcNorm, rbNorm = norm(rc), norm(rb)

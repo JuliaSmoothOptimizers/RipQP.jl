@@ -372,12 +372,18 @@ convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <
     itd.qp,
   )
 
-mutable struct ScaleData{T, S}
+mutable struct ScaleData{T <: Real, S}
   d1::S
   d2::S
   d3::S
   r_k::S
   c_k::S
+end
+
+mutable struct StartingPointData{T <: Real, S}
+  dual_val::S
+  s0_l1::S
+  s0_u1::S
 end
 
 abstract type PreallocatedData{T <: Real, S} end
