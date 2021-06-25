@@ -195,35 +195,8 @@ function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::
   return fd64, ϵ64, T
 end
 
-function initialize(
-  fd::QM_FloatData{T},
-  id::QM_IntData,
-  res::Residuals{T},
-  itd::IterData{T},
-  dda::DescentDirectionAllocs{T},
-  pt::Point{T},
-  iconf::InputConfig{Tconf},
-  cnts::Counters,
-  T0::DataType,
-) where {T <: Real, Tconf <: Real}
-
-  pad = PreallocatedData(iconf.sp, fd, id, iconf)
-
-  # init system
-  # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
-  #       [  A     0  ] [y] = [b]
-  itd.Δxy[1:(id.nvar)] .= 0
-  itd.Δxy[(id.nvar + 1):end] = fd.b
-
-  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
-  pt.x .= itd.Δxy[1:(id.nvar)]
-  pt.y .= itd.Δxy[(id.nvar + 1):end]
-
-  return pad
-end
-
 function init_params(
-  fd_T::QM_FloatData{T},
+  fd::QM_FloatData{T},
   id::QM_IntData,
   res::Residuals{T},
   itd::IterData{T},
@@ -237,15 +210,25 @@ function init_params(
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
 
-  pad = initialize(fd_T, id, res, itd, dda, pt, iconf, cnts, T0)
+  pad = PreallocatedData(iconf.sp, fd, id, iconf)
 
-  starting_points!(pt, fd_T, id, itd, spd)
+  # init system
+  # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
+  #       [  A     0  ] [y] = [b]
+  itd.Δxy[1:(id.nvar)] .= 0
+  itd.Δxy[(id.nvar + 1):end] = fd.b
+
+  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
+  pt.x .= itd.Δxy[1:(id.nvar)]
+  pt.y .= itd.Δxy[(id.nvar + 1):end]
+
+  starting_points!(pt, fd, id, itd, spd)
 
   # stopping criterion
   #     rcNorm, rbNorm = norm(rc), norm(rb)
   #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-  res.rb .= itd.Ax .- fd_T.b
-  res.rc .= itd.ATy .- itd.Qx .- fd_T.c
+  res.rb .= itd.Ax .- fd.b
+  res.rc .= itd.ATy .- itd.Qx .- fd.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)

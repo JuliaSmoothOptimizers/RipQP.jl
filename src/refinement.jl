@@ -25,6 +25,7 @@ function fd_refinement(
   ϵ::Tolerances{T},
   dda::DescentDirectionAllocs{T},
   pad::PreallocatedData{T},
+  spd::StartingPointData{T},
   cnts::Counters,
   T0::DataType,
   refinement::Symbol;
@@ -105,7 +106,7 @@ function fd_refinement(
     max.(abs.(c_ref[id.ilow]), eps(T)),
     max.(abs.(c_ref[id.iupp]), eps(T)),
   )
-  starting_points!(pt_z, fd_ref, id, itd)
+  starting_points!(pt_z, fd_ref, id, itd, spd)
 
   # update residuals
   res.rb .= itd.Ax .- fd_ref.b

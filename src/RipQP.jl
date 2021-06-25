@@ -148,11 +148,12 @@ function ripqp(
       sc.optimal = false
 
       fd_ref, pt_ref =
-        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
+        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.refinement)
       iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
     elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
+      spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
       fd_ref, pt_ref = fd_refinement(
         fd_T0,
         id,
@@ -163,6 +164,7 @@ function ripqp(
         ϵ,
         dda,
         pad,
+        spd,
         cnts,
         T0,
         iconf.refinement,
