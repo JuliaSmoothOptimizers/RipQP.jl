@@ -133,7 +133,7 @@ end
   qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
-    iconf = InputConfig(mode = :multi, refinement = :multizoom),
+    iconf = InputConfig(mode = :multi, scaling = false, refinement = :multizoom),
     display = false,
   )
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)

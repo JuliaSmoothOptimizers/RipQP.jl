@@ -1,5 +1,6 @@
 module RipQP
 
+using Base: Float64
 using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics
 
 using LDLFactorizations, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore
@@ -44,41 +45,14 @@ function ripqp(
 
   start_time = time()
   elapsed_time = 0.0
+  T0 = eltype(QM.data.c)
 
-  sc, idi, fd_T0, id, ϵ, T, T0 = allocate_workspace(QM, iconf, itol, start_time)
-
-  if iconf.scaling
-    fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
-  end
-
-  # allocate workspace
-  if iconf.mode == :multi
-    T = Float32
-    ϵ32 = Tolerances(
-      T(itol.ϵ_pdd32),
-      T(itol.ϵ_rb32),
-      T(itol.ϵ_rc32),
-      one(T),
-      one(T),
-      T(itol.ϵ_μ),
-      T(itol.ϵ_Δx),
-      iconf.normalize_rtol,
-    )
-    fd32 = convert_FloatData(T, fd_T0)
-    if T0 == Float128
-      T = Float64
-      fd64 = convert_FloatData(T, fd_T0)
-      ϵ64 = Tolerances(
-        T(itol.ϵ_pdd64),
-        T(itol.ϵ_rb64),
-        T(itol.ϵ_rc64),
-        one(T),
-        one(T),
-        T(itol.ϵ_μ),
-        T(itol.ϵ_Δx),
-        iconf.normalize_rtol,
-      )
-    end    
+  if iconf.mode == :mono
+    sc, idi, fd_T0, id, ϵ, sd, T = allocate_workspace(QM, iconf, itol, start_time, T0)
+  elseif iconf.mode == :multi && T0 == Float64
+    sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32 = allocate_workspace(QM, iconf, itol, start_time, T0)
+  elseif iconf.mode == :multi && T0 == Float128
+    sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32, ϵ64, fd64 = allocate_workspace(QM, iconf, itol, start_time, T0)
   end
 
   # initialize
@@ -204,9 +178,9 @@ function ripqp(
 
   if iconf.scaling
     pt, pri_obj, res = post_scale(
-      d1,
-      d2,
-      d3,
+      sd.d1,
+      sd.d2,
+      sd.d3,
       pt,
       res,
       fd_T0,

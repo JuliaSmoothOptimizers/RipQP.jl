@@ -56,14 +56,13 @@ end
 function scaling_Ruiz!(
   fd_T0::QM_FloatData{T},
   id::QM_IntData,
+  sd::ScaleData{T},
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
-  r_k, c_k = similar(fd_T0.c, id.nvar), similar(fd_T0.c, id.ncon)
-  S = typeof(fd_T0.c)
-  d1, d2 = fill!(S(undef, id.ncon), one(T)), fill!(S(undef, id.nvar), one(T))
+
+  d1, d2, d3, r_k, c_k = sd.d1, sd.d2, sd.d3, sd.r_k, sd.c_k
   # scaling Q (symmetric)
-  d3 = fill!(S(undef, id.nvar), one(T))
   if length(fd_T0.Q.rowval) > 0
     get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
@@ -100,8 +99,6 @@ function scaling_Ruiz!(
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
   fd_T0.uvar ./= d2
-
-  return fd_T0, d1, d2, d3
 end
 
 function div_D2D3_Q_D3D2!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)

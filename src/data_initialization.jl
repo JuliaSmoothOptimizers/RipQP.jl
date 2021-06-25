@@ -35,7 +35,6 @@ function sparse_transpose_dropzeros(rows, cols, vals::Vector, nrows, ncols)
 end
 
 function get_QM_data(QM::QuadraticModel)
-  T = eltype(QM.meta.lvar)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
   AT = sparse_transpose_dropzeros(
@@ -64,45 +63,92 @@ function get_QM_data(QM::QuadraticModel)
   )
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
   @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
-  fd_T = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
-  return fd_T, id, T
+  fd = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
+  return fd, id
 end
 
-function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputTol, start_time)
+function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputTol, start_time, T0::DataType)
 
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
-    # save inital IntData to compute multipliers at the end of the algorithm
-    idi = IntDataInit(
-      QM.meta.nvar,
-      QM.meta.ncon,
-      QM.meta.ilow,
-      QM.meta.iupp,
-      QM.meta.irng,
-      QM.meta.ifix,
-      QM.meta.jlow,
-      QM.meta.jupp,
-      QM.meta.jrng,
-      QM.meta.jfix,
+  # save inital IntData to compute multipliers at the end of the algorithm
+  idi = IntDataInit(
+    QM.meta.nvar,
+    QM.meta.ncon,
+    QM.meta.ilow,
+    QM.meta.iupp,
+    QM.meta.irng,
+    QM.meta.ifix,
+    QM.meta.jlow,
+    QM.meta.jupp,
+    QM.meta.jrng,
+    QM.meta.jfix,
+  )
+
+  SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+
+  fd_T0, id = get_QM_data(QM)
+
+  T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
+  ϵ = Tolerances(
+    T(itol.ϵ_pdd),
+    T(itol.ϵ_rb),
+    T(itol.ϵ_rc),
+    one(T),
+    one(T),
+    T(itol.ϵ_μ),
+    T(itol.ϵ_Δx),
+    iconf.normalize_rtol,
+  )
+
+  S0 = typeof(fd_T0.c)
+  if iconf.scaling
+    sd = ScaleData{T0, S0}(
+      fill!(S0(undef, id.ncon), one(T0)),
+      fill!(S0(undef, id.nvar), one(T0)),
+      fill!(S0(undef, id.nvar), one(T0)),
+      S0(undef, id.nvar),
+      S0(undef, id.ncon),
     )
+    scaling_Ruiz!(fd_T0, id, sd, T(1.0e-3))
+  else
+    empty_v = S0(undef, 0)
+    sd = ScaleData{T0, S0}(empty_v, empty_v, empty_v, empty_v, empty_v)
+  end
 
-    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
-
-    fd_T0, id, T = get_QM_data(QM)
-
-    T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
-    ϵ = Tolerances(
-      T(itol.ϵ_pdd),
-      T(itol.ϵ_rb),
-      T(itol.ϵ_rc),
+  if iconf.mode == :multi
+    T = Float32
+    ϵ32 = Tolerances(
+      T(itol.ϵ_pdd32),
+      T(itol.ϵ_rb32),
+      T(itol.ϵ_rc32),
       one(T),
       one(T),
       T(itol.ϵ_μ),
       T(itol.ϵ_Δx),
       iconf.normalize_rtol,
     )
-
-  return sc, idi, fd_T0, id, ϵ, T, T0
+    fd32 = convert_FloatData(T, fd_T0)
+    if T0 == Float64
+      return sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32
+    elseif T0 == Float128
+      T = Float64
+      fd64 = convert_FloatData(T, fd_T0)
+      ϵ64 = Tolerances(
+        T(itol.ϵ_pdd64),
+        T(itol.ϵ_rb64),
+        T(itol.ϵ_rc64),
+        one(T),
+        one(T),
+        T(itol.ϵ_μ),
+        T(itol.ϵ_Δx),
+        iconf.normalize_rtol,
+      )
+      return sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32, ϵ64, fd64
+    end
+  elseif iconf.mode == :mono 
+    return sc, idi, fd_T0, id, ϵ, sd, T
+  end
 end
 
 function initialize(
