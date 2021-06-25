@@ -47,24 +47,25 @@ function ripqp(
   T0 = eltype(QM.data.c)
 
   # allocate workspace
-  if iconf.mode == :mono
-    sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T = allocate_workspace(QM, iconf, itol, start_time, T0)
-  elseif iconf.mode == :multi && T0 == Float64
-    sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32 = allocate_workspace(QM, iconf, itol, start_time, T0)
-  elseif iconf.mode == :multi && T0 == Float128
-    sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32, ϵ64, fd64 = allocate_workspace(QM, iconf, itol, start_time, T0)
+  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, cnts, T = allocate_workspace(QM, iconf, itol, start_time, T0)
+  # extra workspace for multi mode
+  if iconf.mode == :multi
+    fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+    if T0 == Float128
+      fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
+    end
   end
 
   # initialize
   if iconf.mode == :multi
-    itd, ϵ32, pad, pt, sc = init_params(fd32, id, res, itd, dda, ϵ32, sc, iconf, cnts, T0)
+    itd, ϵ32, pad, sc = init_params(fd32, id, res, itd, dda, pt, ϵ32, sc, iconf, cnts, T0)
     set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
     if T0 == Float128
       set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
       T = Float32
     end
   elseif iconf.mode == :mono
-    itd, ϵ, pad, pt, sc = init_params(fd_T0, id, res, itd, dda, ϵ, sc, iconf, cnts, T0)
+    itd, ϵ, pad, sc = init_params(fd_T0, id, res, itd, dda, pt, ϵ, sc, iconf, cnts, T0)
   end
 
   Δt = time() - start_time

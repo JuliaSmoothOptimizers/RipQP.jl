@@ -149,19 +149,15 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
 
   cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
 
-  #####
+  pt = Point(
+    S(undef, id.nvar),
+    S(undef, id.ncon),
+    S(undef, id.nlow),
+    S(undef, id.nupp),
+  )
 
-  if iconf.mode == :multi
-    fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
-    if T0 == Float64
-      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32
-    elseif T0 == Float128
-      fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
-      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T, ϵ32, fd32, ϵ64, fd64
-    end
-  elseif iconf.mode == :mono
-    return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, cnts, T
-  end
+  #####
+  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, cnts, T
 end
 
 function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
@@ -203,6 +199,7 @@ function initialize(
   res::Residuals{T},
   itd::IterData{T},
   dda::DescentDirectionAllocs{T},
+  pt::Point{T},
   iconf::InputConfig{Tconf},
   cnts::Counters,
   T0::DataType,
@@ -216,17 +213,11 @@ function initialize(
   itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
 
-  pt0 = Point(
-    similar(fd.c, id.nvar),
-    similar(fd.c, id.ncon),
-    similar(fd.c, id.nlow),
-    similar(fd.c, id.nupp),
-  )
-  out = solver!(pad, dda, pt0, itd, fd, id, res, cnts, T0, :init)
-  pt0.x .= itd.Δxy[1:(id.nvar)]
-  pt0.y .= itd.Δxy[(id.nvar + 1):end]
+  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
+  pt.x .= itd.Δxy[1:(id.nvar)]
+  pt.y .= itd.Δxy[(id.nvar + 1):end]
 
-  return pad, pt0
+  return pad
 end
 
 function init_params(
@@ -235,6 +226,7 @@ function init_params(
   res::Residuals{T},
   itd::IterData{T},
   dda::DescentDirectionAllocs{T},
+  pt::Point{T},
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
@@ -242,7 +234,7 @@ function init_params(
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
 
-  pad, pt = initialize(fd_T, id, res, itd, dda, iconf, cnts, T0)
+  pad = initialize(fd_T, id, res, itd, dda, pt, iconf, cnts, T0)
 
   starting_points!(pt, fd_T, id, itd)
 
@@ -259,7 +251,7 @@ function init_params(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
 
-  return itd, ϵ, pad, pt, sc
+  return itd, ϵ, pad, sc
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}
