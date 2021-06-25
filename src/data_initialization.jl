@@ -129,9 +129,9 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
       iconf.normalize_rtol,
     )
     fd32 = convert_FloatData(T, fd_T0)
-    res = allocate_iter_workspace_T(fd32, id, ϵ32, T0)
+    res, itd, dda = allocate_iter_workspace_T(fd32, id, ϵ32, iconf, T0)
     if T0 == Float64
-      return sc, idi, fd_T0, id, ϵ, res, sd, T, ϵ32, fd32
+      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T, ϵ32, fd32
     elseif T0 == Float128
       T = Float64
       fd64 = convert_FloatData(T, fd_T0)
@@ -146,28 +146,19 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
         iconf.normalize_rtol,
       )
       T = Float32
-      return sc, idi, fd_T0, id, ϵ, res, sd, T, ϵ32, fd32, ϵ64, fd64
+      return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T, ϵ32, fd32, ϵ64, fd64
     end
   elseif iconf.mode == :mono
-    res = allocate_iter_workspace_T(fd_T0, id, ϵ, T0) 
-    return sc, idi, fd_T0, id, ϵ, res, sd, T
+    res, itd, dda = allocate_iter_workspace_T(fd_T0, id, ϵ, iconf, T0) 
+    return sc, idi, fd_T0, id, ϵ, res, itd, dda, sd, T
   end
 end
 
-function allocate_iter_workspace_T(fd::QM_FloatData{T}, id::QM_IntData, ϵ::Tolerances{T}, T0::DataType) where {T <: Real}
+function allocate_iter_workspace_T(fd::QM_FloatData{T}, id::QM_IntData, ϵ::Tolerances{T}, iconf::InputConfig, 
+                                   T0::DataType) where {T <: Real}
 
   res = Residuals(similar(fd.c, id.ncon), similar(fd.c, id.nvar), zero(T), zero(T))
 
-  return res
-end
-
-function initialize(
-  fd::QM_FloatData{T},
-  id::QM_IntData,
-  res::Residuals{T},
-  iconf::InputConfig{Tconf},
-  T0::DataType,
-) where {T <: Real, Tconf <: Real}
   itd = IterData(
     similar(fd.c, id.nvar + id.ncon), # Δxy
     similar(fd.c, id.nlow), # Δs_l
@@ -191,6 +182,19 @@ function initialize(
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
   dda = eval(dda_type)(id, fd)
 
+  return res, itd, dda
+end
+
+function initialize(
+  fd::QM_FloatData{T},
+  id::QM_IntData,
+  res::Residuals{T},
+  itd::IterData{T},
+  dda::DescentDirectionAllocs{T},
+  iconf::InputConfig{Tconf},
+  T0::DataType,
+) where {T <: Real, Tconf <: Real}
+
   pad = PreallocatedData(iconf.sp, fd, id, iconf)
 
   # init system
@@ -211,20 +215,22 @@ function initialize(
   pt0.x .= itd.Δxy[1:(id.nvar)]
   pt0.y .= itd.Δxy[(id.nvar + 1):end]
 
-  return itd, dda, pad, pt0, cnts
+  return pad, pt0, cnts
 end
 
 function init_params(
   fd_T::QM_FloatData{T},
   id::QM_IntData,
   res::Residuals{T},
+  itd::IterData{T},
+  dda::DescentDirectionAllocs{T},
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
 
-  itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
+  pad, pt, cnts = initialize(fd_T, id, res, itd, dda, iconf, T0)
 
   starting_points!(pt, fd_T, id, itd)
 
@@ -241,7 +247,7 @@ function init_params(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
 
-  return itd, ϵ, dda, pad, pt, sc, cnts
+  return itd, ϵ, pad, pt, sc, cnts
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}
