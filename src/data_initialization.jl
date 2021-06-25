@@ -129,8 +129,9 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
       iconf.normalize_rtol,
     )
     fd32 = convert_FloatData(T, fd_T0)
+    res = allocate_iter_workspace_T(fd32, id, ϵ32, T0)
     if T0 == Float64
-      return sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32
+      return sc, idi, fd_T0, id, ϵ, res, sd, T, ϵ32, fd32
     elseif T0 == Float128
       T = Float64
       fd64 = convert_FloatData(T, fd_T0)
@@ -144,11 +145,20 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
         T(itol.ϵ_Δx),
         iconf.normalize_rtol,
       )
-      return sc, idi, fd_T0, id, ϵ, sd, T, ϵ32, fd32, ϵ64, fd64
+      T = Float32
+      return sc, idi, fd_T0, id, ϵ, res, sd, T, ϵ32, fd32, ϵ64, fd64
     end
-  elseif iconf.mode == :mono 
-    return sc, idi, fd_T0, id, ϵ, sd, T
+  elseif iconf.mode == :mono
+    res = allocate_iter_workspace_T(fd_T0, id, ϵ, T0) 
+    return sc, idi, fd_T0, id, ϵ, res, sd, T
   end
+end
+
+function allocate_iter_workspace_T(fd::QM_FloatData{T}, id::QM_IntData, ϵ::Tolerances{T}, T0::DataType) where {T <: Real}
+
+  res = Residuals(similar(fd.c, id.ncon), similar(fd.c, id.nvar), zero(T), zero(T))
+
+  return res
 end
 
 function initialize(
@@ -207,12 +217,12 @@ end
 function init_params(
   fd_T::QM_FloatData{T},
   id::QM_IntData,
+  res::Residuals{T},
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  res = Residuals(similar(fd_T.c, id.ncon), similar(fd_T.c, id.nvar), zero(T), zero(T))
 
   itd, dda, pad, pt, cnts = initialize(fd_T, id, res, iconf, T0)
 
@@ -231,7 +241,7 @@ function init_params(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
 
-  return itd, ϵ, dda, pad, pt, res, sc, cnts
+  return itd, ϵ, dda, pad, pt, sc, cnts
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}
