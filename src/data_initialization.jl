@@ -68,6 +68,43 @@ function get_QM_data(QM::QuadraticModel)
   return fd_T, id, T
 end
 
+function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputTol, start_time)
+
+  sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
+
+    # save inital IntData to compute multipliers at the end of the algorithm
+    idi = IntDataInit(
+      QM.meta.nvar,
+      QM.meta.ncon,
+      QM.meta.ilow,
+      QM.meta.iupp,
+      QM.meta.irng,
+      QM.meta.ifix,
+      QM.meta.jlow,
+      QM.meta.jupp,
+      QM.meta.jrng,
+      QM.meta.jfix,
+    )
+
+    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+
+    fd_T0, id, T = get_QM_data(QM)
+
+    T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
+    ϵ = Tolerances(
+      T(itol.ϵ_pdd),
+      T(itol.ϵ_rb),
+      T(itol.ϵ_rc),
+      one(T),
+      one(T),
+      T(itol.ϵ_μ),
+      T(itol.ϵ_Δx),
+      iconf.normalize_rtol,
+    )
+
+  return sc, idi, fd_T0, id, ϵ, T, T0
+end
+
 function initialize(
   fd::QM_FloatData{T},
   id::QM_IntData,
