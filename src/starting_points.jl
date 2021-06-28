@@ -3,12 +3,13 @@ function starting_points!(
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},
+  spd::StartingPointData{T},
 ) where {T <: Real}
   itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt0.x)
   itd.ATy = mul!(itd.ATy, fd.AT, pt0.y)
-  dual_val = itd.Qx .- itd.ATy .+ fd.c
-  pt0.s_l = dual_val[id.ilow]
-  pt0.s_u = -dual_val[id.iupp]
+  spd.dual_val .= itd.Qx .- itd.ATy .+ fd.c
+  pt0.s_l = spd.dual_val[id.ilow]
+  pt0.s_u = -spd.dual_val[id.iupp]
 
   # check distance to bounds δ for x, s_l and s_u
   itd.x_m_lvar .= @views pt0.x[id.ilow] .- fd.lvar[id.ilow]
@@ -29,19 +30,19 @@ function starting_points!(
   # correct components that to not respect the bounds 
   itd.x_m_lvar .+= δx_l1
   itd.uvar_m_x .+= δx_u1
-  s0_l1 = pt0.s_l .+ δs_l1
-  s0_u1 = pt0.s_u .+ δs_u1
-  xs_l1, xs_u1 = dot(s0_l1, itd.x_m_lvar), dot(s0_u1, itd.uvar_m_x)
+  spd.s0_l1 .= pt0.s_l .+ δs_l1
+  spd.s0_u1 .= pt0.s_u .+ δs_u1
+  xs_l1, xs_u1 = dot(spd.s0_l1, itd.x_m_lvar), dot(spd.s0_u1, itd.uvar_m_x)
   if id.nlow == 0
     δx_l2, δs_l2 = zero(T), zero(T)
   else
-    δx_l2 = δx_l1 + xs_l1 / sum(s0_l1) / 2
+    δx_l2 = δx_l1 + xs_l1 / sum(spd.s0_l1) / 2
     δs_l2 = δs_l1 + xs_l1 / sum(itd.x_m_lvar) / 2
   end
   if id.nupp == 0
     δx_u2, δs_u2 = zero(T), zero(T)
   else
-    δx_u2 = δx_u1 + xs_u1 / sum(s0_u1) / 2
+    δx_u2 = δx_u1 + xs_u1 / sum(spd.s0_u1) / 2
     δs_u2 = δs_u1 + xs_u1 / sum(itd.uvar_m_x) / 2
   end
   δx = max(δx_l2, δx_u2)

@@ -36,17 +36,17 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
   end
 end
 
-DescentDirectionAllocsPC(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} =
+DescentDirectionAllocsPC(id::QM_IntData, S::DataType) where {T <: Real} =
   DescentDirectionAllocsPC(
-    similar(fd.c, id.nvar + id.ncon), # Δxy_aff
-    similar(fd.c, id.nlow), # Δs_l_aff
-    similar(fd.c, id.nupp), # Δs_u_aff
-    similar(fd.c, id.nlow), # x_m_l_αΔ_aff
-    similar(fd.c, id.nupp), # u_m_x_αΔ_aff
-    similar(fd.c, id.nlow), # s_l_αΔ_aff
-    similar(fd.c, id.nupp), # s_u_αΔ_aff
-    similar(fd.c, id.nlow), # rxs_l
-    similar(fd.c, id.nupp),  # rxs_u
+    S(undef, id.nvar + id.ncon), # Δxy_aff
+    S(undef, id.nlow), # Δs_l_aff
+    S(undef, id.nupp), # Δs_u_aff
+    S(undef, id.nlow), # x_m_l_αΔ_aff
+    S(undef, id.nupp), # u_m_x_αΔ_aff
+    S(undef, id.nlow), # s_l_αΔ_aff
+    S(undef, id.nupp), # s_u_αΔ_aff
+    S(undef, id.nlow), # rxs_l
+    S(undef, id.nupp),  # rxs_u
   )
 
 convert(
@@ -176,8 +176,7 @@ mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs
   end
 end
 
-DescentDirectionAllocsIPF(id::QM_IntData, fd::QM_FloatData{T}) where {T <: Real} =
-  DescentDirectionAllocsIPF(similar(fd.c, id.nvar))
+DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) = DescentDirectionAllocsIPF(S(undef, id.nvar))
 
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},

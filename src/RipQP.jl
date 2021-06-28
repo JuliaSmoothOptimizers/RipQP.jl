@@ -41,77 +41,36 @@ function ripqp(
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
+
   start_time = time()
   elapsed_time = 0.0
-  sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
+  T0 = eltype(QM.data.c)
 
-  # save inital IntData to compute multipliers at the end of the algorithm
-  idi = IntDataInit(
-    QM.meta.nvar,
-    QM.meta.ncon,
-    QM.meta.ilow,
-    QM.meta.iupp,
-    QM.meta.irng,
-    QM.meta.ifix,
-    QM.meta.jlow,
-    QM.meta.jupp,
-    QM.meta.jrng,
-    QM.meta.jfix,
-  )
-
-  SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
-
-  fd_T0, id, T = get_QM_data(QM)
-  T0 = T # T0 is the data type, in mode :multi T will gradually increase to T0
-  ϵ = Tolerances(
-    T(itol.ϵ_pdd),
-    T(itol.ϵ_rb),
-    T(itol.ϵ_rc),
-    one(T),
-    one(T),
-    T(itol.ϵ_μ),
-    T(itol.ϵ_Δx),
-    iconf.normalize_rtol,
-  )
-
+  # allocate workspace
+  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T = allocate_workspace(QM, iconf, itol, start_time, T0)
+  
   if iconf.scaling
-    fd_T0, d1, d2, d3 = scaling_Ruiz!(fd_T0, id, T(1.0e-3))
+    scaling_Ruiz!(fd_T0, id, sd, T0(1.0e-3))
   end
 
-  # initialization
+  # extra workspace for multi mode
   if iconf.mode == :multi
-    T = Float32
-    ϵ32 = Tolerances(
-      T(itol.ϵ_pdd32),
-      T(itol.ϵ_rb32),
-      T(itol.ϵ_rc32),
-      one(T),
-      one(T),
-      T(itol.ϵ_μ),
-      T(itol.ϵ_Δx),
-      iconf.normalize_rtol,
-    )
-    fd32 = convert_FloatData(T, fd_T0)
-    itd, ϵ32, dda, pad, pt, res, sc, cnts = init_params(fd32, id, ϵ32, sc, iconf, T0)
+    fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+    if T0 == Float128
+      fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
+    end
+  end
+
+  # initialize
+  if iconf.mode == :multi
+    pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
     set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
     if T0 == Float128
-      T = Float64
-      fd64 = convert_FloatData(T, fd_T0)
-      ϵ64 = Tolerances(
-        T(itol.ϵ_pdd64),
-        T(itol.ϵ_rb64),
-        T(itol.ϵ_rc64),
-        one(T),
-        one(T),
-        T(itol.ϵ_μ),
-        T(itol.ϵ_Δx),
-        iconf.normalize_rtol,
-      )
-      set_tol_residuals!(ϵ64, T(res.rbNorm), T(res.rcNorm))
+      set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
       T = Float32
     end
   elseif iconf.mode == :mono
-    itd, ϵ, dda, pad, pt, res, sc, cnts = init_params(fd_T0, id, ϵ, sc, iconf, T0)
+    pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
   end
 
   Δt = time() - start_time
@@ -194,11 +153,12 @@ function ripqp(
       sc.optimal = false
 
       fd_ref, pt_ref =
-        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, cnts, T0, iconf.refinement)
+        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.refinement)
       iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
     elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
+      spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
       fd_ref, pt_ref = fd_refinement(
         fd_T0,
         id,
@@ -209,6 +169,7 @@ function ripqp(
         ϵ,
         dda,
         pad,
+        spd,
         cnts,
         T0,
         iconf.refinement,
@@ -224,21 +185,15 @@ function ripqp(
   end
 
   if iconf.scaling
-    pt, pri_obj, res = post_scale(
-      d1,
-      d2,
-      d3,
+    post_scale!(
+      sd.d1,
+      sd.d2,
+      sd.d3,
       pt,
       res,
       fd_T0,
       id,
-      itd.Qx,
-      itd.ATy,
-      itd.Ax,
-      itd.cTx,
-      itd.pri_obj,
-      itd.dual_obj,
-      itd.xTQx_2,
+      itd,
     )
   end
 
