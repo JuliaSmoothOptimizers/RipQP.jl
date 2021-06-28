@@ -195,7 +195,7 @@ function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::
   return fd64, ϵ64, T
 end
 
-function init_params(
+function initialize!(
   fd::QM_FloatData{T},
   id::QM_IntData,
   res::Residuals{T},
@@ -237,7 +237,7 @@ function init_params(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
 
-  return itd, ϵ, pad, sc
+  return pad
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}

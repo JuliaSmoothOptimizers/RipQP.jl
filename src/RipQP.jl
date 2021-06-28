@@ -58,14 +58,14 @@ function ripqp(
 
   # initialize
   if iconf.mode == :multi
-    itd, ϵ32, pad, sc = init_params(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
+    pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
     set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
     if T0 == Float128
       set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
       T = Float32
     end
   elseif iconf.mode == :mono
-    itd, ϵ, pad, sc = init_params(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
+    pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
   end
 
   Δt = time() - start_time
