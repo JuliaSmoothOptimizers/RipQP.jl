@@ -41,14 +41,14 @@ function ripqp(
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
-
   start_time = time()
   elapsed_time = 0.0
   T0 = eltype(QM.data.c)
 
   # allocate workspace
-  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T = allocate_workspace(QM, iconf, itol, start_time, T0)
-  
+  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
+    allocate_workspace(QM, iconf, itol, start_time, T0)
+
   if iconf.scaling
     scaling_Ruiz!(fd_T0, id, sd, T0(1.0e-3))
   end
@@ -152,8 +152,21 @@ function ripqp(
       iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
       sc.optimal = false
 
-      fd_ref, pt_ref =
-        fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.refinement)
+      fd_ref, pt_ref = fd_refinement(
+        fd_T0,
+        id,
+        res,
+        itd.Δxy,
+        pt,
+        itd,
+        ϵ,
+        dda,
+        pad,
+        spd,
+        cnts,
+        T0,
+        iconf.refinement,
+      )
       iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
@@ -185,16 +198,7 @@ function ripqp(
   end
 
   if iconf.scaling
-    post_scale!(
-      sd.d1,
-      sd.d2,
-      sd.d3,
-      pt,
-      res,
-      fd_T0,
-      id,
-      itd,
-    )
+    post_scale!(sd.d1, sd.d2, sd.d3, pt, res, fd_T0, id, itd)
   end
 
   if cnts.k >= itol.max_iter

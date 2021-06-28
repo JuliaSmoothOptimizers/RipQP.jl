@@ -386,7 +386,7 @@ mutable struct StartingPointData{T <: Real, S}
   s0_u1::S
 end
 
-convert(::Type{StartingPointData{T, S}}, spd::StartingPointData{T0, S0}) where {T, S, T0, S0}= 
+convert(::Type{StartingPointData{T, S}}, spd::StartingPointData{T0, S0}) where {T, S, T0, S0} =
   StartingPointData{T, S}(
     convert(S.name.wrapper{T, 1}, spd.dual_val),
     convert(S.name.wrapper{T, 1}, spd.s0_l1),
