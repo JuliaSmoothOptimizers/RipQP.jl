@@ -185,7 +185,7 @@ function ripqp(
   end
 
   if iconf.scaling
-    pt, pri_obj, res = post_scale(
+    post_scale!(
       sd.d1,
       sd.d2,
       sd.d3,
@@ -193,13 +193,7 @@ function ripqp(
       res,
       fd_T0,
       id,
-      itd.Qx,
-      itd.ATy,
-      itd.Ax,
-      itd.cTx,
-      itd.pri_obj,
-      itd.dual_obj,
-      itd.xTQx_2,
+      itd,
     )
   end
 

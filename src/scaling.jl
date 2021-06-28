@@ -117,7 +117,7 @@ function div_D1_A_D2D3!(AT_colptr, AT_rowval, AT_nzval, d1, d2, d3, n)
   end
 end
 
-function post_scale(
+function post_scale!(
   d1::Vector{T},
   d2::Vector{T},
   d3::Vector{T},
@@ -125,39 +125,31 @@ function post_scale(
   res::Residuals{T},
   fd_T0::QM_FloatData{T},
   id::QM_IntData,
-  Qx::Vector{T},
-  ATy::Vector{T},
-  Ax::Vector{T},
-  cTx::T,
-  pri_obj::T,
-  dual_obj::T,
-  xTQx_2::T,
+  itd::IterData{T},
 ) where {T <: Real}
   pt.x .*= d2 .* d3
   div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.nvar)
-  Qx = mul!(Qx, Symmetric(fd_T0.Q, :U), pt.x)
-  xTQx_2 = dot(pt.x, Qx) / 2
+  mul!(itd.Qx, Symmetric(fd_T0.Q, :U), pt.x)
+  itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   div_D1_A_D2D3!(fd_T0.AT.colptr, fd_T0.AT.rowval, fd_T0.AT.nzval, d1, d2, d3, id.ncon)
   pt.y .*= d1
-  ATy = mul!(ATy, fd_T0.AT, pt.y)
-  Ax = mul!(Ax, fd_T0.AT', pt.x)
+  mul!(itd.ATy, fd_T0.AT, pt.y)
+  mul!(itd.Ax, fd_T0.AT', pt.x)
   fd_T0.b ./= d1
   fd_T0.c ./= d2 .* d3
-  cTx = dot(fd_T0.c, pt.x)
-  pri_obj = xTQx_2 + cTx + fd_T0.c0
+  itd.cTx = dot(fd_T0.c, pt.x)
+  itd.pri_obj = itd.xTQx_2 + itd.cTx + fd_T0.c0
   fd_T0.lvar .*= d2 .* d3
   fd_T0.uvar .*= d2 .* d3
   pt.s_l ./= @views d2[id.ilow] .* d3[id.ilow]
   pt.s_u ./= @views d2[id.iupp] .* d3[id.iupp]
-  dual_obj =
-    dot(fd_T0.b, pt.y) - xTQx_2 + dot(pt.s_l, view(fd_T0.lvar, id.ilow)) -
+  itd.dual_obj =
+    dot(fd_T0.b, pt.y) - itd.xTQx_2 + dot(pt.s_l, view(fd_T0.lvar, id.ilow)) -
     dot(pt.s_u, view(fd_T0.uvar, id.iupp)) + fd_T0.c0
-  res.rb .= Ax .- fd_T0.b
-  res.rc .= ATy .- Qx .- fd_T0.c
+  res.rb .= itd.Ax .- fd_T0.b
+  res.rc .= itd.ATy .- itd.Qx .- fd_T0.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   #         rcNorm, rbNorm = norm(rc), norm(rb)
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-
-  return pt, pri_obj, res
 end
