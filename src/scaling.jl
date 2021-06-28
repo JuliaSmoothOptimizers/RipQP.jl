@@ -60,7 +60,6 @@ function scaling_Ruiz!(
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
-
   d1, d2, d3, r_k, c_k = sd.d1, sd.d2, sd.d3, sd.r_k, sd.c_k
   # scaling Q (symmetric)
   if length(fd_T0.Q.rowval) > 0

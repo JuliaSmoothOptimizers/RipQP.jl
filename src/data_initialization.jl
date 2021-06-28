@@ -67,8 +67,13 @@ function get_QM_data(QM::QuadraticModel)
   return fd, id
 end
 
-function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputTol, start_time, T0::DataType)
-
+function allocate_workspace(
+  QM::QuadraticModel,
+  iconf::InputConfig,
+  itol::InputTol,
+  start_time,
+  T0::DataType,
+)
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   # save inital IntData to compute multipliers at the end of the algorithm
@@ -148,12 +153,7 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
 
   cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
 
-  pt = Point(
-    S(undef, id.nvar),
-    S(undef, id.ncon),
-    S(undef, id.nlow),
-    S(undef, id.nupp),
-  )
+  pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 
   spd = StartingPointData{T, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
 
@@ -208,7 +208,6 @@ function initialize!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-
   pad = PreallocatedData(iconf.sp, fd, id, iconf)
 
   # init system
