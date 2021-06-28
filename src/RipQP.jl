@@ -48,6 +48,11 @@ function ripqp(
 
   # allocate workspace
   sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T = allocate_workspace(QM, iconf, itol, start_time, T0)
+  
+  if iconf.scaling
+    scaling_Ruiz!(fd_T0, id, sd, T0(1.0e-3))
+  end
+
   # extra workspace for multi mode
   if iconf.mode == :multi
     fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)

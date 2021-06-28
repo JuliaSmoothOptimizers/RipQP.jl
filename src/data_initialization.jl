@@ -110,7 +110,6 @@ function allocate_workspace(QM::QuadraticModel, iconf::InputConfig, itol::InputT
       S0(undef, id.nvar),
       S0(undef, id.ncon),
     )
-    scaling_Ruiz!(fd_T0, id, sd, T(1.0e-3))
   else
     empty_v = S0(undef, 0)
     sd = ScaleData{T0, S0}(empty_v, empty_v, empty_v, empty_v, empty_v)
