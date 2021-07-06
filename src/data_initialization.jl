@@ -271,3 +271,22 @@ function get_diag_Q(Q_colptr, Q_rowval, Q_nzval::Vector{T}, n) where {T <: Real}
   end
   return diagval
 end
+
+function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}) where {T <: Real}
+  n = size(Q, 1)
+  diagval = zeros(T, n)
+  fill_diag_Q_dense!(Q.colptr, Q.rowval, Q.nzval, diagval, n)
+  return diagval
+end
+
+function fill_diag_Q_dense!(Q_colptr, Q_rowval, Q_nzval::Vector{T}, diagval::Vector{T}, n) where {T <: Real}
+  for j=1:n
+    k = Q_colptr[j + 1] - 1
+    if k > 0
+      i = Q_rowval[k]
+      if j == i
+        diagval[j] = Q_nzval[k]
+      end
+    end
+  end
+end
