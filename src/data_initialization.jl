@@ -284,26 +284,20 @@ function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}) where {T <: Real}
 end
 
 function fill_diag_Q_dense!(
-  Q_rowPtr,
-  Q_colVal,
-  Q_nzVal::Vector{T},
+  Q_colptr,
+  Q_rowval,
+  Q_nzval::Vector{T},
   diagval::Vector{T},
   n,
 ) where {T <: Real}
-
-  function kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
-    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
-    k = Q_rowPtr[index + 1] - 1
+  for j = 1:n
+    k = Q_colptr[j + 1] - 1
     if k > 0
-      i = Q_colVal[k]
+      i = Q_rowval[k]
       if j == i
-        diagval[index] = Q_nzVal[k]
+        diagval[j] = Q_nzval[k]
       end
     end
-    return nothing
   end
-  
-  threads = min(n, 256)
-  blocks = ceil(Int, n/threads)
-  @cuda name="diagq" threads=threads blocks=blocks kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
 end
+

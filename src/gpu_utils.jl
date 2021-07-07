@@ -11,8 +11,33 @@ end
 function get_diag_Q_dense(Q::CUDA.CUSPARSE.CuSparseMatrixCSR{T}) where {T <: Real}
   n = size(Q, 1)
   diagval = CUDA.zeros(T, n)
-  fill_diag_Q_dense!(Q.colptr, Q.rowval, Q.nzval, diagval, n)
+  fill_diag_Q_dense!(Q.rowPtr, Q.colVal, Q.nzVal, diagval, n)
   return diagval
+end
+
+function fill_diag_Q_dense!(
+  Q_rowPtr,
+  Q_colVal,
+  Q_nzVal::CUDA.CuVector{T},
+  diagval::CUDA.CuVector{T},
+  n,
+) where {T <: Real}
+
+  function kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
+    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    k = Q_rowPtr[index + 1] - 1
+    if k > 0
+      i = Q_colVal[k]
+      if index == i
+        diagval[index] = Q_nzVal[k]
+      end
+    end
+    return nothing
+  end
+  
+  threads = min(n, 256)
+  blocks = ceil(Int, n/threads)
+  @cuda name="diagq" threads=threads blocks=blocks kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
 end
 
 function check_bounds(x::T, lvar, uvar) where {T<:Real}
