@@ -4,7 +4,9 @@ export K2_5minresParams
 Type to use the K2.5 formulation with MINRES, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
+
     K2_5minresParams(; preconditioner = :Jacobi, ratol = 1.0e-10, rrtol = 1.0e-10)
+
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
@@ -25,7 +27,7 @@ mutable struct PreallocatedData_K2_5minres{T<:Real, S, Fv, Fu, Fw} <: Preallocat
     tmp              :: S # temporary vector for products
     rhs              :: S
     regu             :: Regularization{T}
-    δv               :: S
+    δv               :: Vector{T}
     K                :: LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
     MS               :: MinresSolver{T, S}
     ratol            :: T
@@ -69,7 +71,7 @@ function PreallocatedData(sp :: K2_5minresParams, fd :: QM_FloatData{T}, id :: Q
   end
   sqrtX1X2 = fill!(similar(D), one(T))
   tmp = similar(D)
-  δv = [regu.δ]
+  δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   K = LinearOperator(T, id.nvar + id.ncon, id.nvar + id.ncon, true, true, 
                      (res, v, α, β) -> opK2_5prod!(res, id.nvar, fd.Q, D, fd.AT, sqrtX1X2, tmp, δv, v, α, β))
 
@@ -108,9 +110,6 @@ function solver!(pad :: PreallocatedData_K2_5minres{T}, dda :: DescentDirectionA
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
-  # pop = pad.pdat.P*pad.K
-  # M = Matrix(pop)
-  # println(M[diagind(M)])
   (pad.MS.x, pad.MS.stats) = minres!(pad.MS, pad.K, pad.rhs, M=pad.pdat.P, 
                                      verbose=0, atol=zero(T), rtol=zero(T), ratol=pad.ratol, rrtol=pad.rrtol)
   if rhsNorm != zero(T)
