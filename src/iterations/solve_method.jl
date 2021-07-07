@@ -111,17 +111,23 @@ function update_dd!(
   dda.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* dda.Δxy_aff[id.ilow] ./ itd.x_m_lvar
   dda.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* dda.Δxy_aff[id.iupp] ./ itd.uvar_m_x
 
-  α_aff_pri, α_aff_dual = compute_αs(
-    pt.x,
-    pt.s_l,
-    pt.s_u,
-    fd.lvar,
-    fd.uvar,
-    dda.Δxy_aff,
-    dda.Δs_l_aff,
-    dda.Δs_u_aff,
-    id.nvar,
-  )
+  if typeof(pt.x) <: Vector
+    α_aff_pri, α_aff_dual = compute_αs(
+      pt.x,
+      pt.s_l,
+      pt.s_u,
+      fd.lvar,
+      fd.uvar,
+      dda.Δxy_aff,
+      dda.Δs_l_aff,
+      dda.Δs_u_aff,
+      id.nvar,
+    )
+  else
+    α_aff_pri, α_aff_dual =
+      compute_αs_gpu(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, id.nvar,
+                     itd.store_vpri, itd.store_vdual_l, itd.store_vdual_u)
+  end
 
   # (x-lvar, uvar-x, s_l, s_u) .+= α_aff * Δ_aff                                 
   update_pt_aff!(

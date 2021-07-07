@@ -90,7 +90,11 @@ function allocate_workspace(
     QM.meta.jfix,
   )
 
-  SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+  if typeof(QM.data.c) <: Vector
+    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+  else
+    QM = SlackModel(QM)
+  end
 
   fd_T0, id = get_QM_data(QM)
 
@@ -280,19 +284,26 @@ function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}) where {T <: Real}
 end
 
 function fill_diag_Q_dense!(
-  Q_colptr,
-  Q_rowval,
-  Q_nzval::Vector{T},
+  Q_rowPtr,
+  Q_colVal,
+  Q_nzVal::Vector{T},
   diagval::Vector{T},
   n,
 ) where {T <: Real}
-  for j = 1:n
-    k = Q_colptr[j + 1] - 1
+
+  function kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
+    index = (blockIdx().x - 1) * blockDim().x + threadIdx().x
+    k = Q_rowPtr[index + 1] - 1
     if k > 0
-      i = Q_rowval[k]
+      i = Q_colVal[k]
       if j == i
-        diagval[j] = Q_nzval[k]
+        diagval[index] = Q_nzVal[k]
       end
     end
+    return nothing
   end
+  
+  threads = min(n, 256)
+  blocks = ceil(Int, n/threads)
+  @cuda name="diagq" threads=threads blocks=blocks kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
 end
