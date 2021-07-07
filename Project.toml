@@ -5,9 +5,11 @@ version = "0.2.1"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Krylov = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
 LDLFactorizations = "40e66cde-538c-5869-a4ad-c39174c6795b"
 LLSModels = "39f5bc3e-5160-4bf8-ac48-504fd2534d24"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearOperators = "5c8ed15e-5a4c-59e4-a42b-c7e8811fb125"
 MatrixMarket = "4d4711f2-db25-561a-b6b3-d35e7d4047d3"
 NLPModelsModifiers = "e01155f1-5c6f-4375-a9d8-616dd036575f"
 Quadmath = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
@@ -17,8 +19,10 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+Krylov = "0.7.3"
 LDLFactorizations = "0.8.1"
 LLSModels = "0.3"
+LinearOperators = "2.0"
 MatrixMarket = "0.3"
 NLPModelsModifiers = "0.4"
 Quadmath = "0.5"
