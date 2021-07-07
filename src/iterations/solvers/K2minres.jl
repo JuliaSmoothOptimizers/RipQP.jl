@@ -11,52 +11,65 @@ creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.I
 The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
 struct K2minresParams <: SolverParams
-  preconditioner  :: Symbol
-  ratol           :: Float64
-  rrtol           :: Float64
-  ρ_min           :: Float64
-  δ_min           :: Float64
+  preconditioner::Symbol
+  ratol::Float64
+  rrtol::Float64
+  ρ_min::Float64
+  δ_min::Float64
 end
 
-function K2minresParams(; preconditioner = :Jacobi, ratol :: T = 1.0e-10, rrtol :: T = 1.0e-10,
-                        ρ_min :: T = 1e3 * sqrt(eps()), δ_min :: T = 1e4 * sqrt(eps())) where {T<:Real} 
+function K2minresParams(;
+  preconditioner = :Jacobi,
+  ratol::T = 1.0e-10,
+  rrtol::T = 1.0e-10,
+  ρ_min::T = 1e3 * sqrt(eps()),
+  δ_min::T = 1e4 * sqrt(eps()),
+) where {T <: Real}
   return K2minresParams(preconditioner, ratol, rrtol, ρ_min, δ_min)
 end
 
-mutable struct PreallocatedData_K2minres{T<:Real, S, Fv, Fu, Fw} <: PreallocatedData{T, S} 
-  pdat             :: PreconditionerDataK2{T, S}
-  D                :: S                                  # temporary top-left diagonal
-  rhs              :: S
-  regu             :: Regularization{T}
-  δv               :: Vector{T}
-  K                :: LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  MS               :: MinresSolver{T, S}
-  ratol            :: T
-  rrtol            :: T
+mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData{T, S}
+  pdat::PreconditionerDataK2{T, S}
+  D::S                                  # temporary top-left diagonal
+  rhs::S
+  regu::Regularization{T}
+  δv::Vector{T}
+  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
+  MS::MinresSolver{T, S}
+  ratol::T
+  rrtol::T
 end
 
-function opK2prod!(res::AbstractVector{T}, nvar::Int, Q::AbstractMatrix{T}, D::AbstractVector{T}, 
-                  AT::AbstractMatrix{T}, δv::AbstractVector{T}, v::AbstractVector{T}, α::T, β::T) where T
-  @views mul!(res[1: nvar], Q, v[1: nvar], -α, β)
-  res[1: nvar] .+= α .* D .* v[1: nvar]
-  @views mul!(res[1: nvar], AT, v[nvar+1: end], α, one(T))
-  @views mul!(res[nvar+1: end], AT', v[1: nvar], α, β)
-  res[nvar+1: end] .+= @views (α * δv[1]) .* v[nvar+1: end]
+function opK2prod!(
+  res::AbstractVector{T},
+  nvar::Int,
+  Q::AbstractMatrix{T},
+  D::AbstractVector{T},
+  AT::AbstractMatrix{T},
+  δv::AbstractVector{T},
+  v::AbstractVector{T},
+  α::T,
+  β::T,
+) where {T}
+  @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
+  res[1:nvar] .+= α .* D .* v[1:nvar]
+  @views mul!(res[1:nvar], AT, v[(nvar + 1):end], α, one(T))
+  @views mul!(res[(nvar + 1):end], AT', v[1:nvar], α, β)
+  res[(nvar + 1):end] .+= @views (α * δv[1]) .* v[(nvar + 1):end]
 end
 
-function PreallocatedData(sp :: K2minresParams, fd :: QM_FloatData{T}, id :: QM_IntData, 
-                          iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
+function PreallocatedData(
+  sp::K2minresParams,
+  fd::QM_FloatData{T},
+  id::QM_IntData,
+  iconf::InputConfig{Tconf},
+) where {T <: Real, Tconf <: Real}
 
   # init Regularization values
   D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
-    regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
-      T(sp.ρ_min),
-      T(sp.δ_min),
-      :classic,
-    )
+    regu =
+      Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
     D .= -T(1.0e0) / 2
   else
     regu = Regularization(
@@ -69,29 +82,45 @@ function PreallocatedData(sp :: K2minresParams, fd :: QM_FloatData{T}, id :: QM_
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  K = LinearOperator(T, id.nvar + id.ncon, id.nvar + id.ncon, true, true, 
-                     (res, v, α, β) -> opK2prod!(res, id.nvar, fd.Q, D, fd.AT, δv, v, α, β))
+  K = LinearOperator(
+    T,
+    id.nvar + id.ncon,
+    id.nvar + id.ncon,
+    true,
+    true,
+    (res, v, α, β) -> opK2prod!(res, id.nvar, fd.Q, D, fd.AT, δv, v, α, β),
+  )
 
-  rhs = similar(fd.c, id.nvar+id.ncon)
+  rhs = similar(fd.c, id.nvar + id.ncon)
   MS = MinresSolver(K, rhs)
 
   pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
 
-  return PreallocatedData_K2minres(pdat,
-                                   D,
-                                   rhs, 
-                                   regu,
-                                   δv,
-                                   K, #K
-                                   MS, #K_fact
-                                   sp.ratol,
-                                   sp.rrtol,
-                                   )
+  return PreallocatedData_K2minres(
+    pdat,
+    D,
+    rhs,
+    regu,
+    δv,
+    K, #K
+    MS, #K_fact
+    sp.ratol,
+    sp.rrtol,
+  )
 end
 
-function solver!(pad :: PreallocatedData_K2minres{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
-                 fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType, 
-                 step :: Symbol) where {T<:Real} 
+function solver!(
+  pad::PreallocatedData_K2minres{T},
+  dda::DescentDirectionAllocs{T},
+  pt::Point{T},
+  itd::IterData{T},
+  fd::Abstract_QM_FloatData{T},
+  id::QM_IntData,
+  res::Residuals{T},
+  cnts::Counters,
+  T0::DataType,
+  step::Symbol,
+) where {T <: Real}
 
   # erase dda.Δxy_aff only for affine predictor step with PC method
   pad.rhs .= (step == :aff) ? dda.Δxy_aff : pad.rhs .= itd.Δxy
@@ -99,13 +128,22 @@ function solver!(pad :: PreallocatedData_K2minres{T}, dda :: DescentDirectionAll
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
-  (pad.MS.x, pad.MS.stats) = minres!(pad.MS, pad.K, pad.rhs, M=pad.pdat.P, 
-                                     verbose=0, atol=zero(T), rtol=zero(T), ratol=pad.ratol, rrtol=pad.rrtol)
+  (pad.MS.x, pad.MS.stats) = minres!(
+    pad.MS,
+    pad.K,
+    pad.rhs,
+    M = pad.pdat.P,
+    verbose = 0,
+    atol = zero(T),
+    rtol = zero(T),
+    ratol = pad.ratol,
+    rrtol = pad.rrtol,
+  )
   if rhsNorm != zero(T)
     pad.MS.x .*= rhsNorm
   end
 
-  if step == :aff 
+  if step == :aff
     dda.Δxy_aff .= pad.MS.x
   else
     itd.Δxy .= pad.MS.x
@@ -114,19 +152,27 @@ function solver!(pad :: PreallocatedData_K2minres{T}, dda :: DescentDirectionAll
   return 0
 end
 
-function update_pad!(pad :: PreallocatedData_K2minres{T}, dda :: DescentDirectionAllocs{T}, pt :: Point{T}, itd :: IterData{T}, 
-                     fd :: Abstract_QM_FloatData{T}, id :: QM_IntData, res :: Residuals{T}, cnts :: Counters, T0 :: DataType) where {T<:Real}
+function update_pad!(
+  pad::PreallocatedData_K2minres{T},
+  dda::DescentDirectionAllocs{T},
+  pt::Point{T},
+  itd::IterData{T},
+  fd::Abstract_QM_FloatData{T},
+  id::QM_IntData,
+  res::Residuals{T},
+  cnts::Counters,
+  T0::DataType,
+) where {T <: Real}
+  if cnts.k != 0
+    update_regu!(pad.regu)
+  end
 
-    if cnts.k != 0
-        update_regu!(pad.regu) 
-    end
+  pad.D .= -pad.regu.ρ
+  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
+  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+  pad.δv[1] = pad.regu.δ
 
-    pad.D .= -pad.regu.ρ
-    pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-    pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
-    pad.δv[1] = pad.regu.δ
+  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
-    update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
-
-    return 0
+  return 0
 end
