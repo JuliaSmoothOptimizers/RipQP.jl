@@ -5,7 +5,7 @@ The available preconditioners are:
 - Identity
 - Jacobi 
 """
-abstract type PreconditionerDataK2{T<:Real, S} end
+abstract type PreconditionerDataK2{T <: Real, S} end
 
 include("identity.jl")
-include("jacobi.jl") 
+include("jacobi.jl")

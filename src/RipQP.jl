@@ -2,7 +2,8 @@ module RipQP
 
 using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics
 
-using Krylov, LDLFactorizations, LinearOperators, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore
+using Krylov,
+  LDLFactorizations, LinearOperators, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore
 
 export ripqp
 
