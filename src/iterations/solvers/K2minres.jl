@@ -11,25 +11,28 @@ creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.I
 The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
 struct K2minresParams <: SolverParams
-    preconditioner  :: Symbol
-    ratol           :: Float64
-    rrtol           :: Float64
+  preconditioner  :: Symbol
+  ratol           :: Float64
+  rrtol           :: Float64
+  ρ_min           :: Float64
+  δ_min           :: Float64
 end
 
-function K2minresParams(; preconditioner = :Jacobi, ratol :: T = 1.0e-10, rrtol :: T = 1.0e-10) where {T<:Real} 
-    return K2minresParams(preconditioner, ratol, rrtol)
+function K2minresParams(; preconditioner = :Jacobi, ratol :: T = 1.0e-10, rrtol :: T = 1.0e-10,
+                        ρ_min :: T = 1e3 * sqrt(eps()), δ_min :: T = 1e4 * sqrt(eps())) where {T<:Real} 
+  return K2minresParams(preconditioner, ratol, rrtol, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedData_K2minres{T<:Real, S, Fv, Fu, Fw} <: PreallocatedData{T, S} 
-    pdat             :: PreconditionerDataK2{T, S}
-    D                :: S                                  # temporary top-left diagonal
-    rhs              :: S
-    regu             :: Regularization{T}
-    δv               :: Vector{T}
-    K                :: LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-    MS               :: MinresSolver{T, S}
-    ratol            :: T
-    rrtol            :: T
+  pdat             :: PreconditionerDataK2{T, S}
+  D                :: S                                  # temporary top-left diagonal
+  rhs              :: S
+  regu             :: Regularization{T}
+  δv               :: Vector{T}
+  K                :: LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
+  MS               :: MinresSolver{T, S}
+  ratol            :: T
+  rrtol            :: T
 end
 
 function opK2prod!(res::AbstractVector{T}, nvar::Int, Q::AbstractMatrix{T}, D::AbstractVector{T}, 
@@ -50,8 +53,8 @@ function PreallocatedData(sp :: K2minresParams, fd :: QM_FloatData{T}, id :: QM_
     regu = Regularization(
       T(sqrt(eps()) * 1e5),
       T(sqrt(eps()) * 1e5),
-      1e2 * sqrt(eps(T)),
-      1e2 * sqrt(eps(T)),
+      T(sp.ρ_min),
+      T(sp.δ_min),
       :classic,
     )
     D .= -T(1.0e0) / 2
