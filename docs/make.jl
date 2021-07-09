@@ -23,5 +23,5 @@ deploydocs(
   make = nothing,
   repo = "github.com/JuliaSmoothOptimizers/RipQP.jl.git",
   target = "build",
-  devbranch = "master",
+  devbranch = "main",
 )
