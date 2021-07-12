@@ -124,9 +124,20 @@ function update_dd!(
       id.nvar,
     )
   else
-    α_aff_pri, α_aff_dual =
-      compute_αs_gpu(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, dda.Δxy_aff, dda.Δs_l_aff, dda.Δs_u_aff, id.nvar,
-                     itd.store_vpri, itd.store_vdual_l, itd.store_vdual_u)
+    α_aff_pri, α_aff_dual = compute_αs_gpu(
+      pt.x,
+      pt.s_l,
+      pt.s_u,
+      fd.lvar,
+      fd.uvar,
+      dda.Δxy_aff,
+      dda.Δs_l_aff,
+      dda.Δs_u_aff,
+      id.nvar,
+      itd.store_vpri,
+      itd.store_vdual_l,
+      itd.store_vdual_u,
+    )
   end
 
   # (x-lvar, uvar-x, s_l, s_u) .+= α_aff * Δ_aff                                 

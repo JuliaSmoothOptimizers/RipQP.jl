@@ -90,12 +90,24 @@ function update_IterData!(itd, pt, fd, id, safety)
   itd.Ax = mul!(itd.Ax, fd.AT', pt.x)
   itd.cTx = dot(fd.c, pt.x)
   itd.pri_obj = itd.xTQx_2 + itd.cTx + fd.c0
-  if typeof(pt.x) <: Vector 
+  if typeof(pt.x) <: Vector
     itd.dual_obj = @views dot(fd.b, pt.y) - itd.xTQx_2 + dot(pt.s_l, fd.lvar[id.ilow]) -
-          dot(pt.s_u, fd.uvar[id.iupp]) + fd.c0
+           dot(pt.s_u, fd.uvar[id.iupp]) + fd.c0
   else # views and dot not working with GPU arrays
-    itd.dual_obj = dual_obj_gpu(fd.b, pt.y, itd.xTQx_2, pt.s_l, pt.s_u, fd.lvar, fd.uvar, fd.c0, id.ilow, id.iupp, 
-                                itd.store_vdual_l, itd.store_vdual_u)
+    itd.dual_obj = dual_obj_gpu(
+      fd.b,
+      pt.y,
+      itd.xTQx_2,
+      pt.s_l,
+      pt.s_u,
+      fd.lvar,
+      fd.uvar,
+      fd.c0,
+      id.ilow,
+      id.iupp,
+      itd.store_vdual_l,
+      itd.store_vdual_u,
+    )
   end
   itd.pdd = abs(itd.pri_obj - itd.dual_obj) / (one(T) + abs(itd.pri_obj))
 end
@@ -171,9 +183,20 @@ function iter!(
       α_pri, α_dual =
         compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
     else
-      α_pri, α_dual =
-        compute_αs_gpu(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar,
-                      itd.store_vpri, itd.store_vdual_l, itd.store_vdual_u)
+      α_pri, α_dual = compute_αs_gpu(
+        pt.x,
+        pt.s_l,
+        pt.s_u,
+        fd.lvar,
+        fd.uvar,
+        itd.Δxy,
+        itd.Δs_l,
+        itd.Δs_u,
+        id.nvar,
+        itd.store_vpri,
+        itd.store_vdual_l,
+        itd.store_vdual_u,
+      )
     end
 
     if cnts.kc > 0   # centrality corrections
