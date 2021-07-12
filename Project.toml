@@ -1,7 +1,7 @@
 name = "RipQP"
 uuid = "1e40b3f8-35eb-4cd8-8edd-3e515bb9de08"
 authors = ["Geoffroy Leconte <gleconte50@gmail.com> and contributors"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
