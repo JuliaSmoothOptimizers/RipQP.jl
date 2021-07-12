@@ -96,7 +96,7 @@ function ripqp(
       ),
     )
     @info log_row(
-      Any[cnts.k, itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, zero(T), zero(T), itd.μ],
+      Any[cnts.k, itd.minimize ? itd.pri_obj : -itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, zero(T), zero(T), itd.μ],
     )
   end
 
@@ -225,7 +225,7 @@ function ripqp(
     status,
     QM,
     solution = pt.x[1:(idi.nvar)],
-    objective = itd.pri_obj,
+    objective = itd.minimize ? itd.pri_obj : -itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,
     multipliers = multipliers,

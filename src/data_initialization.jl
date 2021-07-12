@@ -90,6 +90,12 @@ function allocate_workspace(
     QM.meta.jfix,
   )
 
+  if !QM.meta.minimize
+    QM.data.Hvals .= .-QM.data.Hvals
+    QM.data.c .= .-QM.data.c
+    QM.data.c0 = -QM.data.c0
+  end
+
   if typeof(QM.data.c) <: Vector
     SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
   else
@@ -150,6 +156,7 @@ function allocate_workspace(
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
     nnz(fd_T0.Q) > 0,
+    QM.meta.minimize,
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)

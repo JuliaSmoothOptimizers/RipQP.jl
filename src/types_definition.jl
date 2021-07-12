@@ -351,6 +351,7 @@ mutable struct IterDataCPU{T <: Real, S} <: IterData{T, S}
   l_pdd::Vector{T} # list of the 5 last pdd
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
+  minimize::Bool
 end
 
 mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
@@ -371,6 +372,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
   l_pdd::Vector{T} # list of the 5 last pdd
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
+  minimize::Bool
   store_vpri::S
   store_vdual_l::S
   store_vdual_u::S
@@ -392,6 +394,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     l_pdd::Vector{T},
     mean_pdd::T,
     qp::Bool,
+    minimize::Bool,
   ) where {T <: Real, S} = new{T, S}(
     Δxy,
     Δs_l,
@@ -410,6 +413,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     l_pdd,
     mean_pdd,
     qp,
+    minimize,
     similar(Qx),
     similar(Δs_l),
     similar(Δs_u),
@@ -434,6 +438,7 @@ function IterData(
   l_pdd,
   mean_pdd,
   qp,
+  minimize,
 )
   if typeof(Δxy) <: Vector
     return IterDataCPU(
@@ -454,6 +459,7 @@ function IterData(
       l_pdd,
       mean_pdd,
       qp,
+      minimize,
     )
   else
     return IterDataGPU(
@@ -474,6 +480,7 @@ function IterData(
       l_pdd,
       mean_pdd,
       qp,
+      minimize,
     )
   end
 end
@@ -497,6 +504,7 @@ convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <
     convert(Array{T, 1}, itd.l_pdd),
     convert(T, itd.mean_pdd),
     itd.qp,
+    itd.minimize,
   )
 
 mutable struct ScaleData{T <: Real, S}
