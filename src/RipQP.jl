@@ -96,7 +96,16 @@ function ripqp(
       ),
     )
     @info log_row(
-      Any[cnts.k, itd.minimize ? itd.pri_obj : -itd.pri_obj, itd.pdd, res.rbNorm, res.rcNorm, zero(T), zero(T), itd.μ],
+      Any[
+        cnts.k,
+        itd.minimize ? itd.pri_obj : -itd.pri_obj,
+        itd.pdd,
+        res.rbNorm,
+        res.rcNorm,
+        zero(T),
+        zero(T),
+        itd.μ,
+      ],
     )
   end
 

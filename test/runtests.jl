@@ -344,7 +344,7 @@ function QuadraticModelMaximize(qps, x0 = zeros(qps.nvar))
     uvar = qps.uvar,
     c0 = -qps.c0,
     x0 = x0,
-    minimize=false,
+    minimize = false,
   )
 end
 
