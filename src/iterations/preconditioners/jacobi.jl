@@ -11,7 +11,7 @@ function Jacobi(
   D::AbstractVector{T},
   K::LinearOperator{T},
 ) where {T <: Real}
-  invDiagK = (one(T) / regu.δ) .* ones(T, id.nvar + id.ncon)
+  invDiagK = (one(T) / regu.δ) .* fill!(similar(fd.c, id.nvar + id.ncon), one(T))
   diagQ = get_diag_Q_dense(fd.Q)
   invDiagK[1:(id.nvar)] .= .-one(T) ./ (D .- diagQ)
   P = opDiagonal(invDiagK)

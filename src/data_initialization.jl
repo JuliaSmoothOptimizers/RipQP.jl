@@ -90,7 +90,11 @@ function allocate_workspace(
     QM.meta.jfix,
   )
 
-  SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+  if typeof(QM.data.c) <: Vector
+    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
+  else
+    QM = SlackModel(QM)
+  end
 
   fd_T0, id = get_QM_data(QM)
 
@@ -296,3 +300,4 @@ function fill_diag_Q_dense!(
     end
   end
 end
+

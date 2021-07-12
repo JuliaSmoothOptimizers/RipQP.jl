@@ -23,8 +23,15 @@ function get_multipliers(
   nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
   njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
 
-  s_l_sp = SparseVector(nvar, ilow, s_l)
-  s_u_sp = SparseVector(nvar, iupp, s_u)
+  S = typeof(y)
+  if S <: Vector
+    s_l_sp = SparseVector(nvar, ilow, s_l)
+    s_u_sp = SparseVector(nvar, iupp, s_u)
+  else
+    s_l_sp, s_u_sp = fill!(S(undef, nvar), zero(T)), fill!(S(undef, nvar), zero(T))
+    s_l_sp[ilow] .= s_l
+    s_u_sp[iupp] .= s_u
+  end
 
   if idi.nvar != nvar
     multipliers_L = s_l_sp[1:(idi.nvar)]
@@ -34,7 +41,6 @@ function get_multipliers(
     multipliers_U = s_u_sp
   end
 
-  S = typeof(y)
   multipliers = fill!(S(undef, idi.ncon), zero(T))
   multipliers[idi.jfix] .= @views y[idi.jfix]
   multipliers[idi.jlow] .+= @views s_l[(nlow + nrng + 1):(nlow + nrng + njlow)]
