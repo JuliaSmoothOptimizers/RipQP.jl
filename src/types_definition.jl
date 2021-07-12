@@ -374,24 +374,107 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
   store_vpri::S
   store_vdual_l::S
   store_vdual_u::S
-  IterDataGPU(Δxy::S, Δs_l::S, Δs_u::S, x_m_lvar::S, uvar_m_x::S, Qx::S, ATy::S, 
-              Ax::S, xTQx_2::T, cTx::T, 
-              pri_obj::T, dual_obj::T, 
-              μ::T, pdd::T, l_pdd::Vector{T}, 
-              mean_pdd::T, qp::Bool) where {T <: Real, S} = 
-    new{T, S}(Δxy, Δs_l, Δs_u, x_m_lvar, uvar_m_x, Qx, ATy, Ax, xTQx_2, cTx, 
-              pri_obj, dual_obj, μ, pdd, l_pdd, mean_pdd, qp, 
-              similar(Qx), similar(Δs_l), similar(Δs_u))
+  IterDataGPU(
+    Δxy::S,
+    Δs_l::S,
+    Δs_u::S,
+    x_m_lvar::S,
+    uvar_m_x::S,
+    Qx::S,
+    ATy::S,
+    Ax::S,
+    xTQx_2::T,
+    cTx::T,
+    pri_obj::T,
+    dual_obj::T,
+    μ::T,
+    pdd::T,
+    l_pdd::Vector{T},
+    mean_pdd::T,
+    qp::Bool,
+  ) where {T <: Real, S} = new{T, S}(
+    Δxy,
+    Δs_l,
+    Δs_u,
+    x_m_lvar,
+    uvar_m_x,
+    Qx,
+    ATy,
+    Ax,
+    xTQx_2,
+    cTx,
+    pri_obj,
+    dual_obj,
+    μ,
+    pdd,
+    l_pdd,
+    mean_pdd,
+    qp,
+    similar(Qx),
+    similar(Δs_l),
+    similar(Δs_u),
+  )
 end
 
-function IterData(Δxy, Δs_l, Δs_u, x_m_lvar, uvar_m_x, Qx, ATy, Ax, xTQx_2, cTx, 
-                  pri_obj, dual_obj, μ, pdd, l_pdd, mean_pdd, qp)
+function IterData(
+  Δxy,
+  Δs_l,
+  Δs_u,
+  x_m_lvar,
+  uvar_m_x,
+  Qx,
+  ATy,
+  Ax,
+  xTQx_2,
+  cTx,
+  pri_obj,
+  dual_obj,
+  μ,
+  pdd,
+  l_pdd,
+  mean_pdd,
+  qp,
+)
   if typeof(Δxy) <: Vector
-    return IterDataCPU(Δxy, Δs_l, Δs_u, x_m_lvar, uvar_m_x, Qx, ATy, Ax, xTQx_2, cTx, 
-                       pri_obj, dual_obj, μ, pdd, l_pdd, mean_pdd, qp)
+    return IterDataCPU(
+      Δxy,
+      Δs_l,
+      Δs_u,
+      x_m_lvar,
+      uvar_m_x,
+      Qx,
+      ATy,
+      Ax,
+      xTQx_2,
+      cTx,
+      pri_obj,
+      dual_obj,
+      μ,
+      pdd,
+      l_pdd,
+      mean_pdd,
+      qp,
+    )
   else
-    return IterDataGPU(Δxy, Δs_l, Δs_u, x_m_lvar, uvar_m_x, Qx, ATy, Ax, xTQx_2, cTx, 
-                       pri_obj, dual_obj, μ, pdd, l_pdd, mean_pdd, qp)
+    return IterDataGPU(
+      Δxy,
+      Δs_l,
+      Δs_u,
+      x_m_lvar,
+      uvar_m_x,
+      Qx,
+      ATy,
+      Ax,
+      xTQx_2,
+      cTx,
+      pri_obj,
+      dual_obj,
+      μ,
+      pdd,
+      l_pdd,
+      mean_pdd,
+      qp,
+    )
   end
 end
 

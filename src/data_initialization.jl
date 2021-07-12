@@ -300,4 +300,3 @@ function fill_diag_Q_dense!(
     end
   end
 end
-
