@@ -105,3 +105,11 @@ end
   α_dual_u = compute_α_dual_gpu(s_u, Δs_u, store_vdual_u)
   return α_pri, min(α_dual_l, α_dual_u)
 end
+
+# dot gpu with views 
+function dual_obj_gpu(b, y, xTQx_2, s_l, s_u, lvar, uvar, c0, ilow, iupp, store_vdual_l, store_vdual_u)
+  store_vdual_l .= @views lvar[ilow]
+  store_vdual_u .= @views uvar[iupp]
+  dual_obj = dot(b, y) - xTQx_2 + dot(s_l, store_vdual_l) - dot(s_u, store_vdual_u) + c0
+  return dual_obj
+end
