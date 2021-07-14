@@ -136,15 +136,7 @@ function solver!(
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
-  ksolve!(
-    pad.KS,
-    pad.K,
-    pad.rhs,
-    pad.pdat.P,
-    verbose = 0,
-    atol = pad.ratol,
-    rtol = pad.rrtol,
-  )
+  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.ratol, rtol = pad.rrtol)
   if rhsNorm != zero(T)
     pad.KS.x .*= rhsNorm
   end

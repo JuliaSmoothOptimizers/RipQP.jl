@@ -9,7 +9,8 @@ function KSolver(s::Symbol)
   end
 end
 
-mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData_K2Krylov{T, S}
+mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <:
+               PreallocatedData_K2Krylov{T, S}
   pdat::PreconditionerDataK2{T, S}
   D::S                                  # temporary top-left diagonal
   rhs::S
@@ -21,7 +22,8 @@ mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <: Preallocat
   rtol::T
 end
 
-mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData_K2_5Krylov{T, S}
+mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <:
+               PreallocatedData_K2_5Krylov{T, S}
   pdat::PreconditionerDataK2{T, S}
   D::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
@@ -35,11 +37,28 @@ mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <: Prealloc
   rrtol::T
 end
 
-ksolve!(KS::MinresSolver{T, S}, K, rhs::AbstractVector{T}, M; 
-  verbose::Integer=0, atol::T=T(sqrt(eps(T))), rtol::T=T(sqrt(eps(T)))) where {T, S} = 
-  minres!(KS, K, rhs, M=M, verbose=verbose, atol=zero(T), rtol=zero(T), ratol=atol, rrtol=rtol)
+ksolve!(
+  KS::MinresSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = minres!(
+  KS,
+  K,
+  rhs,
+  M = M,
+  verbose = verbose,
+  atol = zero(T),
+  rtol = zero(T),
+  ratol = atol,
+  rrtol = rtol,
+)
 
-mutable struct PreallocatedData_K2minres_qlp{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData_K2Krylov{T, S}
+mutable struct PreallocatedData_K2minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
+               PreallocatedData_K2Krylov{T, S}
   pdat::PreconditionerDataK2{T, S}
   D::S                                  # temporary top-left diagonal
   rhs::S
@@ -51,7 +70,8 @@ mutable struct PreallocatedData_K2minres_qlp{T <: Real, S, Fv, Fu, Fw} <: Preall
   rtol::T
 end
 
-mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData_K2_5Krylov{T, S}
+mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
+               PreallocatedData_K2_5Krylov{T, S}
   pdat::PreconditionerDataK2{T, S}
   D::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
@@ -65,6 +85,12 @@ mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <: Prea
   rrtol::T
 end
 
-ksolve!(KS::MinresQlpSolver{T, S}, K, rhs::AbstractVector{T}, M; 
-  verbose::Integer=0, atol::T=T(sqrt(eps(T))), rtol::T=T(sqrt(eps(T)))) where {T, S} = 
-  minres_qlp!(KS, K, rhs, M=M, verbose=verbose, atol=atol, rtol=rtol)
+ksolve!(
+  KS::MinresQlpSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
