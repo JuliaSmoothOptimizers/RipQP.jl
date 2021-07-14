@@ -1,16 +1,21 @@
-export K2_5minresParams
+export K2_5KrylovParams
 
 """
-Type to use the K2.5 formulation with MINRES, using the package 
+Type to use the K2.5 formulation with a Krylov method, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2_5minresParams(; preconditioner = :Jacobi, ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2_5KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
-The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
+The available methods are:
+- `:minres`
+- `:minres_qlp`
+
+The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
-struct K2_5minresParams <: SolverParams
+struct K2_5KrylovParams <: SolverParams
+  kmethod::Symbol
   preconditioner::Symbol
   ratol::Float64
   rrtol::Float64
@@ -18,28 +23,15 @@ struct K2_5minresParams <: SolverParams
   δ_min::Float64
 end
 
-function K2_5minresParams(;
-  preconditioner = :Jacobi,
+function K2_5KrylovParams(;
+  kmethod::Symbol = :minres,
+  preconditioner::Symbol = :Jacobi,
   ratol::T = 1.0e-10,
   rrtol::T = 1.0e-10,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e3 * sqrt(eps()),
 ) where {T <: Real}
-  return K2_5minresParams(preconditioner, ratol, rrtol, ρ_min, δ_min)
-end
-
-mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <: PreallocatedData{T, S}
-  pdat::PreconditionerDataK2{T, S}
-  D::S                                  # temporary top-left diagonal
-  sqrtX1X2::S # vector to scale K2 to K2.5
-  tmp::S # temporary vector for products
-  rhs::S
-  regu::Regularization{T}
-  δv::Vector{T}
-  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  MS::MinresSolver{T, S}
-  ratol::T
-  rrtol::T
+  return K2_5KrylovParams(kmethod, preconditioner, ratol, rrtol, ρ_min, δ_min)
 end
 
 function opK2_5prod!(
@@ -64,7 +56,7 @@ function opK2_5prod!(
 end
 
 function PreallocatedData(
-  sp::K2_5minresParams,
+  sp::K2_5KrylovParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
   iconf::InputConfig{Tconf},
@@ -99,11 +91,12 @@ function PreallocatedData(
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon)
-  MS = MinresSolver(K, rhs)
+  kstring = string(sp.kmethod)
+  KS = eval(KSolver(sp.kmethod))(K, rhs)
 
   pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
 
-  return PreallocatedData_K2_5minres(
+  return eval(Symbol(:PreallocatedData_K2_5, sp.kmethod))(
     pdat,
     D,
     sqrtX1X2,
@@ -112,14 +105,14 @@ function PreallocatedData(
     regu,
     δv,
     K, #K
-    MS, #K_fact
+    KS, #K_fact
     sp.ratol,
     sp.rrtol,
   )
 end
 
 function solver!(
-  pad::PreallocatedData_K2_5minres{T},
+  pad::PreallocatedData_K2_5Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -143,33 +136,31 @@ function solver!(
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
-  (pad.MS.x, pad.MS.stats) = minres!(
-    pad.MS,
+  ksolve!(
+    pad.KS,
     pad.K,
     pad.rhs,
-    M = pad.pdat.P,
+    pad.pdat.P,
     verbose = 0,
-    atol = zero(T),
-    rtol = zero(T),
-    ratol = pad.ratol,
-    rrtol = pad.rrtol,
+    atol = pad.ratol,
+    rtol = pad.rrtol,
   )
   if rhsNorm != zero(T)
-    pad.MS.x .*= rhsNorm
+    pad.KS.x .*= rhsNorm
   end
-  pad.MS.x[1:(id.nvar)] .*= pad.sqrtX1X2
+  pad.KS.x[1:(id.nvar)] .*= pad.sqrtX1X2
 
   if step == :aff
-    dda.Δxy_aff .= pad.MS.x
+    dda.Δxy_aff .= pad.KS.x
   else
-    itd.Δxy .= pad.MS.x
+    itd.Δxy .= pad.KS.x
   end
 
   return 0
 end
 
 function update_pad!(
-  pad::PreallocatedData_K2_5minres{T},
+  pad::PreallocatedData_K2_5Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
