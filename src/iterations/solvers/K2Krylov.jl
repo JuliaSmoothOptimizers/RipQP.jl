@@ -9,7 +9,11 @@ The outer constructor
                    ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
-The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
+The available methods are:
+- `:minres`
+- `:minres_qlp`
+
+The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 """
 struct K2KrylovParams <: SolverParams
   kmethod::Symbol

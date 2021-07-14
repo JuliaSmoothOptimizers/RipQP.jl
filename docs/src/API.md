@@ -18,8 +18,8 @@ SystemWrite
 SolverParams
 K2LDLParams
 K2_5LDLParams
-K2minresParams
-K2_5minresParams
+K2KrylovParams
+K2_5KrylovParams
 ```
 
 ## Preconditioners

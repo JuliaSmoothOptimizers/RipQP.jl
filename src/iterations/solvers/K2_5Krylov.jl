@@ -8,7 +8,11 @@ The outer constructor
     K2_5KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
-The list of available preconditionners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
+The available methods are:
+- `:minres`
+- `:minres_qlp`
+
+The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
 struct K2_5KrylovParams <: SolverParams
   kmethod::Symbol
