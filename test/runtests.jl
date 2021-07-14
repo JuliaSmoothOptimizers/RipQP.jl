@@ -275,58 +275,62 @@ end
   @test size(K, 1) == size(K, 2) == length(rhs_aff) == length(rhs_cc)
 end
 
-@testset "minresK2" begin
-  qps2 = readqps("HS21.SIF") # low/upp bounds
-  stats2 = ripqp(
-    QuadraticModel(qps2),
-    display = false,
-    iconf = InputConfig(sp = K2KrylovParams(preconditioner = :Identity)),
-    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-  )
-  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-  @test stats2.status == :acceptable
+@testset "KrylovK2" begin
+  for kmethod in [:minres, :minres_qlp]
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(
+      QuadraticModel(qps2),
+      display = false,
+      iconf = InputConfig(sp = K2KrylovParams(kmethod = kmethod, preconditioner = :Identity)),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+    )
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+    @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
-  stats3 = ripqp(
-    QuadraticModel(qps3),
-    display = false,
-    iconf = InputConfig(sp = K2KrylovParams()),
-    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-  )
-  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-  @test stats3.status == :acceptable
+    qps3 = readqps("HS52.SIF") # free bounds
+    stats3 = ripqp(
+      QuadraticModel(qps3),
+      display = false,
+      iconf = InputConfig(sp = K2KrylovParams(kmethod = kmethod)),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+    )
+    @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+    @test stats3.status == :acceptable
+  end
 end
 
-@testset "minresK2_5" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
-  stats1 = ripqp(
-    QuadraticModel(qps1),
-    display = false,
-    iconf = InputConfig(sp = K2_5KrylovParams(preconditioner = :Identity)),
-    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-  )
-  @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
-  @test stats1.status == :acceptable
+@testset "KrylovK2_5" begin
+  for kmethod in [:minres, :minres_qlp]
+    qps1 = readqps("QAFIRO.SIF") #lower bounds
+    stats1 = ripqp(
+      QuadraticModel(qps1),
+      display = false,
+      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Identity)),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+    )
+    @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
+    @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
-  stats2 = ripqp(
-    QuadraticModel(qps2),
-    display = false,
-    iconf = InputConfig(sp = K2_5KrylovParams(), solve_method = :IPF),
-    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-  )
-  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-  @test stats2.status == :acceptable
+    qps2 = readqps("HS21.SIF") # low/upp bounds
+    stats2 = ripqp(
+      QuadraticModel(qps2),
+      display = false,
+      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod), solve_method = :IPF),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+    )
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+    @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
-  stats3 = ripqp(
-    QuadraticModel(qps3),
-    display = false,
-    iconf = InputConfig(sp = K2_5KrylovParams()),
-    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-  )
-  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-  @test stats3.status == :acceptable
+    qps3 = readqps("HS52.SIF") # free bounds
+    stats3 = ripqp(
+      QuadraticModel(qps3),
+      display = false,
+      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod)),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+    )
+    @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+    @test stats3.status == :acceptable
+  end
 end
 
 function QuadraticModelMaximize(qps, x0 = zeros(qps.nvar))

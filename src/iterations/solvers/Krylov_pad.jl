@@ -60,7 +60,7 @@ mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <: Prea
   regu::Regularization{T}
   δv::Vector{T}
   K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  KS::MinresSolver{T, S}
+  KS::MinresQlpSolver{T, S}
   ratol::T
   rrtol::T
 end

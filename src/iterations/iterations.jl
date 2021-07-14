@@ -5,7 +5,7 @@ include("system_write.jl")
 include("solvers/K2LDL.jl")
 include("solvers/K2_5LDL.jl")
 include("preconditioners/abstract-precond.jl")
-include("solvers/K2Krylov_pad.jl")
+include("solvers/Krylov_pad.jl")
 include("solvers/K2Krylov.jl")
 include("solvers/K2_5Krylov.jl")
 
