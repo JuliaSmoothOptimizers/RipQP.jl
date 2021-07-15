@@ -136,7 +136,17 @@ function allocate_workspace(
   end
   S = S0.name.wrapper{T, 1}
 
-  res = Residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf.history, T[], T[], T[], 0)
+  res = Residuals(
+    S(undef, id.ncon),
+    S(undef, id.nvar),
+    zero(T),
+    zero(T),
+    iconf.history,
+    T[],
+    T[],
+    T[],
+    0,
+  )
 
   itd = IterData(
     S(undef, id.nvar + id.ncon), # Δxy

@@ -142,7 +142,18 @@ function InputConfig(;
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
 
-  return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method, history, w)
+  return InputConfig{I}(
+    mode,
+    scaling,
+    normalize_rtol,
+    kc,
+    refinement,
+    max_ref,
+    sp,
+    solve_method,
+    history,
+    w,
+  )
 end
 
 """
@@ -297,7 +308,7 @@ mutable struct Residuals{T <: Real, S}
     rbNormH::Vector{T},
     rcNormH::Vector{T},
     pddH::Vector{T},
-    nprod::Int
+    nprod::Int,
   ) where {T <: Real}
     S = typeof(rb)
     return new{T, S}(rb, rc, rbNorm, rcNorm, history, rbNormH, rcNormH, pddH, nprod)

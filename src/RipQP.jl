@@ -242,11 +242,13 @@ function ripqp(
     multipliers_U = multipliers_U,
     iter = cnts.km,
     elapsed_time = elapsed_time,
-    solver_specific = Dict(:absolute_iter_cnt => cnts.k,
-                           :rbNormH => res.rbNormH,
-                           :rcNormH => res.rcNormH,
-                           :pddH => res.pddH,
-                           :nprod => res.nprod),
+    solver_specific = Dict(
+      :absolute_iter_cnt => cnts.k,
+      :rbNormH => res.rbNormH,
+      :rcNormH => res.rcNormH,
+      :pddH => res.pddH,
+      :nprod => res.nprod,
+    ),
   )
   return stats
 end
