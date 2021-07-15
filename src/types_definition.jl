@@ -83,6 +83,9 @@ Type to specify the configuration used by RipQP.
 - `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
     Following algorithm
+- `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
+    history, and the number of products if using a Krylov method in the `solver_specific` field of the 
+    [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
 - `w :: SystemWrite`: configure writing of the systems to solve (no writing is done by default), see [`RipQP.SystemWrite`](@ref)
 
 The constructor
