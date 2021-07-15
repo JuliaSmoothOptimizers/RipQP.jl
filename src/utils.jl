@@ -1,9 +1,9 @@
 function push_history_residuals!(res::Residuals{T}, pdd::T, pad::PreallocatedData) where {T <: Real}
-  push!(res.rbNormH,res.rbNorm)
+  push!(res.rbNormH, res.rbNorm)
   push!(res.rcNormH, res.rcNorm)
   push!(res.pddH, pdd)
   pad_type = typeof(pad)
-  if (pad_type <: PreallocatedData_K2Krylov || pad_type <: PreallocatedData_K2_5Krylov) 
+  if (pad_type <: PreallocatedData_K2Krylov || pad_type <: PreallocatedData_K2_5Krylov)
     res.nprod = pad.K.nprod
   end
 end
