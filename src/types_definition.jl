@@ -91,7 +91,8 @@ The constructor
                         normalize_rtol :: Bool = true, kc :: I = 0, 
                         refinement :: Symbol = :none, max_ref :: I = 0, 
                         sp :: SolverParams = K2LDLParams(),
-                        solve_method :: Symbol = :PC, 
+                        solve_method :: Symbol = :PC,
+                        history :: Bool = false, 
                         w :: SystemWrite = SystemWrite()) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
@@ -110,8 +111,9 @@ struct InputConfig{I <: Integer}
   sp::SolverParams
   solve_method::Symbol
 
-  # write systems 
-  w::SystemWrite
+  # output tools
+  history::Bool
+  w::SystemWrite # write systems 
 end
 
 function InputConfig(;
@@ -123,6 +125,7 @@ function InputConfig(;
   max_ref::I = 0,
   sp::SolverParams = K2LDLParams(),
   solve_method::Symbol = :PC,
+  history::Bool = false,
   w::SystemWrite = SystemWrite(),
 ) where {I <: Integer}
   mode == :mono || mode == :multi || error("mode should be :mono or :multi")
@@ -136,7 +139,7 @@ function InputConfig(;
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
 
-  return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method, w)
+  return InputConfig{I}(mode, scaling, normalize_rtol, kc, refinement, max_ref, sp, solve_method, history, w)
 end
 
 """
@@ -277,14 +280,24 @@ mutable struct Residuals{T <: Real, S}
   rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
   rbNorm::T # ||rb||
   rcNorm::T # ||rc||
+  history::Bool
+  rbNormH::Vector{T} # list of rb values if history=true
+  rcNormH::Vector{T} # list of rc values if history=true
+  pddH::Vector{T} # list of pdd values if history=true
+  nprod::Int # number of matrix vector product if using a Krylov method and history=true
   function Residuals(
     rb::AbstractVector{T},
     rc::AbstractVector{T},
     rbNorm::T,
     rcNorm::T,
+    history::Bool,
+    rbNormH::Vector{T},
+    rcNormH::Vector{T},
+    pddH::Vector{T},
+    nprod::Int
   ) where {T <: Real}
     S = typeof(rb)
-    return new{T, S}(rb, rc, rbNorm, rcNorm)
+    return new{T, S}(rb, rc, rbNorm, rcNorm, history, rbNormH, rcNormH, pddH, nprod)
   end
 end
 
@@ -293,6 +306,11 @@ convert(::Type{Residuals{T, S}}, res) where {T <: Real, S} = Residuals(
   convert(S.name.wrapper{T, 1}, res.rc),
   convert(T, res.rbNorm),
   convert(T, res.rcNorm),
+  res.history,
+  convert(Array{T, 1}, res.rbNormH),
+  convert(Array{T, 1}, res.rcNormH),
+  convert(Array{T, 1}, res.pddH),
+  res.nprod,
 )
 
 # LDLFactorization conversion function

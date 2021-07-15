@@ -55,10 +55,10 @@ end
 end
 
 @testset "dynamic_regularization" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
+  qps1 = readqps("QAFIRO.SIF") #lower bounds, history = true
   stats1 = ripqp(
     QuadraticModel(qps1),
-    iconf = InputConfig(sp = K2LDLParams(regul = :dynamic)),
+    iconf = InputConfig(sp = K2LDLParams(regul = :dynamic), history = true),
     display = false,
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
