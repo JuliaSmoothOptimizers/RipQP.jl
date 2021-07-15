@@ -136,7 +136,7 @@ function allocate_workspace(
   end
   S = S0.name.wrapper{T, 1}
 
-  res = Residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T))
+  res = Residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf.history, T[], T[], T[], 0)
 
   itd = IterData(
     S(undef, id.nvar + id.ncon), # Δxy
@@ -241,6 +241,7 @@ function initialize!(
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
+  res.history == true && push_history_residuals!(res, itd.pdd, pad)
   set_tol_residuals!(ϵ, res.rbNorm, res.rcNorm)
 
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
