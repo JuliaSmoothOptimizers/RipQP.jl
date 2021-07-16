@@ -33,8 +33,8 @@ mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <:
   δv::Vector{T}
   K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
   KS::MinresSolver{T, S}
-  ratol::T
-  rrtol::T
+  atol::T
+  rtol::T
 end
 
 ksolve!(
@@ -81,8 +81,8 @@ mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
   δv::Vector{T}
   K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
   KS::MinresQlpSolver{T, S}
-  ratol::T
-  rrtol::T
+  atol::T
+  rtol::T
 end
 
 ksolve!(

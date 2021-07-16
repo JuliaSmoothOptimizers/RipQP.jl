@@ -5,7 +5,7 @@ Type to use the K2.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2_5KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2_5KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, atol = 1.0e-10, rtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -17,8 +17,8 @@ The list of available preconditioners for this solver is displayed here: [`RipQP
 struct K2_5KrylovParams <: SolverParams
   kmethod::Symbol
   preconditioner::Symbol
-  ratol::Float64
-  rrtol::Float64
+  atol::Float64
+  rtol::Float64
   ρ_min::Float64
   δ_min::Float64
 end
@@ -26,12 +26,12 @@ end
 function K2_5KrylovParams(;
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Jacobi,
-  ratol::T = 1.0e-10,
-  rrtol::T = 1.0e-10,
+  atol::T = 1.0e-10,
+  rtol::T = 1.0e-10,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e3 * sqrt(eps()),
 ) where {T <: Real}
-  return K2_5KrylovParams(kmethod, preconditioner, ratol, rrtol, ρ_min, δ_min)
+  return K2_5KrylovParams(kmethod, preconditioner, atol, rtol, ρ_min, δ_min)
 end
 
 function opK2_5prod!(
@@ -47,8 +47,9 @@ function opK2_5prod!(
   α::T,
   β::T,
 ) where {T}
-  @views mul!(res[1:nvar], Q, sqrtX1X2 .* v[1:nvar], -α, β)
-  res[1:nvar] .= sqrtX1X2 .* res[1:nvar] .+ α .* D .* v[1:nvar]
+  @views mul!(tmp, Q, sqrtX1X2 .* v[1:nvar], -α, zero(T))
+  tmp .= sqrtX1X2 .* tmp .+ α .* D .* v[1:nvar]
+  res[1:nvar] .= @views tmp .+ β .* res[1:nvar]
   @views mul!(tmp, AT, v[(nvar + 1):end], α, zero(T))
   res[1:nvar] .+= sqrtX1X2 .* tmp
   @views mul!(res[(nvar + 1):end], AT', sqrtX1X2 .* v[1:nvar], α, β)
@@ -106,8 +107,8 @@ function PreallocatedData(
     δv,
     K, #K
     KS, #K_fact
-    sp.ratol,
-    sp.rrtol,
+    sp.atol,
+    sp.rtol,
   )
 end
 
@@ -136,7 +137,7 @@ function solver!(
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
-  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.ratol, rtol = pad.rrtol)
+  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   if rhsNorm != zero(T)
     pad.KS.x .*= rhsNorm
   end
