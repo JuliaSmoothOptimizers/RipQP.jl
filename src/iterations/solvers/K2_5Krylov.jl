@@ -49,7 +49,11 @@ function opK2_5prod!(
 ) where {T}
   @views mul!(tmp, Q, sqrtX1X2 .* v[1:nvar], -α, zero(T))
   tmp .= sqrtX1X2 .* tmp .+ α .* D .* v[1:nvar]
-  res[1:nvar] .= @views tmp .+ β .* res[1:nvar]
+  if β == zero(T)
+    res[1:nvar] .= tmp
+  else
+    res[1:nvar] .= @views tmp .+ β .* res[1:nvar]
+  end
   @views mul!(tmp, AT, v[(nvar + 1):end], α, zero(T))
   res[1:nvar] .+= sqrtX1X2 .* tmp
   @views mul!(res[(nvar + 1):end], AT', sqrtX1X2 .* v[1:nvar], α, β)

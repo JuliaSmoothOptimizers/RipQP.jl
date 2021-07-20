@@ -247,7 +247,7 @@ function ripqp(
       :rbNormH => res.rbNormH,
       :rcNormH => res.rcNormH,
       :pddH => res.pddH,
-      :nprod => res.nprod,
+      :nprodH => res.nprodH,
     ),
   )
   return stats
