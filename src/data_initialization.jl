@@ -241,7 +241,7 @@ function initialize!(
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-  typeof(res) <: ResidualsHistory && push_history_residuals!(res, itd.pdd, pad)
+  typeof(res) <: ResidualsHistory && push_history_residuals!(res, itd, pad, id)
   set_tol_residuals!(ϵ, res.rbNorm, res.rcNorm)
 
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc

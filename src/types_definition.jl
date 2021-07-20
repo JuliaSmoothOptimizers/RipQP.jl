@@ -310,10 +310,15 @@ mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
   rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
   rbNorm::T # ||rb||
   rcNorm::T # ||rc||
-  rbNormH::Vector{T} # list of rb values if history=true
-  rcNormH::Vector{T} # list of rc values if history=true
-  pddH::Vector{T} # list of pdd values if history=true
-  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method and history=true
+  rbNormH::Vector{T} # list of rb values
+  rcNormH::Vector{T} # list of rc values
+  pddH::Vector{T} # list of pdd values
+  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method
+  μH::Vector{T} # list of μ values
+  min_bound_distH::Vector{T} # list of minimum values of x - lvar and uvar - x
+  KΔxy::S # K * Δxy
+  kresNorm::T # ||KΔxy-rhs|| (residuals Krylov method)
+  kresNormH::Vector{T} # list of ||KΔxy-rhs||
 end
 
 convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} = ResidualsHistory(
@@ -325,6 +330,11 @@ convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real
   convert(Array{T, 1}, res.rcNormH),
   convert(Array{T, 1}, res.pddH),
   res.nprodH,
+  convert(Array{T, 1}, res.μH),
+  convert(Array{T, 1}, res.min_bound_distH),
+  convert(S.name.wrapper{T, 1}, res.KΔxy),
+  T(res.kresNorm),
+  convert(Array{T, 1}, res.kresNormH),
 )
 
 function init_residuals(
@@ -336,7 +346,8 @@ function init_residuals(
 ) where {T <: Real}
   S = typeof(rb)
   if history
-    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[])
+    KΔxy = S(undef, length(rb) + length(rc))
+    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[], T[], T[], KΔxy, zero(T), T[])
   else
     return Residuals{T, S}(rb, rc, rbNorm, rcNorm)
   end

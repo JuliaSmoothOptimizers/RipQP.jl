@@ -1,11 +1,29 @@
-function push_history_residuals!(res::ResidualsHistory{T}, pdd::T, pad::PreallocatedData) where {T <: Real}
+function push_history_residuals!(
+  res::ResidualsHistory{T},
+  itd::IterData{T},
+  pad::PreallocatedData{T},
+  id::QM_IntData,
+) where {T <: Real}
   push!(res.rbNormH, res.rbNorm)
   push!(res.rcNormH, res.rcNorm)
-  push!(res.pddH, pdd)
+  push!(res.pddH, itd.pdd)
+  push!(res.μH, itd.μ)
+
+  bound_dist = zero(T)
+  if id.nlow > 0 && id.nupp > 0
+    bound_dist = min(minimum(itd.x_m_lvar), minimum(itd.uvar_m_x))
+  elseif id.nlow > 0 && id.nupp == 0
+    bound_dist = min(minimum(itd.x_m_lvar))
+  elseif id.nlow == 0 && id.nupp > 0
+    bound_dist = min(minimum(itd.uvar_m_x))
+  end
+  (id.nlow > 0 || id.nupp > 0) && push!(res.min_bound_distH, bound_dist)
+
   pad_type = typeof(pad)
   if (pad_type <: PreallocatedData_K2Krylov || pad_type <: PreallocatedData_K2_5Krylov)
     push!(res.nprodH, pad.K.nprod)
     pad.K.nprod = 0
+    push!(res.kresNormH, res.kresNorm)
   end
 end
 

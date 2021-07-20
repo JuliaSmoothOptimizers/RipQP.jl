@@ -235,6 +235,9 @@ function ripqp(
       :rcNormH => res.rcNormH,
       :pddH => res.pddH,
       :nprodH => res.nprodH,
+      :μH => res.μH,
+      :min_bound_distH => res.min_bound_distH,
+      :kresNormH => res.kresNormH,
     )
   else
     solver_specific =  Dict(:absolute_iter_cnt => cnts.k)

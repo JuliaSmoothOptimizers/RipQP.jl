@@ -152,7 +152,7 @@ function update_data!(
   #         optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb * max(1, bNorm + ANorm * xNorm) &&
   #                     rcNorm < ϵ_rc * max(1, cNorm + QNorm * xNorm + ANorm * yNorm)
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-  typeof(res) <: ResidualsHistory && push_history_residuals!(res, itd.pdd, pad)
+  typeof(res) <: ResidualsHistory && push_history_residuals!(res, itd, pad, id)
 end
 
 function iter!(
