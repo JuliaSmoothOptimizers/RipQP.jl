@@ -228,6 +228,18 @@ function ripqp(
   multipliers, multipliers_L, multipliers_U =
     get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 
+  if typeof(res) <: ResidualsHistory
+    solver_specific =  Dict(
+      :absolute_iter_cnt => cnts.k,
+      :rbNormH => res.rbNormH,
+      :rcNormH => res.rcNormH,
+      :pddH => res.pddH,
+      :nprodH => res.nprodH,
+    )
+  else
+    solver_specific =  Dict(:absolute_iter_cnt => cnts.k)
+  end
+
   elapsed_time = time() - sc.start_time
 
   stats = GenericExecutionStats(
@@ -242,13 +254,7 @@ function ripqp(
     multipliers_U = multipliers_U,
     iter = cnts.km,
     elapsed_time = elapsed_time,
-    solver_specific = Dict(
-      :absolute_iter_cnt => cnts.k,
-      :rbNormH => res.rbNormH,
-      :rcNormH => res.rcNormH,
-      :pddH => res.pddH,
-      :nprodH => res.nprodH,
-    ),
+    solver_specific = solver_specific,
   )
   return stats
 end

@@ -289,43 +289,58 @@ convert(::Type{Point{T, S}}, pt) where {T <: Real, S} = Point(
   convert(S.name.wrapper{T, 1}, pt.s_u),
 )
 
-mutable struct Residuals{T <: Real, S}
+abstract type AbstractResiduals{T <: Real, S} end
+
+mutable struct Residuals{T <: Real, S} <: AbstractResiduals{T, S}
   rb::S # primal residuals Ax - b
   rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
   rbNorm::T # ||rb||
   rcNorm::T # ||rc||
-  history::Bool
-  rbNormH::Vector{T} # list of rb values if history=true
-  rcNormH::Vector{T} # list of rc values if history=true
-  pddH::Vector{T} # list of pdd values if history=true
-  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method and history=true
-  function Residuals(
-    rb::AbstractVector{T},
-    rc::AbstractVector{T},
-    rbNorm::T,
-    rcNorm::T,
-    history::Bool,
-    rbNormH::Vector{T},
-    rcNormH::Vector{T},
-    pddH::Vector{T},
-    nprodH::Vector{Int},
-  ) where {T <: Real}
-    S = typeof(rb)
-    return new{T, S}(rb, rc, rbNorm, rcNorm, history, rbNormH, rcNormH, pddH, nprodH)
-  end
 end
 
-convert(::Type{Residuals{T, S}}, res) where {T <: Real, S} = Residuals(
+convert(::Type{AbstractResiduals{T, S}}, res::Residuals) where {T <: Real, S} = Residuals(
   convert(S.name.wrapper{T, 1}, res.rb),
   convert(S.name.wrapper{T, 1}, res.rc),
   convert(T, res.rbNorm),
   convert(T, res.rcNorm),
-  res.history,
+)
+
+mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
+  rb::S # primal residuals Ax - b
+  rc::S # dual residuals -Qx + Aᵀy + s_l - s_u
+  rbNorm::T # ||rb||
+  rcNorm::T # ||rc||
+  rbNormH::Vector{T} # list of rb values if history=true
+  rcNormH::Vector{T} # list of rc values if history=true
+  pddH::Vector{T} # list of pdd values if history=true
+  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method and history=true
+end
+
+convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} = ResidualsHistory(
+  convert(S.name.wrapper{T, 1}, res.rb),
+  convert(S.name.wrapper{T, 1}, res.rc),
+  convert(T, res.rbNorm),
+  convert(T, res.rcNorm),
   convert(Array{T, 1}, res.rbNormH),
   convert(Array{T, 1}, res.rcNormH),
   convert(Array{T, 1}, res.pddH),
   res.nprodH,
 )
+
+function init_residuals(
+  rb::AbstractVector{T},
+  rc::AbstractVector{T},
+  rbNorm::T,
+  rcNorm::T,
+  history::Bool,
+) where {T <: Real}
+  S = typeof(rb)
+  if history
+    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[])
+  else
+    return Residuals{T, S}(rb, rc, rbNorm, rcNorm)
+  end
+end
 
 # LDLFactorization conversion function
 convertldl(T::DataType, K_fact) = LDLFactorizations.LDLFactorization(

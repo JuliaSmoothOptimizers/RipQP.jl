@@ -1,4 +1,4 @@
-function push_history_residuals!(res::Residuals{T}, pdd::T, pad::PreallocatedData) where {T <: Real}
+function push_history_residuals!(res::ResidualsHistory{T}, pdd::T, pad::PreallocatedData) where {T <: Real}
   push!(res.rbNormH, res.rbNorm)
   push!(res.rcNormH, res.rcNorm)
   push!(res.pddH, pdd)

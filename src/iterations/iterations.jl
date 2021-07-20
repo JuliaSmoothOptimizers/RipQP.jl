@@ -119,7 +119,7 @@ function update_data!(
   α_dual::T,
   itd::IterData{T},
   pad::PreallocatedData{T},
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   fd::QM_FloatData{T},
   id::QM_IntData,
 ) where {T <: Real}
@@ -152,7 +152,7 @@ function update_data!(
   #         optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb * max(1, bNorm + ANorm * xNorm) &&
   #                     rcNorm < ϵ_rc * max(1, cNorm + QNorm * xNorm + ANorm * yNorm)
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
-  res.history == true && push_history_residuals!(res, itd.pdd, pad)
+  typeof(res) <: ResidualsHistory && push_history_residuals!(res, itd.pdd, pad)
 end
 
 function iter!(
@@ -160,7 +160,7 @@ function iter!(
   itd::IterData{T},
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   sc::StopCrit{Tc},
   dda::DescentDirectionAllocs{T},
   pad::PreallocatedData{T},
