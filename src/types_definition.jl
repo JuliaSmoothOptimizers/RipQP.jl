@@ -298,7 +298,7 @@ mutable struct Residuals{T <: Real, S}
   rbNormH::Vector{T} # list of rb values if history=true
   rcNormH::Vector{T} # list of rc values if history=true
   pddH::Vector{T} # list of pdd values if history=true
-  nprod::Int # number of matrix vector product if using a Krylov method and history=true
+  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method and history=true
   function Residuals(
     rb::AbstractVector{T},
     rc::AbstractVector{T},
@@ -308,10 +308,10 @@ mutable struct Residuals{T <: Real, S}
     rbNormH::Vector{T},
     rcNormH::Vector{T},
     pddH::Vector{T},
-    nprod::Int,
+    nprodH::Vector{Int},
   ) where {T <: Real}
     S = typeof(rb)
-    return new{T, S}(rb, rc, rbNorm, rcNorm, history, rbNormH, rcNormH, pddH, nprod)
+    return new{T, S}(rb, rc, rbNorm, rcNorm, history, rbNormH, rcNormH, pddH, nprodH)
   end
 end
 
@@ -324,7 +324,7 @@ convert(::Type{Residuals{T, S}}, res) where {T <: Real, S} = Residuals(
   convert(Array{T, 1}, res.rbNormH),
   convert(Array{T, 1}, res.rcNormH),
   convert(Array{T, 1}, res.pddH),
-  res.nprod,
+  res.nprodH,
 )
 
 # LDLFactorization conversion function

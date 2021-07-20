@@ -145,7 +145,7 @@ function allocate_workspace(
     T[],
     T[],
     T[],
-    0,
+    Int[],
   )
 
   itd = IterData(
