@@ -20,6 +20,8 @@ mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <:
   KS::MinresSolver{T, S}
   atol::T
   rtol::T
+  atol_min::T
+  rtol_min::T
 end
 
 mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <:
@@ -35,6 +37,8 @@ mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <:
   KS::MinresSolver{T, S}
   atol::T
   rtol::T
+  atol_min::T
+  rtol_min::T
 end
 
 ksolve!(
@@ -68,6 +72,8 @@ mutable struct PreallocatedData_K2minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
   KS::MinresQlpSolver{T, S}
   atol::T
   rtol::T
+  atol_min::T
+  rtol_min::T
 end
 
 mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
@@ -83,6 +89,8 @@ mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
   KS::MinresQlpSolver{T, S}
   atol::T
   rtol::T
+  atol_min::T
+  rtol_min::T
 end
 
 ksolve!(
