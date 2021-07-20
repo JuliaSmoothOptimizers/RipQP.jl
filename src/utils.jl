@@ -4,8 +4,8 @@ function push_history_residuals!(res::Residuals{T}, pdd::T, pad::PreallocatedDat
   push!(res.pddH, pdd)
   pad_type = typeof(pad)
   if (pad_type <: PreallocatedData_K2Krylov || pad_type <: PreallocatedData_K2_5Krylov)
-    prev = length(res.nprodH) > 0 ? res.nprodH[end] : 0
-    push!(res.nprodH, pad.K.nprod - prev)
+    push!(res.nprodH, pad.K.nprod)
+    pad.K.nprod = 0
   end
 end
 
