@@ -112,7 +112,7 @@ function solver!(
   itd::IterData{T},
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   cnts::Counters,
   T0::DataType,
   step::Symbol,
@@ -125,6 +125,10 @@ function solver!(
     pad.rhs ./= rhsNorm
   end
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  if typeof(res) <: ResidualsHistory
+    mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
+    res.Kres = res.KΔxy .- pad.rhs
+  end 
   if rhsNorm != zero(T)
     pad.KS.x .*= rhsNorm
   end
@@ -145,7 +149,7 @@ function update_pad!(
   itd::IterData{T},
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real}

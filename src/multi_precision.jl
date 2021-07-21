@@ -29,14 +29,14 @@ function convert_types(
   T::DataType,
   pt::Point{T_old, S_old},
   itd::IterData{T_old, S_old},
-  res::Residuals{T_old, S_old},
+  res::AbstractResiduals{T_old, S_old},
   dda::DescentDirectionAllocs{T_old, S_old},
   pad::PreallocatedData{T_old},
   T0::DataType,
 ) where {T_old <: Real, S_old}
   S = S_old.name.wrapper{T, 1}
   pt = convert(Point{T, S}, pt)
-  res = convert(Residuals{T, S}, res)
+  res = convert(AbstractResiduals{T, S}, res)
   itd = convert(IterData{T, S}, itd)
   pad = convertpad(PreallocatedData{T}, pad, T0)
   dda = convert(DescentDirectionAllocs{T, S}, dda)
@@ -48,7 +48,7 @@ function iter_and_update_T!(
   itd::IterData{T},
   fd_T::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   sc::StopCrit{Tsc},
   dda::DescentDirectionAllocs{T},
   pad::PreallocatedData{T},

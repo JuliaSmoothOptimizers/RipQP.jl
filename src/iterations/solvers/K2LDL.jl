@@ -132,7 +132,7 @@ function solver!(
   itd::IterData{T},
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   cnts::Counters,
   T0::DataType,
   step::Symbol,
@@ -149,7 +149,7 @@ function update_pad!(
   itd::IterData{T},
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real}

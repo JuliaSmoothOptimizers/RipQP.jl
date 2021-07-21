@@ -18,7 +18,7 @@ end
 function fd_refinement(
   fd::QM_FloatData{T},
   id::QM_IntData,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   Δxy::Vector{T},
   pt::Point{T},
   itd::IterData{T},
@@ -122,7 +122,7 @@ function update_pt_ref!(
   Δref::T,
   pt::Point{T},
   pt_z::Point{T},
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   id::QM_IntData,
   fd::QM_FloatData{T},
   itd::IterData{T},
@@ -160,7 +160,7 @@ function update_data!(
   α_dual::T,
   itd::IterData{T},
   pad::PreallocatedData{T},
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   fd::QM_FloatData_ref{T},
   id::QM_IntData,
 ) where {T <: Real}

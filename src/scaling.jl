@@ -121,7 +121,7 @@ function post_scale!(
   d2::Vector{T},
   d3::Vector{T},
   pt::Point{T},
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   fd_T0::QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},

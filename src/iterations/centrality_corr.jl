@@ -39,7 +39,7 @@ function multi_centrality_corr!(
   fd::Abstract_QM_FloatData{T},
   id::QM_IntData,
   cnts::Counters,
-  res::Residuals{T},
+  res::AbstractResiduals{T},
   T0::DataType,
 ) where {T <: Real}
   iter_c = 0 # current number of correction iterations
