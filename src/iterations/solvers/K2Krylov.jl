@@ -128,7 +128,7 @@ function solver!(
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
     res.Kres = res.KΔxy .- pad.rhs
-  end 
+  end
   if rhsNorm != zero(T)
     pad.KS.x .*= rhsNorm
   end

@@ -323,23 +323,24 @@ mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
   KresDNormH::Vector{T}
 end
 
-convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} = ResidualsHistory(
-  convert(S.name.wrapper{T, 1}, res.rb),
-  convert(S.name.wrapper{T, 1}, res.rc),
-  convert(T, res.rbNorm),
-  convert(T, res.rcNorm),
-  convert(Array{T, 1}, res.rbNormH),
-  convert(Array{T, 1}, res.rcNormH),
-  convert(Array{T, 1}, res.pddH),
-  res.nprodH,
-  convert(Array{T, 1}, res.μH),
-  convert(Array{T, 1}, res.min_bound_distH),
-  convert(S.name.wrapper{T, 1}, res.KΔxy),
-  convert(S.name.wrapper{T, 1}, res.Kres),
-  convert(Array{T, 1}, res.KresNormH),
-  convert(Array{T, 1}, res.KresPNormH),
-  convert(Array{T, 1}, res.KresDNormH),
-)
+convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} =
+  ResidualsHistory(
+    convert(S.name.wrapper{T, 1}, res.rb),
+    convert(S.name.wrapper{T, 1}, res.rc),
+    convert(T, res.rbNorm),
+    convert(T, res.rcNorm),
+    convert(Array{T, 1}, res.rbNormH),
+    convert(Array{T, 1}, res.rcNormH),
+    convert(Array{T, 1}, res.pddH),
+    res.nprodH,
+    convert(Array{T, 1}, res.μH),
+    convert(Array{T, 1}, res.min_bound_distH),
+    convert(S.name.wrapper{T, 1}, res.KΔxy),
+    convert(S.name.wrapper{T, 1}, res.Kres),
+    convert(Array{T, 1}, res.KresNormH),
+    convert(Array{T, 1}, res.KresPNormH),
+    convert(Array{T, 1}, res.KresDNormH),
+  )
 
 function init_residuals(
   rb::AbstractVector{T},
@@ -352,7 +353,23 @@ function init_residuals(
   if history
     KΔxy = S(undef, length(rb) + length(rc))
     Kres = S(undef, length(rb) + length(rc))
-    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[], T[], T[], KΔxy, Kres, T[], T[], T[])
+    return ResidualsHistory{T, S}(
+      rb,
+      rc,
+      rbNorm,
+      rcNorm,
+      T[],
+      T[],
+      T[],
+      Int[],
+      T[],
+      T[],
+      KΔxy,
+      Kres,
+      T[],
+      T[],
+      T[],
+    )
   else
     return Residuals{T, S}(rb, rc, rbNorm, rcNorm)
   end

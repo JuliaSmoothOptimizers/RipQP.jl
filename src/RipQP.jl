@@ -229,7 +229,7 @@ function ripqp(
     get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 
   if typeof(res) <: ResidualsHistory
-    solver_specific =  Dict(
+    solver_specific = Dict(
       :absolute_iter_cnt => cnts.k,
       :rbNormH => res.rbNormH,
       :rcNormH => res.rcNormH,
@@ -242,7 +242,7 @@ function ripqp(
       :KresDNormH => res.KresDNormH,
     )
   else
-    solver_specific =  Dict(:absolute_iter_cnt => cnts.k)
+    solver_specific = Dict(:absolute_iter_cnt => cnts.k)
   end
 
   elapsed_time = time() - sc.start_time
