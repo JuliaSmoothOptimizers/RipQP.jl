@@ -23,7 +23,9 @@ function push_history_residuals!(
   if (pad_type <: PreallocatedData_K2Krylov || pad_type <: PreallocatedData_K2_5Krylov)
     push!(res.nprodH, pad.K.nprod)
     pad.K.nprod = 0
-    push!(res.kresNormH, res.kresNorm)
+    push!(res.KresNormH, norm(res.Kres))
+    push!(res.KresPNormH, @views norm(res.Kres[id.nvar+1:end]))
+    push!(res.KresDNormH, @views norm(res.Kres[1:id.nvar]))
   end
 end
 

@@ -144,7 +144,7 @@ function solver!(
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
-    res.kresNorm = norm(res.KΔxy .- pad.rhs)
+    res.Kres .= res.KΔxy .- pad.rhs
   end 
   if rhsNorm != zero(T)
     pad.KS.x .*= rhsNorm

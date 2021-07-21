@@ -317,8 +317,10 @@ mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
   μH::Vector{T} # list of μ values
   min_bound_distH::Vector{T} # list of minimum values of x - lvar and uvar - x
   KΔxy::S # K * Δxy
-  kresNorm::T # ||KΔxy-rhs|| (residuals Krylov method)
-  kresNormH::Vector{T} # list of ||KΔxy-rhs||
+  Kres::S # ||KΔxy-rhs|| (residuals Krylov method)
+  KresNormH::Vector{T} # list of ||KΔxy-rhs||
+  KresPNormH::Vector{T}
+  KresDNormH::Vector{T}
 end
 
 convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} = ResidualsHistory(
@@ -333,8 +335,10 @@ convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real
   convert(Array{T, 1}, res.μH),
   convert(Array{T, 1}, res.min_bound_distH),
   convert(S.name.wrapper{T, 1}, res.KΔxy),
-  T(res.kresNorm),
-  convert(Array{T, 1}, res.kresNormH),
+  convert(S.name.wrapper{T, 1}, res.Kres),
+  convert(Array{T, 1}, res.KresNormH),
+  convert(Array{T, 1}, res.KresPNormH),
+  convert(Array{T, 1}, res.KresDNormH),
 )
 
 function init_residuals(
@@ -347,7 +351,8 @@ function init_residuals(
   S = typeof(rb)
   if history
     KΔxy = S(undef, length(rb) + length(rc))
-    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[], T[], T[], KΔxy, zero(T), T[])
+    Kres = S(undef, length(rb) + length(rc))
+    return ResidualsHistory{T, S}(rb, rc, rbNorm, rcNorm, T[], T[], T[], Int[], T[], T[], KΔxy, Kres, T[], T[], T[])
   else
     return Residuals{T, S}(rb, rc, rbNorm, rcNorm)
   end
