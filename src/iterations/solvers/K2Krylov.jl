@@ -18,8 +18,10 @@ The list of available preconditioners for this solver is displayed here: [`RipQP
 struct K2KrylovParams <: SolverParams
   kmethod::Symbol
   preconditioner::Symbol
-  atol::Float64
-  rtol::Float64
+  atol0::Float64
+  rtol0::Float64
+  atol_min::Float64
+  rtol_min::Float64
   ρ_min::Float64
   δ_min::Float64
 end
@@ -27,12 +29,14 @@ end
 function K2KrylovParams(;
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Jacobi,
-  atol::T = 1.0e-10,
-  rtol::T = 1.0e-10,
+  atol0::T = 1.0e-4,
+  rtol0::T = 1.0e-4,
+  atol_min::T = 1.0e-10,
+  rtol_min::T = 1.0e-10,
   ρ_min::T = 1e3 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
-  return K2KrylovParams(kmethod, preconditioner, atol, rtol, ρ_min, δ_min)
+  return K2KrylovParams(kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
 function opK2prod!(
@@ -100,8 +104,10 @@ function PreallocatedData(
     δv,
     K, #K
     KS,
-    sp.atol,
-    sp.rtol,
+    sp.atol0,
+    sp.rtol0,
+    sp.atol_min,
+    sp.rtol_min,
   )
 end
 
@@ -155,6 +161,13 @@ function update_pad!(
 ) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
+  end
+
+  if pad.atol > pad.atol_min
+    pad.atol /= 10
+  end
+  if pad.rtol > pad.rtol_min
+    pad.rtol /= 10
   end
 
   pad.D .= -pad.regu.ρ
