@@ -188,10 +188,6 @@ function update_pad!(
     pad.rtol /= 10
   end
 
-  pad.D .= -pad.regu.ρ
-  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
-
   # K2.5
   pad.sqrtX1X2 .= one(T)
   pad.sqrtX1X2[id.ilow] .*= sqrt.(itd.x_m_lvar)
