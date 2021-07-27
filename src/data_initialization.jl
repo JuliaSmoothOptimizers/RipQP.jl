@@ -28,29 +28,47 @@ function vcatsort(v1, v2)
   return res
 end
 
-function sparse_transpose_dropzeros(rows, cols, vals::Vector, nrows, ncols)
-  MT = sparse(cols, rows, vals, ncols, nrows)
-  dropzeros!(MT)
-  return MT
+function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
+  M = sparse(rows, cols, vals, ncols, nrows)
+  dropzeros!(M)
+  return M
 end
 
-function get_QM_data(QM::QuadraticModel)
+function get_QM_data(QM::QuadraticModel, uplo::Symbol)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
-  AT = sparse_transpose_dropzeros(
-    QM.data.Arows,
-    QM.data.Acols,
-    QM.data.Avals,
-    QM.meta.ncon,
-    QM.meta.nvar,
-  )
-  Q = sparse_transpose_dropzeros(
-    QM.data.Hrows,
-    QM.data.Hcols,
-    QM.data.Hvals,
-    QM.meta.nvar,
-    QM.meta.nvar,
-  )
+  if uplo == :U # A is Aᵀ of QuadraticModel QM
+    A = sparse_dropzeros(
+      QM.data.Acols,
+      QM.data.Arows,
+      QM.data.Avals,
+      QM.meta.ncon,
+      QM.meta.nvar,
+    )
+    Q = sparse_dropzeros(
+      QM.data.Hcols,
+      QM.data.Hrows,
+      QM.data.Hvals,
+      QM.meta.nvar,
+      QM.meta.nvar,
+    )
+  else
+    A = sparse_dropzeros(
+      QM.data.Arows,
+      QM.data.Acols,
+      QM.data.Avals,
+      QM.meta.ncon,
+      QM.meta.nvar,
+    )
+    Q = sparse_dropzeros(
+      QM.data.Hrows,
+      QM.data.Hcols,
+      QM.data.Hvals,
+      QM.meta.nvar,
+      QM.meta.nvar,
+    )
+  end
+
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
@@ -63,7 +81,7 @@ function get_QM_data(QM::QuadraticModel)
   )
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
   @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
-  fd = QM_FloatData(Q, AT, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar)
+  fd = QM_FloatData(Q, A, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar, uplo)
   return fd, id
 end
 
@@ -102,7 +120,8 @@ function allocate_workspace(
     QM = SlackModel(QM)
   end
 
-  fd_T0, id = get_QM_data(QM)
+  uplo = :U
+  fd_T0, id = get_QM_data(QM, uplo)
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
   ϵ = Tolerances(

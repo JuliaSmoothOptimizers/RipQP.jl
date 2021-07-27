@@ -67,7 +67,7 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.nvar)
-  K = create_K2(id, D, fd.Q, fd.AT, diag_Q, regu)
+  K = create_K2(id, D, fd.Q, fd.A, diag_Q, regu)
 
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
   K_fact = ldl_analyze(Symmetric(K, :U))
@@ -207,9 +207,9 @@ function fill_K2!(
   Q_colptr,
   Q_rowval,
   Q_nzval,
-  AT_colptr,
-  AT_rowval,
-  AT_nzval,
+  A_colptr,
+  A_rowval,
+  A_nzval,
   diag_Q_nzind,
   δ,
   ncon,
@@ -245,15 +245,15 @@ function fill_K2!(
   countsum = K_colptr[nvar + 1] # current value of K_colptr[Q.n+j+1]
   nnz_top_left = countsum # number of coefficients + 1 already added
   @inbounds for j = 1:ncon
-    countsum += AT_colptr[j + 1] - AT_colptr[j]
+    countsum += A_colptr[j + 1] - A_colptr[j]
     if regul == :classic
       countsum += 1
     end
     K_colptr[nvar + j + 1] = countsum
-    for k = AT_colptr[j]:(AT_colptr[j + 1] - 1)
+    for k = A_colptr[j]:(A_colptr[j + 1] - 1)
       nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
-      K_rowval[nz_idx] = AT_rowval[k]
-      K_nzval[nz_idx] = AT_nzval[k]
+      K_rowval[nz_idx] = A_rowval[k]
+      K_nzval[nz_idx] = A_nzval[k]
     end
     if regul == :classic
       nz_idx = K_colptr[nvar + j + 1] - 1
@@ -263,9 +263,9 @@ function fill_K2!(
   end
 end
 
-function create_K2(id, D, Q, AT, diag_Q, regu)
+function create_K2(id, D, Q, A, diag_Q, regu)
   # for classic regul only
-  n_nz = length(D) - length(diag_Q.nzind) + length(AT.nzval) + length(Q.nzval)
+  n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
   T = eltype(D)
   if regu.regul == :classic
     n_nz += id.ncon
@@ -274,8 +274,8 @@ function create_K2(id, D, Q, AT, diag_Q, regu)
   K_colptr[1] = 1
   K_rowval = Vector{Int}(undef, n_nz)
   K_nzval = Vector{T}(undef, n_nz)
-  # [-Q -D    AT]
-  # [0        δI]
+  # [-Q -D    A]
+  # [0       δI]
 
   fill_K2!(
     K_colptr,
@@ -285,9 +285,9 @@ function create_K2(id, D, Q, AT, diag_Q, regu)
     Q.colptr,
     Q.rowval,
     Q.nzval,
-    AT.colptr,
-    AT.rowval,
-    AT.nzval,
+    A.colptr,
+    A.rowval,
+    A.nzval,
     diag_Q.nzind,
     regu.δ,
     id.ncon,

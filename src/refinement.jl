@@ -1,6 +1,6 @@
 mutable struct QM_FloatData_ref{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
   Q::Ssp
-  AT::Ssp # using AT is easier to form systems
+  A::Ssp # using AT is easier to form systems
   b::S
   c::S
   c0::T
@@ -13,6 +13,7 @@ mutable struct QM_FloatData_ref{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S
   bTy_approx::T
   c_init::S
   pri_obj_approx::T
+  uplo::Symbol
 end
 
 function fd_refinement(
@@ -83,7 +84,7 @@ function fd_refinement(
   c_ref .*= Δref
   fd_ref = QM_FloatData_ref(
     fd.Q,
-    fd.AT,
+    fd.A,
     .-res.rb .* Δref,
     c_ref,
     fd.c0,
@@ -96,6 +97,7 @@ function fd_refinement(
     dot(fd.b, pt.y),
     fd.c,
     copy(itd.pri_obj),
+    fd.uplo,
   )
 
   # init zoom Point
@@ -135,10 +137,10 @@ function update_pt_ref!(
   pt.s_u .= pt_z.s_u ./ Δref
 
   # update IterData
-  itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
+  itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, fd.uplo), pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
-  itd.ATy = mul!(itd.ATy, fd.AT, pt.y)
-  itd.Ax = mul!(itd.Ax, fd.AT', pt.x)
+  fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
+  fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) : mul!(itd.Ax, fd.A, pt.x)
   itd.cTx = dot(fd.c, pt.x)
   itd.pri_obj = itd.xTQx_2 + itd.cTx + fd.c0
   itd.dual_obj = @views dot(fd.b, pt.y) - itd.xTQx_2 + dot(pt.s_l, fd.lvar[id.ilow]) -
@@ -189,8 +191,8 @@ function update_data!(
   itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
   x_approxQx = dot(fd.x_approx, itd.Qx)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
-  itd.ATy = mul!(itd.ATy, fd.AT, pt.y)
-  itd.Ax = mul!(itd.Ax, fd.AT', pt.x)
+  fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
+  fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) : mul!(itd.Ax, fd.A, pt.x)
   itd.cTx = dot(fd.c_init, pt.x)
   itd.pri_obj =
     fd.pri_obj_approx +
