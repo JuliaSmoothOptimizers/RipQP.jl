@@ -57,8 +57,8 @@ function get_QM_data(QM::QuadraticModel, uplo::Symbol)
       QM.data.Arows,
       QM.data.Acols,
       QM.data.Avals,
-      QM.meta.ncon,
       QM.meta.nvar,
+      QM.meta.ncon,
     )
     Q = sparse_dropzeros(
       QM.data.Hrows,
@@ -120,7 +120,7 @@ function allocate_workspace(
     QM = SlackModel(QM)
   end
 
-  uplo = :U
+  uplo = :L
   fd_T0, id = get_QM_data(QM, uplo)
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
@@ -137,12 +137,17 @@ function allocate_workspace(
 
   S0 = typeof(fd_T0.c)
   if iconf.scaling
+    if uplo == :U
+      m, n = id.nvar, id.ncon
+    else
+      m, n = id.ncon, id.nvar
+    end
     sd = ScaleData{T0, S0}(
       fill!(S0(undef, id.ncon), one(T0)),
       fill!(S0(undef, id.nvar), one(T0)),
       fill!(S0(undef, id.nvar), one(T0)),
-      S0(undef, id.nvar),
-      S0(undef, id.ncon),
+      S0(undef, m),
+      S0(undef, n),
     )
   else
     empty_v = S0(undef, 0)
