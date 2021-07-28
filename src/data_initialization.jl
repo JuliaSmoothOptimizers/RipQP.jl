@@ -120,7 +120,15 @@ function allocate_workspace(
     QM = SlackModel(QM)
   end
 
-  uplo = :L
+  sptype = typeof(iconf.sp)
+  if sptype <: K2LDLParams || sptype <: K2_5LDLParams || 
+    (sptype <: K2KrylovParams && iconf.sp.preconditioner == :Identity) || # for coverage
+    (sptype <: K2_5KrylovParams && iconf.sp.preconditioner == :Identity)
+    uplo = :U
+  else
+    uplo = :L
+  end
+
   fd_T0, id = get_QM_data(QM, uplo)
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0

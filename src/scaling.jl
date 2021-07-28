@@ -68,20 +68,24 @@ function scaling_Ruiz!(
   d1, d2, d3, r_k, c_k = sd.d1, sd.d2, sd.d3, sd.r_k, sd.c_k
   # scaling Q (symmetric)
   if length(fd_T0.Q.rowval) > 0
-    get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
     if fd_T0.uplo == :U
+      get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+      convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
       mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
     else
+      get_norm_rc!(c_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :col)
+      convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
       mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, c_k)
     end
     k = 1
     while !convergence && k < max_iter
-      get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
-      convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
       if fd_T0.uplo == :U
+        get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+        convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
         mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
       else
+        get_norm_rc!(c_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :col)
+        convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
         mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, c_k)
       end
       k += 1
