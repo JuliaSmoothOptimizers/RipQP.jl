@@ -38,35 +38,11 @@ function get_QM_data(QM::QuadraticModel, uplo::Symbol)
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
   if uplo == :U # A is Aᵀ of QuadraticModel QM
-    A = sparse_dropzeros(
-      QM.data.Acols,
-      QM.data.Arows,
-      QM.data.Avals,
-      QM.meta.ncon,
-      QM.meta.nvar,
-    )
-    Q = sparse_dropzeros(
-      QM.data.Hcols,
-      QM.data.Hrows,
-      QM.data.Hvals,
-      QM.meta.nvar,
-      QM.meta.nvar,
-    )
+    A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
+    Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   else
-    A = sparse_dropzeros(
-      QM.data.Arows,
-      QM.data.Acols,
-      QM.data.Avals,
-      QM.meta.nvar,
-      QM.meta.ncon,
-    )
-    Q = sparse_dropzeros(
-      QM.data.Hrows,
-      QM.data.Hcols,
-      QM.data.Hvals,
-      QM.meta.nvar,
-      QM.meta.nvar,
-    )
+    A = sparse_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
+    Q = sparse_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   end
 
   id = QM_IntData(
@@ -121,9 +97,10 @@ function allocate_workspace(
   end
 
   sptype = typeof(iconf.sp)
-  if sptype <: K2LDLParams || sptype <: K2_5LDLParams || 
-    (sptype <: K2KrylovParams && iconf.sp.preconditioner == :Identity) || # for coverage
-    (sptype <: K2_5KrylovParams && iconf.sp.preconditioner == :Identity)
+  if sptype <: K2LDLParams ||
+     sptype <: K2_5LDLParams ||
+     (sptype <: K2KrylovParams && iconf.sp.preconditioner == :Identity) || # for coverage
+     (sptype <: K2_5KrylovParams && iconf.sp.preconditioner == :Identity)
     uplo = :U
   else
     uplo = :L
