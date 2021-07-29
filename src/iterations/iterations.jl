@@ -88,7 +88,7 @@ function update_IterData!(itd, pt, fd, id, safety)
   mul!(itd.Qx, Symmetric(fd.Q, fd.uplo), pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
-  fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) :  mul!(itd.Ax, fd.A, pt.x)
+  fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) : mul!(itd.Ax, fd.A, pt.x)
   itd.cTx = dot(fd.c, pt.x)
   itd.pri_obj = itd.xTQx_2 + itd.cTx + fd.c0
   if typeof(pt.x) <: Vector

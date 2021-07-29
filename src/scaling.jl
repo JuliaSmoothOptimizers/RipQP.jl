@@ -94,7 +94,7 @@ function scaling_Ruiz!(
     fd_T0.c .*= d3
     fd_T0.lvar ./= d3
     fd_T0.uvar ./= d3
-  end 
+  end
 
   # r (resp. c) norm of rows of AT (resp. cols) 
   # scaling: D2 * AT * D1
@@ -128,7 +128,8 @@ end
 function div_D1_A_D2D3!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
   for j = 1:n
     @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
-      A_nzval[i] /= (uplo == :U) ? d1[j] * d2[A_rowval[i]] * d3[A_rowval[i]] : d1[A_rowval[i]] * d2[j] * d3[j]
+      A_nzval[i] /=
+        (uplo == :U) ? d1[j] * d2[A_rowval[i]] * d3[A_rowval[i]] : d1[A_rowval[i]] * d2[j] * d3[j]
     end
   end
 end
