@@ -1,11 +1,11 @@
-function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
+function get_norm_rc!(v, A_colptr, A_rowval, A_nzval, n, ax)
   T = eltype(v)
   v .= zero(T)
   for j = 1:n
-    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
-      k = ax == :row ? AT_rowval[i] : j
-      if abs(AT_nzval[i]) > v[k]
-        v[k] = abs(AT_nzval[i])
+    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+      k = ax == :row ? A_rowval[i] : j
+      if abs(A_nzval[i]) > v[k]
+        v[k] = abs(A_nzval[i])
       end
     end
   end
@@ -18,10 +18,10 @@ function get_norm_rc!(v, AT_colptr, AT_rowval, AT_nzval, n, ax)
   end
 end
 
-function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c, uplo)
+function mul_A_D1_D2!(A_colptr, A_rowval, A_nzval, d1, d2, r, c, uplo)
   for j = 1:length(c)
-    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
-      AT_nzval[i] /= r[AT_rowval[i]] * c[j]
+    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+      A_nzval[i] /= r[A_rowval[i]] * c[j]
     end
   end
   if uplo == :U
@@ -33,10 +33,10 @@ function mul_AT_D1_D2!(AT_colptr, AT_rowval, AT_nzval, d1, d2, r, c, uplo)
   end
 end
 
-function mul_AT_D3!(AT_colptr, AT_rowval, AT_nzval, n, d3, uplo)
+function mul_A_D3!(A_colptr, A_rowval, A_nzval, n, d3, uplo)
   for j = 1:n
-    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
-      AT_nzval[i] *= (uplo == :U) ? d3[AT_rowval[i]] : d3[j]
+    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+      A_nzval[i] *= (uplo == :U) ? d3[A_rowval[i]] : d3[j]
     end
   end
 end
@@ -90,7 +90,7 @@ function scaling_Ruiz!(
       end
       k += 1
     end
-    mul_AT_D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, d3, fd_T0.uplo)
+    mul_A_D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, d3, fd_T0.uplo)
     fd_T0.c .*= d3
     fd_T0.lvar ./= d3
     fd_T0.uvar ./= d3
@@ -101,13 +101,13 @@ function scaling_Ruiz!(
   get_norm_rc!(r_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :row)
   get_norm_rc!(c_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :col)
   convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
-  mul_AT_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
+  mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
   k = 1
   while !convergence && k < max_iter
     get_norm_rc!(r_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :row)
     get_norm_rc!(c_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :col)
     convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
-    mul_AT_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
+    mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
     k += 1
   end
   length(fd_T0.Q.rowval) > 0 && mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
@@ -125,10 +125,10 @@ function div_D2D3_Q_D3D2!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
   end
 end
 
-function div_D1_A_D2D3!(AT_colptr, AT_rowval, AT_nzval, d1, d2, d3, n, uplo)
+function div_D1_A_D2D3!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
   for j = 1:n
-    @inbounds @simd for i = AT_colptr[j]:(AT_colptr[j + 1] - 1)
-      AT_nzval[i] /= (uplo == :U) ? d1[j] * d2[AT_rowval[i]] * d3[AT_rowval[i]] : d1[AT_rowval[i]] * d2[j] * d3[j]
+    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+      A_nzval[i] /= (uplo == :U) ? d1[j] * d2[A_rowval[i]] * d3[A_rowval[i]] : d1[A_rowval[i]] * d2[j] * d3[j]
     end
   end
 end
