@@ -11,17 +11,18 @@ function convert_FloatData(
       S0.name.wrapper{T, 1}(fd_T0.Q.nzval),
     ),
     Ssp0.name.wrapper{T, Int}(
-      fd_T0.AT.m,
-      fd_T0.AT.n,
-      fd_T0.AT.colptr,
-      fd_T0.AT.rowval,
-      S0.name.wrapper{T, 1}(fd_T0.AT.nzval),
+      fd_T0.A.m,
+      fd_T0.A.n,
+      fd_T0.A.colptr,
+      fd_T0.A.rowval,
+      S0.name.wrapper{T, 1}(fd_T0.A.nzval),
     ),
     S0.name.wrapper{T, 1}(fd_T0.b),
     S0.name.wrapper{T, 1}(fd_T0.c),
     T(fd_T0.c0),
     S0.name.wrapper{T, 1}(fd_T0.lvar),
     S0.name.wrapper{T, 1}(fd_T0.uvar),
+    fd_T0.uplo,
   )
 end
 

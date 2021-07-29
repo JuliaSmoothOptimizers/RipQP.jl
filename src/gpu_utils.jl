@@ -1,11 +1,11 @@
 using .CUDA
 
-function sparse_transpose_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
+function sparse_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
   CPUvals = Vector(vals)
-  MT = sparse(cols, rows, CPUvals, ncols, nrows)
-  dropzeros!(MT)
-  MTGPU = CUDA.CUSPARSE.CuSparseMatrixCSR(MT)
-  return MTGPU
+  M = sparse(rows, cols, CPUvals, ncols, nrows)
+  dropzeros!(M)
+  MGPU = CUDA.CUSPARSE.CuSparseMatrixCSR(M)
+  return MGPU
 end
 
 function get_diag_Q_dense(Q::CUDA.CUSPARSE.CuSparseMatrixCSR{T}) where {T <: Real}

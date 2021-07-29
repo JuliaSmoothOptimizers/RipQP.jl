@@ -7,12 +7,13 @@ abstract type Abstract_QM_FloatData{T <: Real, S, Ssp} end
 
 mutable struct QM_FloatData{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
   Q::Ssp # size nvar * nvar
-  AT::Ssp # size ncon * nvar, using Aᵀ is easier to form systems
+  A::Ssp # size ncon * nvar, using Aᵀ is easier to form systems
   b::S # size ncon
   c::S # size nvar
   c0::T
   lvar::S # size nvar
   uvar::S # size nvar
+  uplo::Symbol
 end
 
 mutable struct QM_IntData

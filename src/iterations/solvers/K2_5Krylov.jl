@@ -43,13 +43,14 @@ function opK2_5prod!(
   nvar::Int,
   Q::AbstractMatrix{T},
   D::AbstractVector{T},
-  AT::AbstractMatrix{T},
+  A::AbstractMatrix{T},
   sqrtX1X2::AbstractVector{T},
   tmp::AbstractVector{T},
   δv::AbstractVector{T},
   v::AbstractVector{T},
   α::T,
   β::T,
+  uplo::Symbol,
 ) where {T}
   @views mul!(tmp, Q, sqrtX1X2 .* v[1:nvar], -α, zero(T))
   tmp .= sqrtX1X2 .* tmp .+ α .* D .* v[1:nvar]
@@ -58,9 +59,15 @@ function opK2_5prod!(
   else
     res[1:nvar] .= @views tmp .+ β .* res[1:nvar]
   end
-  @views mul!(tmp, AT, v[(nvar + 1):end], α, zero(T))
-  res[1:nvar] .+= sqrtX1X2 .* tmp
-  @views mul!(res[(nvar + 1):end], AT', sqrtX1X2 .* v[1:nvar], α, β)
+  if uplo == :U
+    @views mul!(tmp, A, v[(nvar + 1):end], α, zero(T))
+    res[1:nvar] .+= sqrtX1X2 .* tmp
+    @views mul!(res[(nvar + 1):end], A', sqrtX1X2 .* v[1:nvar], α, β)
+  else
+    @views mul!(tmp, A', v[(nvar + 1):end], α, zero(T))
+    res[1:nvar] .+= sqrtX1X2 .* tmp
+    @views mul!(res[(nvar + 1):end], A, sqrtX1X2 .* v[1:nvar], α, β)
+  end
   res[(nvar + 1):end] .+= @views (α * δv[1]) .* v[(nvar + 1):end]
 end
 
@@ -96,7 +103,7 @@ function PreallocatedData(
     id.nvar + id.ncon,
     true,
     true,
-    (res, v, α, β) -> opK2_5prod!(res, id.nvar, fd.Q, D, fd.AT, sqrtX1X2, tmp, δv, v, α, β),
+    (res, v, α, β) -> opK2_5prod!(res, id.nvar, Symmetric(fd.Q, fd.uplo), D, fd.A, sqrtX1X2, tmp, δv, v, α, β, fd.uplo),
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon)
