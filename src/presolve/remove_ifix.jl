@@ -3,13 +3,13 @@ function shift_ivector!(ivec, ifix)
   nvec = length(ivec)
   nfix = length(ifix)
   if nvec > 0
-    c_fix = 1
+    cfix = 1
     c_vec = 1
     for i= 1:nvec
-      while c_fix <= nfix && ivec[i] > ifix[c_fix]
-        c_fix += 1
+      while cfix <= nfix && ivec[i] > ifix[cfix]
+        cfix += 1
       end
-      ivec[i] -= c_fix - 1
+      ivec[i] -= cfix - 1
     end
   end
 end
@@ -27,6 +27,23 @@ function getcurrent_idx(j, idxfix, ifix)
   return idx
 end
 
+function reverseshift_ivector!(ivec, ifix)
+  nvec = length(ivec)
+  nfix = length(ifix)
+  if nvec > 0
+    cfix = 1
+    for i = 1:nvec
+      ivec[i] += cfix - 1
+      while cfix <= nfix && ivec[i] >= ifix[cfix]
+        cfix += 1
+        ivec[i] += 1
+      end
+    end
+  end
+end
+
+# ̃xᵀ̃Q̃x̃ + ̃ĉᵀx̃ + lⱼ²Qⱼⱼ + cⱼxⱼ + c₀
+# ̂c = ̃c + 2lⱼΣₖQⱼₖxₖ , k ≂̸ j  
 function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzval, An,
                       c::AbstractVector{T}, c0, lvar, uvar, lcon, ucon,
                       ilow, iupp, irng, ifree, uplo) where T
@@ -148,6 +165,25 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
   nvarrm = Qn - nfix
 
   return xrm, c0, nvarrm
+end
+
+function restore_ifix!(ifix, ilow, iupp, irng, ifree, xrm, x, xout)
+  reverseshift_ivector!(ilow, ifix)
+  reverseshift_ivector!(iupp, ifix)
+  reverseshift_ivector!(irng, ifix)
+  reverseshift_ivector!(ifree, ifix)
+
+  # put x and xrm inside xout
+  cfix, cx = 1, 1
+  for i = 1:length(xout)
+    if i == ifix[cfix]
+      xout[i] = xrm[cfix]
+      cfix += 1
+    else
+      xout[i] = x[cx]
+      cx += 1
+    end
+  end
 end
 
 function rm_rowcolQ(Q, ifix)

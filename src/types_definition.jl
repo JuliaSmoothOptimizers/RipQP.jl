@@ -21,6 +21,7 @@ mutable struct QM_IntData
   iupp::Vector{Int} # indices of finite elements in uvar
   irng::Vector{Int} # indices of finite elements in both lvar and uvar
   ifree::Vector{Int} # indices of infinite elements in both lvar and uvar
+  ifix::Vector{Int}
   ncon::Int # number of equality constraints after SlackModel! (= size of b)
   nvar::Int # number of variables
   nlow::Int # length(ilow)
@@ -594,6 +595,11 @@ mutable struct ScaleData{T <: Real, S}
   d3::S
   r_k::S
   c_k::S
+end
+
+mutable struct PresolveData{T <: Real, S}
+  xrm::S
+  xout::S
 end
 
 mutable struct StartingPointData{T <: Real, S}

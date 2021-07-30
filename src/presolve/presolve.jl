@@ -29,6 +29,12 @@ function presolve(QM; uplo=:L)
   return Q, A, xrm
 end
 
+function postsolve!(fd::QM_FloatData{T}, id::QM_IntData, pt::Point{T}, ps::PresolveData{T}) where {T <: Real}
+  if length(ifix) > 0
+    restore_ifix!(id.ifix, id.ilow, id.iupp, id.irng, id.ifree, ps.xrm, pt.x, ps.xout)
+    pt.x = ps.xout
+  end
+end
 
 # compare true 
 function rmfix2(QM)

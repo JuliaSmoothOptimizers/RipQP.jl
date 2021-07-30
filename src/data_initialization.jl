@@ -50,6 +50,7 @@ function get_QM_data(QM::QuadraticModel, uplo::Symbol)
     vcatsort(QM.meta.iupp, QM.meta.irng),
     QM.meta.irng,
     QM.meta.ifree,
+    QM.meta.ifix,
     QM.meta.ncon,
     QM.meta.nvar,
     0,
