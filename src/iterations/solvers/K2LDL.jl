@@ -27,7 +27,9 @@ function K2LDLParams(; regul::Symbol = :classic)
   return K2LDLParams(regul)
 end
 
-mutable struct PreallocatedData_K2{T <: Real, S} <: PreallocatedData{T, S}
+abstract type PreallocatedData_LDL{T <: Real, S} <: PreallocatedData{T, S} end
+
+mutable struct PreallocatedData_K2LDL{T <: Real, S} <: PreallocatedData_LDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
@@ -83,7 +85,7 @@ function PreallocatedData(
   K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
   K_fact.__factorized = true
 
-  return PreallocatedData_K2(
+  return PreallocatedData_K2LDL(
     D,
     regu,
     diag_Q, #diag_Q
@@ -96,10 +98,10 @@ end
 
 function convertpad(
   ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedData_K2{T_old},
+  pad::PreallocatedData_K2LDL{T_old},
   T0::DataType,
 ) where {T <: Real, T_old <: Real}
-  pad = PreallocatedData_K2(
+  pad = PreallocatedData_K2LDL(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
@@ -126,7 +128,7 @@ end
 # function used to solve problems
 # solver LDLFactorization
 function solver!(
-  pad::PreallocatedData_K2{T},
+  pad::PreallocatedData_K2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -143,7 +145,7 @@ function solver!(
 end
 
 function update_pad!(
-  pad::PreallocatedData_K2{T},
+  pad::PreallocatedData_K2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
