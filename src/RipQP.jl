@@ -85,8 +85,8 @@ function ripqp(
   # display
   if display == true
     @info log_header(
-      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ],
-      [Int, T, T, T, T, T, T, T, T, T, T, T],
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :nprod],
+      [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
       hdr_override = Dict(
         :k => "iter",
         :pri_obj => "obj",
@@ -105,6 +105,7 @@ function ripqp(
         zero(T),
         zero(T),
         itd.μ,
+        (typeof(pad) <: PreallocatedData_Krylov) ? pad.K.nprod : zero(Int),
       ],
     )
   end

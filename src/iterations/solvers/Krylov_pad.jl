@@ -1,5 +1,6 @@
-abstract type PreallocatedData_K2Krylov{T <: Real, S} <: PreallocatedData{T, S} end
-abstract type PreallocatedData_K2_5Krylov{T <: Real, S} <: PreallocatedData{T, S} end
+abstract type PreallocatedData_Krylov{T <: Real, S} <: PreallocatedData{T, S} end
+abstract type PreallocatedData_K2Krylov{T <: Real, S} <: PreallocatedData_Krylov{T, S} end
+abstract type PreallocatedData_K2_5Krylov{T <: Real, S} <: PreallocatedData_Krylov{T, S} end
 
 function KSolver(s::Symbol)
   if s == :minres

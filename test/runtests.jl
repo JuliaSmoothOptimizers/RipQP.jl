@@ -280,7 +280,7 @@ end
     qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(
       QuadraticModel(qps2),
-      display = false,
+      display = true,
       iconf = InputConfig(
         sp = K2KrylovParams(kmethod = kmethod, preconditioner = :Identity),
         history = true,
@@ -293,7 +293,7 @@ end
     qps3 = readqps("HS52.SIF") # free bounds
     stats3 = ripqp(
       QuadraticModel(qps3),
-      display = false,
+      display = true,
       iconf = InputConfig(sp = K2KrylovParams(kmethod = kmethod)),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
