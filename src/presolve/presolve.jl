@@ -1,7 +1,7 @@
 include("sparse_coords.jl")
 include("remove_ifix.jl")
 
-function presolve(QM; uplo=:L)
+function presolveQM(QM::QuadraticModel{T, S}; uplo=:L) where {T <: Real, S}
   if uplo == :L
     Qm, Qn, Qcolptr, Qrowval, Qnzval = sparse_coords(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
     Am, An, Acolptr, Arowval, Anzval = sparse_coords(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
@@ -16,21 +16,25 @@ function presolve(QM; uplo=:L)
   ncon = QM.meta.ncon
 
   if length(ifix) > 0
-    xrm, c0, nvarrm = remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzval, An, c, c0, lvar, uvar, lcon, ucon,
+    xrm, c0, nvarrm, lvar, uvar, lcon, ucon = remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzval, An, c, c0, lvar, uvar, lcon, ucon,
                           ilow, iupp, irng, ifree, uplo)
+  else
+    nvarrm = QM.meta.nvar
+    xrm = S(undef, 0)
   end
 
   Q = SparseMatrixCSC(nvarrm, nvarrm, Qcolptr, Qrowval, Qnzval)
+  # return Acolptr, Arowval, Anzval
   if uplo == :L
     A = SparseMatrixCSC(ncon, nvarrm, Acolptr, Arowval, Anzval)
   else
     A = SparseMatrixCSC(nvarrm, ncon, Acolptr, Arowval, Anzval)
   end
-  return Q, A, xrm
+  return Q, A, xrm, c0, nvarrm, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix
 end
 
-function postsolve!(fd::QM_FloatData{T}, id::QM_IntData, pt::Point{T}, ps::PresolveData{T}) where {T <: Real}
-  if length(ifix) > 0
+function postsolve!(fd, id, pt, ps)
+  if length(id.ifix) > 0
     restore_ifix!(id.ifix, id.ilow, id.iupp, id.irng, id.ifree, ps.xrm, pt.x, ps.xout)
     pt.x = ps.xout
   end
@@ -47,8 +51,8 @@ function rmfix2(QM)
                   qm.meta.lcon, QM.meta.ucon, qm.meta.lvar, QM.meta.uvar, QM.meta.ncon, QM.meta.nvar)
 
   Q = sparse(Qrows, Qcols, Qvals, n_cols, n_cols)
-  A = sparse(Arows, Acols, Avals, QM.meta.ncon, n_cols)
-  return Q, A, x_rm_fix
+  A = sparse(Acols, Arows, Avals, n_cols, QM.meta.ncon)
+  return Q, A, c, x_rm_fix, lvar, uvar
 end
 
 function rm_ifix2!(ifix, Qrows, Qcols, Qvals, c, c0, Arows, Acols, Avals,

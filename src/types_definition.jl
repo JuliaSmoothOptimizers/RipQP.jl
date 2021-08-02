@@ -73,6 +73,7 @@ Type to specify the configuration used by RipQP.
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
+- `presolve :: Bool` : activate/deactivate presolve
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
 - `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
@@ -105,6 +106,7 @@ returns a `InputConfig` struct that shall be used to solve the input `QuadraticM
 struct InputConfig{I <: Integer}
   mode::Symbol
   scaling::Bool
+  presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
 
@@ -124,6 +126,7 @@ end
 function InputConfig(;
   mode::Symbol = :mono,
   scaling::Bool = true,
+  presolve::Bool = false,
   normalize_rtol::Bool = true,
   kc::I = 0,
   refinement::Symbol = :none,
@@ -147,6 +150,7 @@ function InputConfig(;
   return InputConfig{I}(
     mode,
     scaling,
+    presolve,
     normalize_rtol,
     kc,
     refinement,

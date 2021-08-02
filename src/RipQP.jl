@@ -18,6 +18,7 @@ include("refinement.jl")
 include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
+include("presolve/presolve.jl")
 include("multi_precision.jl")
 include("utils.jl")
 
@@ -52,7 +53,7 @@ function ripqp(
   T0 = eltype(QM.data.c)
 
   # allocate workspace
-  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
+  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, ps, spd, cnts, T =
     allocate_workspace(QM, iconf, itol, start_time, T0)
 
   if iconf.scaling
@@ -226,6 +227,11 @@ function ripqp(
   else
     status = :unknown
   end
+
+  if iconf.presolve
+    postsolve!(fd_T0, id, pt, ps)
+  end
+
   multipliers, multipliers_L, multipliers_U =
     get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 

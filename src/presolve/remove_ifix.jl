@@ -71,14 +71,12 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
         elseif Qi == newcurrentifix
           c[getcurrent_idx(Qj, idxfix-1, ifix)] += 2 * xifix * Qx
           nbrmQ += 1
-        elseif Qcoli == newcurrentifix
+        elseif Qj == newcurrentifix
           c[getcurrent_idx(Qi, idxfix-1, ifix)] += 2 * xifix * Qx
           nbrmQ += 1
         else
-          if Qwritepos != Qk
-            Qrowval[Qwritepos] = (Qi < newcurrentifix) ? Qi : Qi - 1
-            Qnzval[Qwritepos] = Qx
-          end
+          Qrowval[Qwritepos] = (Qi < newcurrentifix) ? Qi : Qi - 1
+          Qnzval[Qwritepos] = Qx
           Qwritepos += 1
         end
       end
@@ -115,10 +113,8 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
             ucon[Aj] -= Ax * xifix
             nbrmA += 1
           else
-            if Awritepos != Ak
-              Arowval[Awritepos] = (Ai < newcurrentifix) ? Ai : Ai - 1
-              Anzval[Awritepos] = Ax
-            end
+            Arowval[Awritepos] = (Ai < newcurrentifix) ? Ai : Ai - 1
+            Anzval[Awritepos] = Ax
             Awritepos += 1
           end
         end
@@ -164,7 +160,7 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
 
   nvarrm = Qn - nfix
 
-  return xrm, c0, nvarrm
+  return xrm, c0, nvarrm, lvar, uvar, lcon, ucon
 end
 
 function restore_ifix!(ifix, ilow, iupp, irng, ifree, xrm, x, xout)
@@ -175,8 +171,9 @@ function restore_ifix!(ifix, ilow, iupp, irng, ifree, xrm, x, xout)
 
   # put x and xrm inside xout
   cfix, cx = 1, 1
-  for i = 1:length(xout)
-    if i == ifix[cfix]
+  nfix = length(ifix)
+  for i = 1:nfix
+    if cfix <= nfix && i == ifix[cfix]
       xout[i] = xrm[cfix]
       cfix += 1
     else
