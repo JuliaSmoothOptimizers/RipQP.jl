@@ -21,6 +21,7 @@ mutable struct QM_IntData
   iupp::Vector{Int} # indices of finite elements in uvar
   irng::Vector{Int} # indices of finite elements in both lvar and uvar
   ifree::Vector{Int} # indices of infinite elements in both lvar and uvar
+  ifix::Vector{Int}
   ncon::Int # number of equality constraints after SlackModel! (= size of b)
   nvar::Int # number of variables
   nlow::Int # length(ilow)
@@ -72,6 +73,7 @@ Type to specify the configuration used by RipQP.
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`)
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
+- `presolve :: Bool` : activate/deactivate presolve
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
 - `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
@@ -104,6 +106,7 @@ returns a `InputConfig` struct that shall be used to solve the input `QuadraticM
 struct InputConfig{I <: Integer}
   mode::Symbol
   scaling::Bool
+  presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
 
@@ -123,6 +126,7 @@ end
 function InputConfig(;
   mode::Symbol = :mono,
   scaling::Bool = true,
+  presolve::Bool = true,
   normalize_rtol::Bool = true,
   kc::I = 0,
   refinement::Symbol = :none,
@@ -146,6 +150,7 @@ function InputConfig(;
   return InputConfig{I}(
     mode,
     scaling,
+    presolve,
     normalize_rtol,
     kc,
     refinement,
@@ -594,6 +599,11 @@ mutable struct ScaleData{T <: Real, S}
   d3::S
   r_k::S
   c_k::S
+end
+
+mutable struct PresolveData{T <: Real, S}
+  xrm::S
+  xout::S
 end
 
 mutable struct StartingPointData{T <: Real, S}

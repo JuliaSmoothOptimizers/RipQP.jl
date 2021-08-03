@@ -20,5 +20,3 @@ RipQP can also solve constrained linear least squares problems:
 ```math
     \min \frac{1}{2} \| A x - b \|^2, ~~~~ s.t. ~~ c_L \le C x \le c_U, ~~ \ell \le x \le u. 
 ```
-
-Note: RipQP does not handle problems with fixed variables yet.
