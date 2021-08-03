@@ -38,13 +38,15 @@ function get_QM_data(QM::QuadraticModel{T, S}, uplo::Symbol, presolve::Bool) whe
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
   if presolve
-    Q, A, xrm, c0, nvar, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix = presolveQM(QM, uplo=uplo)
+    Q, A, xrm, c0, nvar, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix =
+      presolveQM(QM, uplo = uplo)
     ps = PresolveData{T, S}(xrm, QM.meta.x0)
   else
     nvar = QM.meta.nvar
     c, c0 = QM.data.c, QM.data.c0
     lvar, uvar, lcon, ucon = QM.meta.lvar, QM.meta.uvar, QM.meta.lcon, QM.meta.ucon
-    ilow, iupp, irng, ifree, ifix = QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifree, QM.meta.ifix
+    ilow, iupp, irng, ifree, ifix =
+      QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifree, QM.meta.ifix
     if uplo == :U # A is Aᵀ of QuadraticModel QM
       A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
       Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
