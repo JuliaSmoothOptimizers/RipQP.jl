@@ -14,19 +14,6 @@ function shift_ivector!(ivec, ifix)
   end
 end
 
-function getcurrent_idx(j, idxfix, ifix)
-  idx = j
-  cfix = 1
-  while idx >= ifix[cfix] && cfix < idxfix
-    idx += 1
-    cfix += 1
-  end
-  if idx >= ifix[cfix]
-    idx += 1
-  end
-  return idx
-end
-
 function reverseshift_ivector!(ivec, ifix)
   nvec = length(ivec)
   nfix = length(ifix)
@@ -52,8 +39,6 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
   c0_offset = zero(T)
   Qnnz = length(Qrowval)
   Annz = length(Arowval)
-  nbrmQ = 0
-  nbrmA = 0
   nfix = length(ifix)
   for idxfix in 1:nfix
     currentifix = ifix[idxfix]
@@ -61,19 +46,24 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
     newcurrentifix = currentifix - idxfix + 1
     Qwritepos = 1
     oldQcolptrQj = 1
+    shiftQj = 1 # increase Qj of currentj - 1 if Qj
     # remove ifix in Q and update data
     for Qj in 1:(Qn-idxfix+1)
+      while shiftQj <= idxfix - 1 && Qj + shiftQj - 1 >= ifix[shiftQj]
+        shiftQj += 1
+      end
+      shiftQi = 1
       for Qk in oldQcolptrQj:(Qcolptr[Qj+1] - 1)
         Qi, Qx = Qrowval[Qk], Qnzval[Qk]
+        while shiftQi <= idxfix - 1 && Qi + shiftQi - 1 >= ifix[shiftQi]
+          shiftQi += 1
+        end
         if Qi == Qj == newcurrentifix
-          c0_offset += xifix^2 * Qx
-          nbrmQ += 1
+          c0_offset += xifix^2 * Qx / 2
         elseif Qi == newcurrentifix
-          c[getcurrent_idx(Qj, idxfix-1, ifix)] += 2 * xifix * Qx
-          nbrmQ += 1
+          c[Qj + shiftQj - 1] += xifix * Qx
         elseif Qj == newcurrentifix
-          c[getcurrent_idx(Qi, idxfix-1, ifix)] += 2 * xifix * Qx
-          nbrmQ += 1
+          c[Qi + shiftQi - 1] += xifix * Qx
         else
           Qrowval[Qwritepos] = (Qi < newcurrentifix) ? Qi : Qi - 1
           Qnzval[Qwritepos] = Qx
@@ -99,7 +89,6 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
           if Aj == newcurrentifix
             lcon[Ai] -= Ax * xifix
             ucon[Ai] -= Ax * xifix
-            nbrmA += 1
           else
             if Awritepos != Ak
               Arowval[Awritepos] = Ai
@@ -111,7 +100,6 @@ function remove_ifix!(ifix, Qcolptr, Qrowval, Qnzval, Qn, Acolptr, Arowval, Anzv
           if Ai == newcurrentifix
             lcon[Aj] -= Ax * xifix
             ucon[Aj] -= Ax * xifix
-            nbrmA += 1
           else
             Arowval[Awritepos] = (Ai < newcurrentifix) ? Ai : Ai - 1
             Anzval[Awritepos] = Ax
@@ -172,7 +160,7 @@ function restore_ifix!(ifix, ilow, iupp, irng, ifree, xrm, x, xout)
   # put x and xrm inside xout
   cfix, cx = 1, 1
   nfix = length(ifix)
-  for i = 1:nfix
+  for i = 1:length(xout)
     if cfix <= nfix && i == ifix[cfix]
       xout[i] = xrm[cfix]
       cfix += 1

@@ -22,7 +22,7 @@ end
 
 @testset "mono_mode" begin
   qps1 = readqps("QAFIRO.SIF") #lower bounds
-  stats1 = ripqp(QuadraticModel(qps1))
+  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(presolve = false))
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
@@ -373,4 +373,16 @@ end
   stats3 = ripqp(QuadraticModelMaximize(qps3), display = false)
   @test isapprox(stats3.objective, -5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
+end
+
+@testset "presolve" begin
+  qps1 = readqps("HS35MOD.SIF") # fixed variables
+  stats1 = ripqp(QuadraticModel(qps1), display = false)
+  @test isapprox(stats1.objective, 0.250000001, atol = 1e-2)
+  @test stats1.status == :acceptable
+
+  qps2 = readqps("HS35MOD.SIF") # fixed variables
+  stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(sp = K2KrylovParams()), display = false)
+  @test isapprox(stats2.objective, 0.250000001, atol = 1e-2)
+  @test stats2.status == :acceptable
 end

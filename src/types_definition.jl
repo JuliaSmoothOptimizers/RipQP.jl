@@ -126,7 +126,7 @@ end
 function InputConfig(;
   mode::Symbol = :mono,
   scaling::Bool = true,
-  presolve::Bool = false,
+  presolve::Bool = true,
   normalize_rtol::Bool = true,
   kc::I = 0,
   refinement::Symbol = :none,

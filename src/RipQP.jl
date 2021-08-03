@@ -233,7 +233,7 @@ function ripqp(
   end
 
   multipliers, multipliers_L, multipliers_U =
-    get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
+    get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi, length(ps.xrm))
 
   if typeof(res) <: ResidualsHistory
     solver_specific = Dict(

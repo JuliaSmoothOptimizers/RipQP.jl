@@ -49,14 +49,15 @@ function get_multipliers(
   nvar::Int,
   y::AbstractVector{T},
   idi::IntDataInit{Int},
+  nvarrm::Int,
 ) where {T <: Real}
   nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
   njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
 
   S = typeof(y)
   if S <: Vector
-    s_l_sp = SparseVector(nvar, ilow, s_l)
-    s_u_sp = SparseVector(nvar, iupp, s_u)
+    s_l_sp = SparseVector(nvar + nvarrm, ilow, s_l)
+    s_u_sp = SparseVector(nvar + nvarrm, iupp, s_u)
   else
     s_l_sp, s_u_sp = fill!(S(undef, nvar), zero(T)), fill!(S(undef, nvar), zero(T))
     s_l_sp[ilow] .= s_l

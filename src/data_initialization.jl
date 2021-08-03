@@ -38,11 +38,11 @@ function get_QM_data(QM::QuadraticModel{T, S}, uplo::Symbol, presolve::Bool) whe
   # constructs A and Q transposed so we can create K upper triangular. 
   # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
   if presolve
-    Q, A, xrm, QM.data.c0, nvar, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix = presolveQM(QM, uplo=uplo)
+    Q, A, xrm, c0, nvar, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix = presolveQM(QM, uplo=uplo)
     ps = PresolveData{T, S}(xrm, QM.meta.x0)
   else
     nvar = QM.meta.nvar
-    c = QM.data.c
+    c, c0 = QM.data.c, QM.data.c0
     lvar, uvar, lcon, ucon = QM.meta.lvar, QM.meta.uvar, QM.meta.lcon, QM.meta.ucon
     ilow, iupp, irng, ifree, ifix = QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifree, QM.meta.ifix
     if uplo == :U # A is Aᵀ of QuadraticModel QM
@@ -69,7 +69,7 @@ function get_QM_data(QM::QuadraticModel{T, S}, uplo::Symbol, presolve::Bool) whe
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
   @assert lcon == ucon # equality constraint (Ax=b)
   @assert length(lvar) == length(uvar) == nvar
-  fd = QM_FloatData(Q, A, lcon, QM.data.c, QM.data.c0, lvar, uvar, uplo)
+  fd = QM_FloatData(Q, A, lcon, QM.data.c, c0, lvar, uvar, uplo)
   return fd, id, ps
 end
 
