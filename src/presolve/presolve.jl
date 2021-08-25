@@ -2,9 +2,10 @@ include("sparse_coords.jl")
 include("remove_ifix.jl")
 
 function presolveQM(QM::QuadraticModel{T, S}; uplo = :L) where {T <: Real, S}
-
-  Qrows, Qcols, Qvals, Qm, Qn = QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar
-  Arows, Acols, Avals, Am, An = QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.ncon, QM.meta.nvar
+  Qrows, Qcols, Qvals, Qm, Qn =
+    QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar
+  Arows, Acols, Avals, Am, An =
+    QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.ncon, QM.meta.nvar
   lvar, uvar, lcon, ucon = QM.meta.lvar, QM.meta.uvar, QM.meta.lcon, QM.meta.ucon
   c, c0 = QM.data.c, QM.data.c0
   ilow, iupp, irng, ifree = QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifree

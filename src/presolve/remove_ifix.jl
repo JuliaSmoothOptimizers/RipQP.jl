@@ -61,14 +61,14 @@ function remove_ifix!(
   Annz = length(Arows)
   Arm = 0
   nfix = length(ifix)
-  for idxfix = 1: nfix
+  for idxfix = 1:nfix
     currentifix = ifix[idxfix]
     xifix = lvar[currentifix]
     newcurrentifix = currentifix - idxfix + 1
     Qwritepos = 1
     oldQcolptrQj = 1
     shiftQj = 1 # increase Qj of currentj - 1 if Qj
-    if Qnnz > 0 
+    if Qnnz > 0
       oldQj = Qrows[1]
     end
     # remove ifix in Q and update data
@@ -107,7 +107,7 @@ function remove_ifix!(
     currentAn = An - idxfix + 1  # remove rows if uplo == :U 
     k = 1
     while k <= Annz && Acols[k] <= currentAn
-      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k] 
+      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k]
       if Aj == newcurrentifix
         Arm += 1
         lcon[Ai] -= Ax * xifix
@@ -130,7 +130,7 @@ function remove_ifix!(
   # resize Q and A
   if nfix > 0
     Qnnz -= Qrm
-    Annz -= Arm 
+    Annz -= Arm
     resize!(Qrows, Qnnz)
     resize!(Qcols, Qnnz)
     resize!(Qvals, Qnnz)
