@@ -33,13 +33,13 @@ end
 # ̂c = ̃c + 2lⱼΣₖQⱼₖxₖ , k ≂̸ j  
 function remove_ifix!(
   ifix,
-  Qcolptr,
-  Qrowval,
-  Qnzval,
+  Qrows,
+  Qcols,
+  Qvals,
   Qn,
-  Acolptr,
-  Arowval,
-  Anzval,
+  Arows,
+  Acols,
+  Avals,
   An,
   c::AbstractVector{T},
   c0,
@@ -56,82 +56,71 @@ function remove_ifix!(
   # assume ifix is sorted and length(ifix) > 0
   # assume Qcols is sorted
   c0_offset = zero(T)
-  Qnnz = length(Qrowval)
-  Annz = length(Arowval)
+  Qnnz = length(Qrows)
+  Qrm = 0
+  Annz = length(Arows)
+  Arm = 0
   nfix = length(ifix)
-  for idxfix = 1:nfix
+  for idxfix = 1: nfix
     currentifix = ifix[idxfix]
     xifix = lvar[currentifix]
     newcurrentifix = currentifix - idxfix + 1
     Qwritepos = 1
     oldQcolptrQj = 1
     shiftQj = 1 # increase Qj of currentj - 1 if Qj
+    if Qnnz > 0 
+      oldQj = Qrows[1]
+    end
     # remove ifix in Q and update data
-    for Qj = 1:(Qn - idxfix + 1)
-      while shiftQj <= idxfix - 1 && Qj + shiftQj - 1 >= ifix[shiftQj]
+    k = 1
+    while k <= Qnnz && Qcols[k] <= (Qn - idxfix + 1)
+      Qi, Qj, Qx = Qrows[k], Qcols[k], Qvals[k] # Qj sorted 
+
+      while (Qj == oldQj) && shiftQj <= idxfix - 1 && Qj + shiftQj - 1 >= ifix[shiftQj]
         shiftQj += 1
       end
       shiftQi = 1
-      for Qk = oldQcolptrQj:(Qcolptr[Qj + 1] - 1)
-        Qi, Qx = Qrowval[Qk], Qnzval[Qk]
-        while shiftQi <= idxfix - 1 && Qi + shiftQi - 1 >= ifix[shiftQi]
-          shiftQi += 1
-        end
-        if Qi == Qj == newcurrentifix
-          c0_offset += xifix^2 * Qx / 2
-        elseif Qi == newcurrentifix
-          c[Qj + shiftQj - 1] += xifix * Qx
-        elseif Qj == newcurrentifix
-          c[Qi + shiftQi - 1] += xifix * Qx
-        else
-          Qrowval[Qwritepos] = (Qi < newcurrentifix) ? Qi : Qi - 1
-          Qnzval[Qwritepos] = Qx
-          Qwritepos += 1
-        end
+      while shiftQi <= idxfix - 1 && Qi + shiftQi - 1 >= ifix[shiftQi]
+        shiftQi += 1
       end
-      oldQcolptrQj = Qcolptr[Qj + 1]
-      if Qj >= newcurrentifix
-        Qcolptr[Qj] = Qwritepos
+      if Qi == Qj == newcurrentifix
+        Qrm += 1
+        c0_offset += xifix^2 * Qx / 2
+      elseif Qi == newcurrentifix
+        Qrm += 1
+        c[Qj + shiftQj - 1] += xifix * Qx
+      elseif Qj == newcurrentifix
+        Qrm += 1
+        c[Qi + shiftQi - 1] += xifix * Qx
       else
-        Qcolptr[Qj + 1] = Qwritepos
+        Qrows[Qwritepos] = (Qi < newcurrentifix) ? Qi : Qi - 1
+        Qcols[Qwritepos] = (Qj < newcurrentifix) ? Qj : Qj - 1
+        Qvals[Qwritepos] = Qx
+        Qwritepos += 1
       end
+      k += 1
     end
 
     # remove ifix in A cols
     Awritepos = 1
     oldAcolptrAj = 1
-    currentAn = (uplo == :L) ? An - idxfix + 1 : An # remove rows if uplo == :U 
-    for Aj = 1:currentAn
-      for Ak = oldAcolptrAj:(Acolptr[Aj + 1] - 1)
-        Ai, Ax = Arowval[Ak], Anzval[Ak]
-        if uplo == :L
-          if Aj == newcurrentifix
-            lcon[Ai] -= Ax * xifix
-            ucon[Ai] -= Ax * xifix
-          else
-            if Awritepos != Ak
-              Arowval[Awritepos] = Ai
-              Anzval[Awritepos] = Ax
-            end
-            Awritepos += 1
-          end
-        elseif uplo == :U # A is actually Aᵀ in this case
-          if Ai == newcurrentifix
-            lcon[Aj] -= Ax * xifix
-            ucon[Aj] -= Ax * xifix
-          else
-            Arowval[Awritepos] = (Ai < newcurrentifix) ? Ai : Ai - 1
-            Anzval[Awritepos] = Ax
-            Awritepos += 1
-          end
-        end
-      end
-      oldAcolptrAj = Acolptr[Aj + 1]
-      if Aj >= newcurrentifix && uplo == :L
-        Acolptr[Aj] = Awritepos
+    currentAn = An - idxfix + 1  # remove rows if uplo == :U 
+    k = 1
+    while k <= Annz && Acols[k] <= currentAn
+      Ai, Aj, Ax = Arows[k], Acols[k], Avals[k] 
+      if Aj == newcurrentifix
+        Arm += 1
+        lcon[Ai] -= Ax * xifix
+        ucon[Ai] -= Ax * xifix
       else
-        Acolptr[Aj + 1] = Awritepos
+        if Awritepos != k
+          Arows[Awritepos] = Ai
+          Acols[Awritepos] = (Aj < newcurrentifix) ? Aj : Aj - 1
+          Avals[Awritepos] = Ax
+        end
+        Awritepos += 1
       end
+      k += 1
     end
 
     # update c0 with c[currentifix] coeff
@@ -139,14 +128,16 @@ function remove_ifix!(
   end
 
   # resize Q and A
-  Qnnz = Qcolptr[end - nfix] - 1
-  Annz = (uplo == :L) ? Acolptr[end - nfix] - 1 : Acolptr[end] - 1
-  resize!(Qcolptr, Qn + 1 - nfix)
-  resize!(Qrowval, Qnnz)
-  resize!(Qnzval, Qnnz)
-  (uplo == :L) && resize!(Acolptr, An + 1 - nfix)
-  resize!(Arowval, Annz)
-  resize!(Anzval, Annz)
+  if nfix > 0
+    Qnnz -= Qrm
+    Annz -= Arm 
+    resize!(Qrows, Qnnz)
+    resize!(Qcols, Qnnz)
+    resize!(Qvals, Qnnz)
+    resize!(Arows, Annz)
+    resize!(Acols, Annz)
+    resize!(Avals, Annz)
+  end
 
   # store removed x values
   xrm = lvar[ifix]
@@ -188,49 +179,4 @@ function restore_ifix!(ifix, ilow, iupp, irng, ifree, xrm, x, xout)
       cx += 1
     end
   end
-end
-
-function rm_rowcolQ(Q, ifix)
-  Qcolptr = copy(Q.colptr)
-  Qrowval = copy(Q.rowval)
-  Qnzval = copy(Q.nzval)
-  Qn = size(Q, 2)
-
-  nfix = length(ifix)
-  nbrmQ = 0
-  # remove ifix in Q and update data
-  for idxfix = 1:nfix
-    Qwritepos = 1
-    oldQcolptrQj = 1
-    currentifix = ifix[idxfix] - idxfix + 1
-    for Qj = 1:(Qn - idxfix + 1)
-      for Qk = oldQcolptrQj:(Qcolptr[Qj + 1] - 1)
-        Qi, Qx = Qrowval[Qk], Qnzval[Qk]
-        if Qi == Qj == currentifix
-          nbrmQ += 1
-        elseif Qi == currentifix
-          nbrmQ += 1
-        elseif Qj == currentifix
-          nbrmQ += 1
-        else
-          if Qwritepos != Qk
-            Qrowval[Qwritepos] = (Qi < currentifix) ? Qi : Qi - 1
-            Qnzval[Qwritepos] = Qx
-          end
-          Qwritepos += 1
-        end
-      end
-      oldQcolptrQj = Qcolptr[Qj + 1]
-      if Qj >= currentifix
-        Qcolptr[Qj] = Qwritepos
-      else
-        Qcolptr[Qj + 1] = Qwritepos
-      end
-    end
-  end
-  Qnnz = Qcolptr[end - nfix] - 1
-  resize!(Qrowval, Qnnz)
-  resize!(Qnzval, Qnnz)
-  resize!(Qcolptr, Qn + 1 - nfix)
-  return SparseMatrixCSC(Qn - nfix, Qn - nfix, Qcolptr, Qrowval, Qnzval)
 end
