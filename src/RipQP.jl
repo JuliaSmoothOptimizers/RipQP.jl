@@ -18,7 +18,7 @@ include("refinement.jl")
 include("data_initialization.jl")
 include("starting_points.jl")
 include("scaling.jl")
-include("presolve/presolve.jl")
+# include("presolve/presolve.jl")
 include("multi_precision.jl")
 include("utils.jl")
 
@@ -43,17 +43,23 @@ You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.git
                   display :: Bool = true) where {Tu<:Real}
 """
 function ripqp(
-  QM::QuadraticModel;
+  QM0::QuadraticModel;
   iconf::InputConfig{Int} = InputConfig(),
   itol::InputTol{Tu, Int} = InputTol(),
   display::Bool = true,
 ) where {Tu <: Real}
   start_time = time()
   elapsed_time = 0.0
-  T0 = eltype(QM.data.c)
+  T0 = eltype(QM0.data.c)
+
+  if iconf.presolve
+    QM = presolve(QM0)
+  else
+    QM = QM0
+  end
 
   # allocate workspace
-  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, ps, spd, cnts, T =
+  sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
     allocate_workspace(QM, iconf, itol, start_time, T0)
 
   if iconf.scaling
@@ -229,11 +235,16 @@ function ripqp(
   end
 
   if iconf.presolve
-    postsolve!(fd_T0, id, pt, ps)
+    postsolve!(QM0, QM, pt.x, QM0.meta.x0)
+    x = QM0.meta.x0
+    nrm = length(QM.xrm)
+  else
+    x = pt.x
+    nrm = 0
   end
 
   multipliers, multipliers_L, multipliers_U =
-    get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi, length(ps.xrm))
+    get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi, nrm)
 
   if typeof(res) <: ResidualsHistory
     solver_specific = Dict(
@@ -257,7 +268,7 @@ function ripqp(
   stats = GenericExecutionStats(
     status,
     QM,
-    solution = pt.x[1:(idi.nvar)],
+    solution = x[1:(idi.nvar)],
     objective = itd.minimize ? itd.pri_obj : -itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,
