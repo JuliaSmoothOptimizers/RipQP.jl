@@ -119,6 +119,7 @@ function PreallocatedData(
 end
 
 function solver!(
+  rhs::AbstractVector{T},
   pad::PreallocatedData_K2Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -131,8 +132,7 @@ function solver!(
   step::Symbol,
 ) where {T <: Real}
 
-  # erase dda.Δxy_aff only for affine predictor step with PC method
-  pad.rhs .= (step == :aff) ? dda.Δxy_aff : pad.rhs .= itd.Δxy
+  pad.rhs .= rhs
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
@@ -147,11 +147,7 @@ function solver!(
     pad.KS.x .*= rhsNorm
   end
 
-  if step == :aff
-    dda.Δxy_aff .= pad.KS.x
-  else
-    itd.Δxy .= pad.KS.x
-  end
+  rhs .= pad.KS.x
 
   return 0
 end

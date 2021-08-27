@@ -128,6 +128,7 @@ end
 # function used to solve problems
 # solver LDLFactorization
 function solver!(
+  rhs::AbstractVector{T},
   pad::PreallocatedData_K2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -139,8 +140,7 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  # erase dda.Δxy_aff only for affine predictor step with PC method
-  step == :aff ? ldiv!(pad.K_fact, dda.Δxy_aff) : ldiv!(pad.K_fact, itd.Δxy)
+  ldiv!(pad.K_fact, rhs)
   return 0
 end
 

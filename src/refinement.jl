@@ -49,9 +49,9 @@ function fd_refinement(
     itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
     if pad.fact_fail
       out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
-      out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
+      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
     else
-      out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
     end
     itd.Δs_l .= @views .-(.-itd.μ .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
     itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x

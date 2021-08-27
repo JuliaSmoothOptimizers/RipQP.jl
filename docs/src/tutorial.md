@@ -175,21 +175,14 @@ That is why the direction of descent `itd.Δxy` (resp. `dda.Δxy_aff` for the Pr
 countains the right hand side of the linear system to solve.
 
 ```julia
-function RipQP.solver!(pad :: PreallocatedData_K2basic{T},
+function RipQP.solver!(rhs:: AbstractVector{T}, pad :: PreallocatedData_K2basic{T},
                        dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T},
                        itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T},
                        id :: RipQP.QM_IntData, res :: RipQP.Residuals{T},
                        cnts :: RipQP.Counters, T0 :: DataType,
                        step :: Symbol) where {T<:Real}
-
-    if step == :aff # affine predictor step
-        # solve the system and overwrite dda.Δxy_aff
-        ldiv!(pad.K_fact, dda.Δxy_aff)
-    else # for all other steps including the initial point
-        # solve the system and overwrite itd.Δxy
-        ldiv!(pad.K_fact, itd.Δxy)
-    end
-
+                       
+    ldiv!(pad.K_fact, rhs)
     return 0
 end
 ```
