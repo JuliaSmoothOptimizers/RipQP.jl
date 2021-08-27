@@ -128,7 +128,7 @@ end
 # function used to solve problems
 # solver LDLFactorization
 function solver!(
-  rhs::AbstractVector{T},
+  dd::AbstractVector{T},
   pad::PreallocatedData_K2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -140,7 +140,7 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  ldiv!(pad.K_fact, rhs)
+  ldiv!(pad.K_fact, dd)
   return 0
 end
 
