@@ -106,7 +106,7 @@ function update_dd!(
   dda.Δxy_aff[id.iupp] .-= pt.s_u
 
   cnts.w.write == true && write_system(cnts.w, pad.K, dda.Δxy_aff, :aff, cnts.k)
-  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :aff)
+  out = solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, T0, :aff)
   out == 1 && return out
   dda.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* dda.Δxy_aff[id.ilow] ./ itd.x_m_lvar
   dda.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* dda.Δxy_aff[id.iupp] ./ itd.uvar_m_x
@@ -171,7 +171,7 @@ function update_dd!(
   itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
-  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
   out == 1 && return out
   itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
   itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
@@ -227,7 +227,7 @@ function update_dd!(
   itd.Δxy[id.iupp] .-= pt.s_u - σ * itd.μ ./ itd.uvar_m_x
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :IPF, cnts.k)
-  out = solver!(pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
+  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
   out == 1 && return out
   itd.Δs_l .= @views (σ * itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
   itd.Δs_u .= @views (σ * itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u

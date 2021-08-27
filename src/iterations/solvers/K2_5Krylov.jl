@@ -143,6 +143,7 @@ function PreallocatedData(
 end
 
 function solver!(
+  dd::AbstractVector{T},
   pad::PreallocatedData_K2_5Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -156,13 +157,8 @@ function solver!(
 ) where {T <: Real}
 
   # erase dda.Δxy_aff only for affine predictor step with PC method
-  if step == :aff
-    pad.rhs[1:(id.nvar)] .= @views dda.Δxy_aff[1:(id.nvar)] .* pad.sqrtX1X2
-    pad.rhs[(id.nvar + 1):end] .= @views dda.Δxy_aff[(id.nvar + 1):end]
-  else
-    pad.rhs[1:(id.nvar)] .= @views itd.Δxy[1:(id.nvar)] .* pad.sqrtX1X2
-    pad.rhs[(id.nvar + 1):end] .= @views itd.Δxy[(id.nvar + 1):end]
-  end
+  pad.rhs[1:(id.nvar)] .= @views dd[1:(id.nvar)] .* pad.sqrtX1X2
+  pad.rhs[(id.nvar + 1):end] .= @views dd[(id.nvar + 1):end]
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
@@ -178,11 +174,7 @@ function solver!(
   end
   pad.KS.x[1:(id.nvar)] .*= pad.sqrtX1X2
 
-  if step == :aff
-    dda.Δxy_aff .= pad.KS.x
-  else
-    itd.Δxy .= pad.KS.x
-  end
+  dd .= pad.KS.x
 
   return 0
 end
