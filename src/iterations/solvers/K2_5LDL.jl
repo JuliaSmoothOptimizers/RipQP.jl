@@ -131,7 +131,7 @@ end
 
 # solver LDLFactorization
 function solver!(
-  rhs::AbstractVector{T},
+  dd::AbstractVector{T},
   pad::PreallocatedData_K2_5LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -145,11 +145,11 @@ function solver!(
 ) where {T <: Real}
 
   if pad.K_scaled
-    rhs[1:(id.nvar)] .*= pad.D
-    ldiv!(pad.K_fact, rhs)
-    rhs[1:(id.nvar)] .*= pad.D
+    dd[1:(id.nvar)] .*= pad.D
+    ldiv!(pad.K_fact, dd)
+    dd[1:(id.nvar)] .*= pad.D
   else
-    ldiv!(pad.K_fact, rhs)
+    ldiv!(pad.K_fact, dd)
   end
 
   if step == :cc || step == :IPF  # update regularization and restore K. Cannot be done in update_pad since x-lvar and uvar-x will change.

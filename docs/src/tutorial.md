@@ -171,18 +171,18 @@ end
 
 Finally, you need to write a `RipQP.solver!` function that compute directions of descent.
 Note that this function solves in-place the linear system by overwriting the direction of descent.
-That is why the direction of descent `itd.Δxy` (resp. `dda.Δxy_aff` for the Predictor step)
+That is why the direction of descent `dd` 
 countains the right hand side of the linear system to solve.
 
 ```julia
-function RipQP.solver!(rhs:: AbstractVector{T}, pad :: PreallocatedData_K2basic{T},
+function RipQP.solver!(dd :: AbstractVector{T}, pad :: PreallocatedData_K2basic{T},
                        dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T},
                        itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T},
                        id :: RipQP.QM_IntData, res :: RipQP.Residuals{T},
                        cnts :: RipQP.Counters, T0 :: DataType,
                        step :: Symbol) where {T<:Real}
-                       
-    ldiv!(pad.K_fact, rhs)
+
+    ldiv!(pad.K_fact, dd)
     return 0
 end
 ```

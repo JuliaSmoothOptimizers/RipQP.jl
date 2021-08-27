@@ -119,7 +119,7 @@ function PreallocatedData(
 end
 
 function solver!(
-  rhs::AbstractVector{T},
+  dd::AbstractVector{T},
   pad::PreallocatedData_K2Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
@@ -132,7 +132,7 @@ function solver!(
   step::Symbol,
 ) where {T <: Real}
 
-  pad.rhs .= rhs
+  pad.rhs .= dd
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
@@ -147,7 +147,7 @@ function solver!(
     pad.KS.x .*= rhsNorm
   end
 
-  rhs .= pad.KS.x
+  dd .= pad.KS.x
 
   return 0
 end
