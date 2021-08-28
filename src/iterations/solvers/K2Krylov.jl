@@ -131,7 +131,6 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-
   pad.rhs .= dd
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)

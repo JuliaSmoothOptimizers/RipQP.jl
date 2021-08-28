@@ -143,7 +143,6 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-
   if pad.K_scaled
     dd[1:(id.nvar)] .*= pad.D
     ldiv!(pad.K_fact, dd)
