@@ -125,7 +125,7 @@ function PreallocatedData(
 
   pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
 
-  return eval(Symbol(:PreallocatedData_K2_5, sp.kmethod))(
+  return eval(:PreallocatedData_K2_5Krylov)(
     pdat,
     D,
     sqrtX1X2,
