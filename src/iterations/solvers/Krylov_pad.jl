@@ -8,8 +8,13 @@ function KSolver(s::Symbol)
   end
 end
 
-mutable struct PreallocatedData_K2Krylov{T <: Real, S, L <: LinearOperator, 
-               Pr <: PreconditionerDataK2, Ksol <: KrylovSolver} <: PreallocatedData_Krylov{T, S}
+mutable struct PreallocatedData_K2Krylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Pr <: PreconditionerDataK2,
+  Ksol <: KrylovSolver,
+} <: PreallocatedData_Krylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal
   rhs::S
@@ -23,8 +28,13 @@ mutable struct PreallocatedData_K2Krylov{T <: Real, S, L <: LinearOperator,
   rtol_min::T
 end
 
-mutable struct PreallocatedData_K2_5Krylov{T <: Real, S, L <: LinearOperator, Pr <: PreconditionerDataK2,
-               Ksol <: KrylovSolver} <: PreallocatedData_Krylov{T, S}
+mutable struct PreallocatedData_K2_5Krylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Pr <: PreconditionerDataK2,
+  Ksol <: KrylovSolver,
+} <: PreallocatedData_Krylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
