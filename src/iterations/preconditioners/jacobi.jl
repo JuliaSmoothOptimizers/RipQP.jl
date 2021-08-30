@@ -1,5 +1,5 @@
-mutable struct JacobiData{T <: Real, S, F, Ftu, Faw} <: PreconditionerDataK2{T, S}
-  P::LinearOperator{T, F, Ftu, Faw}
+mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerDataK2{T, S}
+  P::L
   diagQ::S
   invDiagK::S
 end
@@ -15,7 +15,7 @@ function Jacobi(
   diagQ = get_diag_Q_dense(fd.Q)
   invDiagK[1:(id.nvar)] .= .-one(T) ./ (D .- diagQ)
   P = opDiagonal(invDiagK)
-  return JacobiData(P, diagQ, invDiagK)
+  return JacobiData{eltype(diagQ), typeof(diagQ), typeof(P)}(P, diagQ, invDiagK)
 end
 
 function update_preconditioner!(
@@ -27,7 +27,7 @@ function update_preconditioner!(
   fd::QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
-  if typeof(pad) <: PreallocatedData_K2_5minres
+  if typeof(pad) <: PreallocatedData_K2_5Krylov
     pad.pdat.invDiagK[1:(id.nvar)] .=
       abs.(one(T) ./ (pad.D .- (pad.pdat.diagQ .* pad.sqrtX1X2 .^ 2)))
   else

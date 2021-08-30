@@ -1,6 +1,4 @@
 abstract type PreallocatedData_Krylov{T <: Real, S} <: PreallocatedData{T, S} end
-abstract type PreallocatedData_K2Krylov{T <: Real, S} <: PreallocatedData_Krylov{T, S} end
-abstract type PreallocatedData_K2_5Krylov{T <: Real, S} <: PreallocatedData_Krylov{T, S} end
 
 function KSolver(s::Symbol)
   if s == :minres
@@ -10,32 +8,32 @@ function KSolver(s::Symbol)
   end
 end
 
-mutable struct PreallocatedData_K2minres{T <: Real, S, Fv, Fu, Fw} <:
-               PreallocatedData_K2Krylov{T, S}
-  pdat::PreconditionerDataK2{T, S}
+mutable struct PreallocatedData_K2Krylov{T <: Real, S, L <: LinearOperator, 
+               Pr <: PreconditionerDataK2, Ksol <: KrylovSolver} <: PreallocatedData_Krylov{T, S}
+  pdat::Pr
   D::S                                  # temporary top-left diagonal
   rhs::S
   regu::Regularization{T}
   δv::Vector{T}
-  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  KS::MinresSolver{T, S}
+  K::L # augmented matrix (LinearOperator)         
+  KS::Ksol
   atol::T
   rtol::T
   atol_min::T
   rtol_min::T
 end
 
-mutable struct PreallocatedData_K2_5minres{T <: Real, S, Fv, Fu, Fw} <:
-               PreallocatedData_K2_5Krylov{T, S}
-  pdat::PreconditionerDataK2{T, S}
+mutable struct PreallocatedData_K2_5Krylov{T <: Real, S, L <: LinearOperator, Pr <: PreconditionerDataK2,
+               Ksol <: KrylovSolver} <: PreallocatedData_Krylov{T, S}
+  pdat::Pr
   D::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
   tmp::S # temporary vector for products
   rhs::S
   regu::Regularization{T}
   δv::Vector{T}
-  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  KS::MinresSolver{T, S}
+  K::L # augmented matrix          
+  KS::Ksol
   atol::T
   rtol::T
   atol_min::T
@@ -61,38 +59,6 @@ ksolve!(
   ratol = atol,
   rrtol = rtol,
 )
-
-mutable struct PreallocatedData_K2minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
-               PreallocatedData_K2Krylov{T, S}
-  pdat::PreconditionerDataK2{T, S}
-  D::S                                  # temporary top-left diagonal
-  rhs::S
-  regu::Regularization{T}
-  δv::Vector{T}
-  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  KS::MinresQlpSolver{T, S}
-  atol::T
-  rtol::T
-  atol_min::T
-  rtol_min::T
-end
-
-mutable struct PreallocatedData_K2_5minres_qlp{T <: Real, S, Fv, Fu, Fw} <:
-               PreallocatedData_K2_5Krylov{T, S}
-  pdat::PreconditionerDataK2{T, S}
-  D::S                                  # temporary top-left diagonal
-  sqrtX1X2::S # vector to scale K2 to K2.5
-  tmp::S # temporary vector for products
-  rhs::S
-  regu::Regularization{T}
-  δv::Vector{T}
-  K::LinearOperator{T, Fv, Fu, Fw} # augmented matrix          
-  KS::MinresQlpSolver{T, S}
-  atol::T
-  rtol::T
-  atol_min::T
-  rtol_min::T
-end
 
 ksolve!(
   KS::MinresQlpSolver{T, S},

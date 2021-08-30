@@ -1,4 +1,4 @@
-mutable struct IdentityData{T <: Real, S, SI} <: PreconditionerDataK2{T, S}
+mutable struct IdentityData{T <: Real, S, SI <: AbstractMatrix} <: PreconditionerDataK2{T, S}
   P::SI
 end
 
