@@ -2,12 +2,9 @@ include("solve_method.jl")
 include("centrality_corr.jl")
 include("regularization.jl")
 include("system_write.jl")
-include("solvers/K2LDL.jl")
-include("solvers/K2_5LDL.jl")
 include("preconditioners/abstract-precond.jl")
-include("solvers/Krylov_pad.jl")
-include("solvers/K2Krylov.jl")
-include("solvers/K2_5Krylov.jl")
+include("solvers/augmented/augmented.jl")
+include("solvers/Krylov_utils.jl")
 
 function compute_α_dual(v, dir_v)
   n = length(v)
@@ -237,7 +234,7 @@ function iter!(
           α_pri,
           α_dual,
           itd.μ,
-          (typeof(pad) <: PreallocatedData_Krylov) ? pad.K.nprod : zero(Int),
+          (typeof(pad) <: PreallocatedDataAugmentedKrylov) ? pad.K.nprod : zero(Int),
         ],
       )
     end

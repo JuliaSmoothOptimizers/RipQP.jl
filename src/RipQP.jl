@@ -106,7 +106,7 @@ function ripqp(
         zero(T),
         zero(T),
         itd.μ,
-        (typeof(pad) <: PreallocatedData_Krylov) ? pad.K.nprod : zero(Int),
+        (typeof(pad) <: PreallocatedDataAugmentedKrylov) ? pad.K.nprod : zero(Int),
       ],
     )
   end

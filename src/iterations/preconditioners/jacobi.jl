@@ -27,7 +27,7 @@ function update_preconditioner!(
   fd::QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
-  if typeof(pad) <: PreallocatedData_K2_5Krylov
+  if typeof(pad) <: PreallocatedDataK2_5Krylov
     pad.pdat.invDiagK[1:(id.nvar)] .=
       abs.(one(T) ./ (pad.D .- (pad.pdat.diagQ .* pad.sqrtX1X2 .^ 2)))
   else
