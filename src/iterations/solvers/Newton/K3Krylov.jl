@@ -1,4 +1,8 @@
-export K2KrylovParams
+# [-Q - ρI   Aᵀ   I   -I ][ Δx ]   [    -rc        ]
+# [  A       δI   0    0 ][ Δy ]   [    -rb        ]
+# [  S_l     0   X-L   0 ][Δs_l] = [σμe - (X-L)S_le]
+# [ -S_u     0    0   U-X][Δs_u]   [σμe + (U-X)S_ue]
+export K3KrylovParams
 
 """
 Type to use the K3 formulation with a Krylov method, using the package 
@@ -26,7 +30,7 @@ struct K3KrylovParams <: SolverParams
 end
 
 function K3KrylovParams(;
-  kmethod::Symbol = :minres,
+  kmethod::Symbol = :qmr,
   preconditioner::Symbol = :Identity,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
@@ -42,13 +46,11 @@ mutable struct PreallocatedDataK3Krylov{
   T <: Real,
   S,
   L <: LinearOperator,
-  Pr <: PreconditionerDataK2,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataNewtonKrylov{T, S}
-  pdat::Pr
-  D::S                                  # temporary top-left diagonal
   rhs::S
   regu::Regularization{T}
+  ρv::Vector{T}
   δv::Vector{T}
   K::L # augmented matrix (LinearOperator)         
   KS::Ksol
@@ -62,10 +64,14 @@ function opK3prod!(
   res::AbstractVector{T},
   nvar::Int,
   ncon::Int,
+  ilow::Vector{Int},
+  iupp::Vector{Int},
   nlow::Int,
-  nupp::Int,
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
   Q::AbstractMatrix{T},
-  D::AbstractVector{T},
   A::AbstractMatrix{T},
   ρv::AbstractVector{T},
   δv::AbstractVector{T},
@@ -75,30 +81,74 @@ function opK3prod!(
   uplo::Symbol,
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .-= α .* (ρv[1] .* v[1:nvar] .+ v[(nvar + ncon + 1): (nvar + ncon + nlow)] .- v[(nvar + ncon + nlow): end])
+  res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
+  res[ilow] .+= α .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]
+  res[iupp] .-= α .* v[(nvar + ncon + nlow + 1): end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1):end], A', v[1:nvar], α, β)
+    @views mul!(res[(nvar + 1): (nvar + ncon)], A', v[1:nvar], α, β)
   else
     @views mul!(res[1:nvar], A', v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
   end
   res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
+  res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)]) .+
+    β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
+  res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
+    β .* res[(nvar + ncon + nlow + 1): end]
+end
+
+function opK3tprod!(
+  res::AbstractVector{T},
+  nvar::Int,
+  ncon::Int,
+  ilow::Vector{Int},
+  iupp::Vector{Int},
+  nlow::Int,
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  Q::AbstractMatrix{T},
+  A::AbstractMatrix{T},
+  ρv::AbstractVector{T},
+  δv::AbstractVector{T},
+  v::AbstractVector{T},
+  α::T,
+  β::T,
+  uplo::Symbol,
+) where {T}
+  @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
+  res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
+  res[ilow] .+= α .* s_l .* v[nvar + ncon + 1: nvar + ncon + nlow]
+  res[iupp] .-= α .* s_u .* v[(nvar + ncon + nlow + 1): end]
+  if uplo == :U
+    @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
+    @views mul!(res[(nvar + 1): (nvar + ncon)], A', v[1:nvar], α, β)
+  else
+    @views mul!(res[1:nvar], A', v[(nvar + 1):(nvar + ncon)], α, one(T))
+    @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
+  end
+  res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
+  res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]) .+
+    β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
+  res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
+    β .* res[(nvar + ncon + nlow + 1): end]
 end
 
 function PreallocatedData(
-  sp::K2KrylovParams,
+  sp::K3KrylovParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
+  itd::IterData{T},
+  pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
 
   # init Regularization values
-  D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
     regu =
       Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
-    D .= -T(1.0e0) / 2
   else
     regu = Regularization(
       T(sqrt(eps()) * 1e5),
@@ -107,30 +157,31 @@ function PreallocatedData(
       T(sqrt(eps(T)) * 1e0),
       :classic,
     )
-    D .= -T(1.0e-2)
   end
+  ρv = [regu.ρ]
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   K = LinearOperator(
     T,
-    id.nvar + id.ncon,
-    id.nvar + id.ncon,
-    true,
-    true,
+    id.nvar + id.ncon + id.nlow + id.nupp,
+    id.nvar + id.ncon + id.nlow + id.nupp,
+    false,
+    false,
     (res, v, α, β) ->
-      opK2prod!(res, id.nvar, Symmetric(fd.Q, fd.uplo), D, fd.A, δv, v, α, β, fd.uplo),
+      opK3prod!(res, id.nvar, id.ncon, id.ilow, id.iupp, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
+                Symmetric(fd.Q, fd.uplo), fd.A, ρv, δv, v, α, β, fd.uplo),
+    (res, v, α, β) ->
+      opK3tprod!(res, id.nvar, id.ncon, id.ilow, id.iupp, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
+                 Symmetric(fd.Q, fd.uplo), fd.A, ρv, δv, v, α, β, fd.uplo),
   )
 
-  rhs = similar(fd.c, id.nvar + id.ncon)
+  rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
   kstring = string(sp.kmethod)
   KS = eval(KSolver(sp.kmethod))(K, rhs)
 
-  pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
-
-  return eval(:PreallocatedData_K2Krylov)(
-    pdat,
-    D,
+  return PreallocatedDataK3Krylov(
     rhs,
     regu,
+    ρv,
     δv,
     K, #K
     KS,
@@ -143,7 +194,7 @@ end
 
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedData_K2Krylov{T},
+  pad::PreallocatedDataK3Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -154,13 +205,15 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.rhs .= dd
+  pad.rhs[1: (id.nvar + id.ncon)] .= dd
+  pad.rhs[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)] .= itd.Δs_l
+  pad.rhs[(id.nvar + id.ncon + id.nlow + 1): end] .= itd.Δs_u
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, pad.K, pad.rhs, I(id.nvar+id.ncon+id.nlow+id.nupp), verbose = 0, atol = pad.atol, rtol = pad.rtol)
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
     res.Kres = res.KΔxy .- pad.rhs
@@ -169,13 +222,15 @@ function solver!(
     pad.KS.x .*= rhsNorm
   end
 
-  dd .= pad.KS.x
+  dd .= @views pad.KS.x[1: (id.nvar + id.ncon)]
+  itd.Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)]
+  itd.Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1): end]
 
   return 0
 end
 
 function update_pad!(
-  pad::PreallocatedData_K2Krylov{T},
+  pad::PreallocatedDataK3Krylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -196,12 +251,10 @@ function update_pad!(
     pad.rtol /= 10
   end
 
-  pad.D .= -pad.regu.ρ
-  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+  pad.ρv[1] = pad.regu.ρ
   pad.δv[1] = pad.regu.δ
 
-  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  # update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
   return 0
 end

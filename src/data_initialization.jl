@@ -242,7 +242,7 @@ function initialize!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  pad = PreallocatedData(iconf.sp, fd, id, iconf)
+  pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
 
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)

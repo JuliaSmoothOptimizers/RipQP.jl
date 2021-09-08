@@ -42,6 +42,8 @@ function PreallocatedData(
   sp::K2LDLParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
+  itd::IterData{T},
+  pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
 
