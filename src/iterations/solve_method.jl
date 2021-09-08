@@ -106,8 +106,8 @@ function update_dd!(
     dda.Δxy_aff[id.ilow] .+= pt.s_l
     dda.Δxy_aff[id.iupp] .-= pt.s_u
   elseif typeof(pad) <: PreallocatedDataNewton
-    dda.Δs_l .= .-itd.x_m_lvar .* pt.s_l
-    dda.Δs_u .= .-itd.uvar_m_x .* pt.s_u
+    dda.Δs_l_aff .= .-itd.x_m_lvar .* pt.s_l
+    dda.Δs_u_aff .= .-itd.uvar_m_x .* pt.s_u
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, dda.Δxy_aff, :aff, cnts.k)

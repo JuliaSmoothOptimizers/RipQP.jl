@@ -205,9 +205,16 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
+  if step == :aff
+    Δs_l = dda.Δs_l_aff
+    Δs_u = dda.Δs_u_aff
+  else
+    Δs_l = itd.Δs_l
+    Δs_u = itd.Δs_u
+  end
   pad.rhs[1: (id.nvar + id.ncon)] .= dd
-  pad.rhs[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)] .= itd.Δs_l
-  pad.rhs[(id.nvar + id.ncon + id.nlow + 1): end] .= itd.Δs_u
+  pad.rhs[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)] .= Δs_l
+  pad.rhs[(id.nvar + id.ncon + id.nlow + 1): end] .= Δs_u
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
@@ -223,8 +230,8 @@ function solver!(
   end
 
   dd .= @views pad.KS.x[1: (id.nvar + id.ncon)]
-  itd.Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)]
-  itd.Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1): end]
+  Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)]
+  Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1): end]
 
   return 0
 end
