@@ -18,6 +18,7 @@ encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 """
 struct K2_5LDLParams <: SolverParams
+  uplo::Symbol
   regul::Symbol
 end
 
@@ -26,7 +27,8 @@ function K2_5LDLParams(; regul::Symbol = :classic)
     regul == :dynamic ||
     regul == :none ||
     error("regul should be :classic or :dynamic or :none")
-  return K2_5LDLParams(regul)
+  uplo = :U # mandatory for LDLFactorizations
+  return K2_5LDLParams(uplo, regul)
 end
 
 mutable struct PreallocatedDataK2_5LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}

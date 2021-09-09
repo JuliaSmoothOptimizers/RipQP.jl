@@ -5,7 +5,7 @@ Type to use the K2.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2_5KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, atol = 1.0e-10, rtol = 1.0e-10)
+    K2_5KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Jacobi, atol = 1.0e-10, rtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -15,6 +15,7 @@ The available methods are:
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
 struct K2_5KrylovParams <: SolverParams
+  uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
   atol0::Float64
@@ -26,6 +27,7 @@ struct K2_5KrylovParams <: SolverParams
 end
 
 function K2_5KrylovParams(;
+  uplo::Symbol = :L,
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Jacobi,
   atol0::T = 1.0e-4,
@@ -35,7 +37,7 @@ function K2_5KrylovParams(;
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e3 * sqrt(eps()),
 ) where {T <: Real}
-  return K2_5KrylovParams(kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K2_5KrylovParams(uplo, kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedDataK2_5Krylov{

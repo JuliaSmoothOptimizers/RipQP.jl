@@ -9,16 +9,19 @@ Type to use the K3 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3KrylovParams(; kmethod = :minres, preconditioner = :Jacobi, 
+    K3KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Jacobi, 
                    ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
-- `:gmres`
+- `:qmr`
+- `bicgstab`
+- `usymqr`
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 """
 struct K3KrylovParams <: SolverParams
+  uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
   atol0::Float64
@@ -30,6 +33,7 @@ struct K3KrylovParams <: SolverParams
 end
 
 function K3KrylovParams(;
+  uplo::Symbol = :L,
   kmethod::Symbol = :qmr,
   preconditioner::Symbol = :Identity,
   atol0::T = 1.0e-4,
@@ -39,7 +43,7 @@ function K3KrylovParams(;
   ρ_min::T = 1e3 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
-  return K3KrylovParams(kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K3KrylovParams(uplo, kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedDataK3Krylov{
