@@ -150,7 +150,7 @@ function allocate_workspace(
   end
   S = S0.name.wrapper{T, 1}
 
-  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf.history)
+  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf, id)
 
   itd = IterData(
     S(undef, id.nvar + id.ncon), # Δxy
