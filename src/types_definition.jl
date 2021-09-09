@@ -353,12 +353,19 @@ function init_residuals(
   rc::AbstractVector{T},
   rbNorm::T,
   rcNorm::T,
-  history::Bool,
+  iconf::InputConfig,
+  id::QM_IntData,
 ) where {T <: Real}
   S = typeof(rb)
-  if history
-    KΔxy = S(undef, length(rb) + length(rc))
-    Kres = S(undef, length(rb) + length(rc))
+  if iconf.history
+    stype = typeof(iconf.sp)
+    if stype == K3KrylovParams || stype == K3_5KrylovParams
+      Kn = length(rb) + length(rc) + id.nlow + id.nupp
+    else
+      Kn = length(rb) + length(rc)
+    end
+    KΔxy = S(undef, Kn)
+    Kres = S(undef, Kn)
     return ResidualsHistory{T, S}(
       rb,
       rc,
