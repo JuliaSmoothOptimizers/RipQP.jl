@@ -96,10 +96,15 @@ function opK3prod!(
     @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
   end
   res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
-  res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)]) .+
-    β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
-  res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
-    β .* res[(nvar + ncon + nlow + 1): end]
+  if β == 0
+    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)])
+    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end])
+  else
+    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)]) .+
+      β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
+    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
+      β .* res[(nvar + ncon + nlow + 1): end]
+  end
 end
 
 function opK3tprod!(
@@ -134,10 +139,15 @@ function opK3tprod!(
     @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
   end
   res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
-  res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]) .+
-    β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
-  res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
-    β .* res[(nvar + ncon + nlow + 1): end]
+  if β == 0
+    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)])
+    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end])
+  else
+    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]) .+
+      β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
+    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
+      β .* res[(nvar + ncon + nlow + 1): end]
+  end
 end
 
 function PreallocatedData(
