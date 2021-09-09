@@ -101,7 +101,7 @@ function update_dd!(
 
   # solve system aff
   dda.Δxy_aff[1:(id.nvar)] .= .-res.rc
-  dda.Δxy_aff[(id.nvar + 1): (id.nvar + id.ncon)] .= .-res.rb
+  dda.Δxy_aff[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
   if typeof(pad) <: PreallocatedDataAugmented
     dda.Δxy_aff[id.ilow] .+= pt.s_l
     dda.Δxy_aff[id.iupp] .-= pt.s_u
@@ -178,7 +178,7 @@ function update_dd!(
     itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
   elseif typeof(pad) <: PreallocatedDataNewton
-    itd.Δxy[1: end] .= 0
+    itd.Δxy[1:end] .= 0
     itd.Δs_l .= σ * itd.μ .- dda.Δxy_aff[id.ilow] .* dda.Δs_l_aff
     itd.Δs_u .= σ * itd.μ .+ dda.Δxy_aff[id.iupp] .* dda.Δs_u_aff
   end
@@ -237,7 +237,7 @@ function update_dd!(
   σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3
 
   itd.Δxy[1:(id.nvar)] .= .-res.rc
-  itd.Δxy[(id.nvar + 1): (id.nvar + id.ncon)] .= .-res.rb
+  itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
   if typeof(pad) <: PreallocatedDataAugmented
     itd.Δxy[id.ilow] .+= pt.s_l - σ * itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .-= pt.s_u - σ * itd.μ ./ itd.uvar_m_x

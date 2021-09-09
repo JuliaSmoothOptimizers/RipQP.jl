@@ -37,7 +37,17 @@ function K2_5KrylovParams(;
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e3 * sqrt(eps()),
 ) where {T <: Real}
-  return K2_5KrylovParams(uplo, kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K2_5KrylovParams(
+    uplo,
+    kmethod,
+    preconditioner,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ_min,
+    δ_min,
+  )
 end
 
 mutable struct PreallocatedDataK2_5Krylov{
