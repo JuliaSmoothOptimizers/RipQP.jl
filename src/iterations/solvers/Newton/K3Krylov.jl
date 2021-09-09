@@ -43,15 +43,21 @@ function K3KrylovParams(;
   ρ_min::T = 1e3 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
-  return K3KrylovParams(uplo, kmethod, preconditioner, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K3KrylovParams(
+    uplo,
+    kmethod,
+    preconditioner,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ_min,
+    δ_min,
+  )
 end
 
-mutable struct PreallocatedDataK3Krylov{
-  T <: Real,
-  S,
-  L <: LinearOperator,
-  Ksol <: KrylovSolver,
-} <: PreallocatedDataNewtonKrylov{T, S}
+mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
+               PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   regu::Regularization{T}
   ρv::Vector{T}
@@ -86,24 +92,28 @@ function opK3prod!(
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
   res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= α .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]
-  res[iupp] .-= α .* v[(nvar + ncon + nlow + 1): end]
+  res[ilow] .+= α .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  res[iupp] .-= α .* v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1): (nvar + ncon)], A', v[1:nvar], α, β)
+    @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
   else
     @views mul!(res[1:nvar], A', v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
+    @views mul!(res[(nvar + 1):(nvar + ncon)], A, v[1:nvar], α, β)
   end
-  res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
+  res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
-    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end])
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
+      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+    res[(nvar + ncon + nlow + 1):end] .=
+      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon +1) : (nvar + ncon + nlow)]) .+
-      β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
-      β .* res[(nvar + ncon + nlow + 1): end]
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
+      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
+             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    res[(nvar + ncon + nlow + 1):end] .=
+      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
+             β .* res[(nvar + ncon + nlow + 1):end]
   end
 end
 
@@ -129,24 +139,28 @@ function opK3tprod!(
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
   res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= α .* s_l .* v[nvar + ncon + 1: nvar + ncon + nlow]
-  res[iupp] .-= α .* s_u .* v[(nvar + ncon + nlow + 1): end]
+  res[ilow] .+= α .* s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  res[iupp] .-= α .* s_u .* v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1): (nvar + ncon)], A', v[1:nvar], α, β)
+    @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
   else
     @views mul!(res[1:nvar], A', v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1): (nvar + ncon)], A, v[1:nvar], α, β)
+    @views mul!(res[(nvar + 1):(nvar + ncon)], A, v[1:nvar], α, β)
   end
-  res[(nvar + 1): (nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1): (nvar + ncon)]
+  res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
-    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end])
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
+      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+    res[(nvar + ncon + nlow + 1):end] .=
+      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1): (nvar + ncon + nlow)] .= @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1): (nvar + ncon + nlow)]) .+
-      β .* res[(nvar + ncon + 1): (nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1): end] .= @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1): end]) .+
-      β .* res[(nvar + ncon + nlow + 1): end]
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
+      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
+             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    res[(nvar + ncon + nlow + 1):end] .=
+      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
+             β .* res[(nvar + ncon + nlow + 1):end]
   end
 end
 
@@ -180,12 +194,46 @@ function PreallocatedData(
     id.nvar + id.ncon + id.nlow + id.nupp,
     false,
     false,
-    (res, v, α, β) ->
-      opK3prod!(res, id.nvar, id.ncon, id.ilow, id.iupp, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
-                Symmetric(fd.Q, fd.uplo), fd.A, ρv, δv, v, α, β, fd.uplo),
-    (res, v, α, β) ->
-      opK3tprod!(res, id.nvar, id.ncon, id.ilow, id.iupp, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u,
-                 Symmetric(fd.Q, fd.uplo), fd.A, ρv, δv, v, α, β, fd.uplo),
+    (res, v, α, β) -> opK3prod!(
+      res,
+      id.nvar,
+      id.ncon,
+      id.ilow,
+      id.iupp,
+      id.nlow,
+      itd.x_m_lvar,
+      itd.uvar_m_x,
+      pt.s_l,
+      pt.s_u,
+      Symmetric(fd.Q, fd.uplo),
+      fd.A,
+      ρv,
+      δv,
+      v,
+      α,
+      β,
+      fd.uplo,
+    ),
+    (res, v, α, β) -> opK3tprod!(
+      res,
+      id.nvar,
+      id.ncon,
+      id.ilow,
+      id.iupp,
+      id.nlow,
+      itd.x_m_lvar,
+      itd.uvar_m_x,
+      pt.s_l,
+      pt.s_u,
+      Symmetric(fd.Q, fd.uplo),
+      fd.A,
+      ρv,
+      δv,
+      v,
+      α,
+      β,
+      fd.uplo,
+    ),
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
@@ -226,15 +274,23 @@ function solver!(
     Δs_l = itd.Δs_l
     Δs_u = itd.Δs_u
   end
-  pad.rhs[1: (id.nvar + id.ncon)] .= dd
-  pad.rhs[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)] .= Δs_l
-  pad.rhs[(id.nvar + id.ncon + id.nlow + 1): end] .= Δs_u
+  pad.rhs[1:(id.nvar + id.ncon)] .= dd
+  pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l
+  pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, I(id.nvar+id.ncon+id.nlow+id.nupp), verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(
+    pad.KS,
+    pad.K,
+    pad.rhs,
+    I(id.nvar + id.ncon + id.nlow + id.nupp),
+    verbose = 0,
+    atol = pad.atol,
+    rtol = pad.rtol,
+  )
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
     res.Kres = res.KΔxy .- pad.rhs
@@ -243,9 +299,9 @@ function solver!(
     pad.KS.x .*= rhsNorm
   end
 
-  dd .= @views pad.KS.x[1: (id.nvar + id.ncon)]
-  Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1): (id.nvar + id.ncon + id.nlow)]
-  Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1): end]
+  dd .= @views pad.KS.x[1:(id.nvar + id.ncon)]
+  Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)]
+  Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1):end]
 
   return 0
 end
