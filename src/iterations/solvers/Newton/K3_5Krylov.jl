@@ -60,8 +60,12 @@ function K3_5KrylovParams(;
   )
 end
 
-mutable struct PreallocatedDataK3_5Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
-               PreallocatedDataNewtonKrylov{T, S}
+mutable struct PreallocatedDataK3_5Krylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Ksol <: KrylovSolver,
+} <: PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   regu::Regularization{T}
   ρv::Vector{T}
@@ -112,9 +116,9 @@ function opK3_5prod!(
     res[(nvar + ncon + nlow + 1):end] .=
       @views α .* (.-sqrt.(s_u) .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (sqrt.(s_l) .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .= @views α .*
+           (sqrt.(s_l) .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
+           β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
     res[(nvar + ncon + nlow + 1):end] .=
       @views α .* (.-sqrt.(s_u) .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
              β .* res[(nvar + ncon + nlow + 1):end]
