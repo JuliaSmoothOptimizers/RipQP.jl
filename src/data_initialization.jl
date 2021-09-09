@@ -110,16 +110,7 @@ function allocate_workspace(
     QM = SlackModel(QM)
   end
 
-  sptype = typeof(iconf.sp)
-  if sptype <: K2LDLParams ||
-     sptype <: K2_5LDLParams ||
-     (sptype <: K2KrylovParams && iconf.sp.preconditioner == :Identity) || # for coverage
-     (sptype <: K2_5KrylovParams && iconf.sp.preconditioner == :Identity)
-    uplo = :U
-  else
-    uplo = :L
-  end
-
+  uplo = iconf.sp.uplo
   fd_T0, id, ps = get_QM_data(QM, uplo, iconf.presolve) # apply presolve at the same time
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
@@ -242,14 +233,21 @@ function initialize!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  pad = PreallocatedData(iconf.sp, fd, id, iconf)
+  pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
 
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [b]
   itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
-
+  if typeof(pad) <: PreallocatedDataNewton
+    itd.Δs_l .= zero(T)
+    itd.Δs_u .= zero(T)
+    pt.s_l .= one(T)
+    pt.s_u .= one(T)
+    itd.x_m_lvar .= one(T)
+    itd.uvar_m_x .= one(T)
+  end
   out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):end]

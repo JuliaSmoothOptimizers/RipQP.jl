@@ -1,35 +1,35 @@
-# Formulation K2: (if regul==:classic, adds additional Regularization parmeters -ρ (top left) and δ (bottom right))
-# [-Q_X - D      sqrt(X1X2)A' ] [̃x] = rhs
-# [ A sqrt(X1x2)         0    ] [y]
-# where Q_X = sqrt(X1X2) Q sqrt(X1X2) and D = s_l X2 + s_u X1
-# and  Δ x = sqrt(X1 X2) Δ ̃x
-export K2_5LDLParams
+# Formulation K2: (if regul==:classic, adds additional regularization parmeters -ρ (top left) and δ (bottom right))
+# [-Q - D     A' ] [x] = rhs
+# [ A         0  ] [y]
+export K2LDLParams
 
 """
-Type to use the K2.5 formulation with a LDLᵀ factorization, using the package 
+Type to use the K2 formulation with a LDLᵀ factorization, using the package 
 [`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
 The outer constructor 
 
-    sp = K2_5LDLParams(; regul :: Symbol = :classic) 
+    sp = K2LDLParams(; regul :: Symbol = :classic) 
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 """
-struct K2_5LDLParams <: SolverParams
+struct K2LDLParams <: SolverParams
+  uplo::Symbol
   regul::Symbol
 end
 
-function K2_5LDLParams(; regul::Symbol = :classic)
+function K2LDLParams(; regul::Symbol = :classic)
   regul == :classic ||
     regul == :dynamic ||
     regul == :none ||
     error("regul should be :classic or :dynamic or :none")
-  return K2_5LDLParams(regul)
+  uplo = :U # mandatory for LDLFactorizations
+  return K2LDLParams(uplo, regul)
 end
 
-mutable struct PreallocatedData_K2_5LDL{T <: Real, S} <: PreallocatedData{T, S}
+mutable struct PreallocatedDataK2LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
@@ -37,13 +37,15 @@ mutable struct PreallocatedData_K2_5LDL{T <: Real, S} <: PreallocatedData{T, S}
   K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int} # factorized matrix
   fact_fail::Bool # true if factorization failed 
   diagind_K::Vector{Int} # diagonal indices of J
-  K_scaled::Bool # true if K is scaled with X1X2
 end
 
+# outer constructor
 function PreallocatedData(
-  sp::K2_5LDLParams,
+  sp::K2LDLParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
+  itd::IterData{T},
+  pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
 
@@ -85,7 +87,7 @@ function PreallocatedData(
   K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
   K_fact.__factorized = true
 
-  return PreallocatedData_K2_5LDL(
+  return PreallocatedDataK2LDL(
     D,
     regu,
     diag_Q, #diag_Q
@@ -93,16 +95,15 @@ function PreallocatedData(
     K_fact, #K_fact
     false,
     diagind_K, #diagind_K
-    false,
   )
 end
 
 function convertpad(
   ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedData_K2_5LDL{T_old},
+  pad::PreallocatedDataK2LDL{T_old},
   T0::DataType,
 ) where {T <: Real, T_old <: Real}
-  pad = PreallocatedData_K2_5LDL(
+  pad = PreallocatedDataK2LDL(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
@@ -110,7 +111,6 @@ function convertpad(
     convertldl(T, pad.K_fact),
     pad.fact_fail,
     pad.diagind_K,
-    pad.K_scaled,
   )
 
   if pad.regu.regul == :classic
@@ -119,8 +119,6 @@ function convertpad(
     else
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
     end
-    pad.regu.ρ /= 10
-    pad.regu.δ /= 10
   elseif pad.regu.regul == :dynamic
     pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
     pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
@@ -129,10 +127,11 @@ function convertpad(
   return pad
 end
 
+# function used to solve problems
 # solver LDLFactorization
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedData_K2_5LDL{T},
+  pad::PreallocatedDataK2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -143,35 +142,12 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  if pad.K_scaled
-    dd[1:(id.nvar)] .*= pad.D
-    ldiv!(pad.K_fact, dd)
-    dd[1:(id.nvar)] .*= pad.D
-  else
-    ldiv!(pad.K_fact, dd)
-  end
-
-  if step == :cc || step == :IPF  # update regularization and restore K. Cannot be done in update_pad since x-lvar and uvar-x will change.
-    out = 0
-    if pad.regu.regul == :classic # update ρ and δ values, check K diag magnitude 
-      out = update_regu_diagK2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0)
-    end
-
-    # restore J for next iteration
-    if pad.K_scaled
-      pad.D .= one(T)
-      pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
-      pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
-      lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.nvar)
-      pad.K_scaled = false
-    end
-    out == 1 && return out
-  end
+  ldiv!(pad.K_fact, dd)
   return 0
 end
 
 function update_pad!(
-  pad::PreallocatedData_K2_5LDL{T},
+  pad::PreallocatedDataK2LDL{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -181,8 +157,23 @@ function update_pad!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real}
-  pad.K_scaled = false
-  out = factorize_K2_5!(
+  if pad.regu.regul == :classic && cnts.k != 0 # update ρ and δ values, check K diag magnitude 
+    out = update_regu_diagK2!(
+      pad.regu,
+      pad.K.nzval,
+      pad.diagind_K,
+      id.nvar,
+      itd.pdd,
+      itd.l_pdd,
+      itd.mean_pdd,
+      cnts,
+      T,
+      T0,
+    )
+    out == 1 && return out
+  end
+
+  out = factorize_K2!(
     pad.K,
     pad.K_fact,
     pad.D,
@@ -201,38 +192,118 @@ function update_pad!(
     itd.qp,
     T,
     T0,
-  )
-  out == 1 && return out
-  pad.K_scaled = true
+  ) # update D and factorize K
 
-  return out
-end
-
-function lrmultilply_J!(J_colptr, J_rowval, J_nzval, v, nvar)
-  T = eltype(v)
-  @inbounds @simd for i = 1:nvar
-    for idx_row = J_colptr[i]:(J_colptr[i + 1] - 1)
-      J_nzval[idx_row] *= v[i] * v[J_rowval[idx_row]]
-    end
+  if out == 1
+    pad.fact_fail = true
+    return out
   end
 
-  n = length(J_colptr)
-  @inbounds @simd for i = (nvar + 1):(n - 1)
-    for idx_row = J_colptr[i]:(J_colptr[i + 1] - 1)
-      if J_rowval[idx_row] <= nvar
-        J_nzval[idx_row] *= v[J_rowval[idx_row]] # multiply row i by v[i]
+  return 0
+end
+
+# Init functions for the K2 system
+function fill_K2!(
+  K_colptr,
+  K_rowval,
+  K_nzval,
+  D,
+  Q_colptr,
+  Q_rowval,
+  Q_nzval,
+  A_colptr,
+  A_rowval,
+  A_nzval,
+  diag_Q_nzind,
+  δ,
+  ncon,
+  nvar,
+  regul,
+)
+  added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
+  n_nz = length(diag_Q_nzind)
+  c_nz = n_nz > 0 ? 1 : 0
+  @inbounds for j = 1:nvar  # Q coeffs, tmp diag coefs. 
+    K_colptr[j + 1] = Q_colptr[j + 1] + added_coeffs_diag
+    for k = Q_colptr[j]:(Q_colptr[j + 1] - 2)
+      nz_idx = k + added_coeffs_diag
+      K_rowval[nz_idx] = Q_rowval[k]
+      K_nzval[nz_idx] = -Q_nzval[k]
+    end
+    if c_nz == 0 || c_nz > n_nz || diag_Q_nzind[c_nz] != j
+      added_coeffs_diag += 1
+      K_colptr[j + 1] += 1
+      nz_idx = K_colptr[j + 1] - 1
+      K_rowval[nz_idx] = j
+      K_nzval[nz_idx] = D[j]
+    else
+      if c_nz != 0
+        c_nz += 1
       end
+      nz_idx = K_colptr[j + 1] - 1
+      K_rowval[nz_idx] = j
+      K_nzval[nz_idx] = D[j] - Q_nzval[Q_colptr[j + 1] - 1]
+    end
+  end
+
+  countsum = K_colptr[nvar + 1] # current value of K_colptr[Q.n+j+1]
+  nnz_top_left = countsum # number of coefficients + 1 already added
+  @inbounds for j = 1:ncon
+    countsum += A_colptr[j + 1] - A_colptr[j]
+    if regul == :classic
+      countsum += 1
+    end
+    K_colptr[nvar + j + 1] = countsum
+    for k = A_colptr[j]:(A_colptr[j + 1] - 1)
+      nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
+      K_rowval[nz_idx] = A_rowval[k]
+      K_nzval[nz_idx] = A_nzval[k]
+    end
+    if regul == :classic
+      nz_idx = K_colptr[nvar + j + 1] - 1
+      K_rowval[nz_idx] = nvar + j
+      K_nzval[nz_idx] = δ
     end
   end
 end
 
-# function lrmultiply_J2!(J, v)
-#     lmul!(v, J)
-#     rmul!(J, v)
-# end
+function create_K2(id, D, Q, A, diag_Q, regu)
+  # for classic regul only
+  n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
+  T = eltype(D)
+  if regu.regul == :classic
+    n_nz += id.ncon
+  end
+  K_colptr = Vector{Int}(undef, id.ncon + id.nvar + 1)
+  K_colptr[1] = 1
+  K_rowval = Vector{Int}(undef, n_nz)
+  K_nzval = Vector{T}(undef, n_nz)
+  # [-Q -D    A]
+  # [0       δI]
 
-# iteration functions for the K2.5 system
-function factorize_K2_5!(
+  fill_K2!(
+    K_colptr,
+    K_rowval,
+    K_nzval,
+    D,
+    Q.colptr,
+    Q.rowval,
+    Q.nzval,
+    A.colptr,
+    A.rowval,
+    A.nzval,
+    diag_Q.nzind,
+    regu.δ,
+    id.ncon,
+    id.nvar,
+    regu.regul,
+  )
+
+  return SparseMatrixCSC(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
+end
+
+# iteration functions for the K2 system
+function factorize_K2!(
   K,
   K_fact,
   D,
@@ -263,44 +334,25 @@ function factorize_K2_5!(
   D[diag_Q.nzind] .-= diag_Q.nzval
   K.nzval[view(diagind_K, 1:nvar)] = D
 
-  D .= one(T)
-  D[ilow] .*= sqrt.(x_m_lvar)
-  D[iupp] .*= sqrt.(uvar_m_x)
-  lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
-
   if regu.regul == :dynamic
-    # Amax = @views norm(K.nzval[diagind_K], Inf)
-    Amax = minimum(D)
-    if Amax < sqrt(eps(T)) && cnts.c_pdd < 8
+    Amax = @views norm(K.nzval[diagind_K], Inf)
+    if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
       if T == Float32
-        # restore J for next iteration
-        D .= one(T)
-        D[ilow] ./= sqrt.(x_m_lvar)
-        D[iupp] ./= sqrt.(uvar_m_x)
-        lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
         return one(Int) # update to Float64
       elseif qp || cnts.c_pdd < 4
         cnts.c_pdd += 1
         regu.δ /= 10
-        K_fact.r2 = max(sqrt(Amax), regu.δ)
-        # regu.ρ /= 10
+        K_fact.r2 = regu.δ
       end
     end
-    K_fact.tol = min(Amax, T(eps(T)))
-    K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    K_fact.tol = Amax * T(eps(T))
+    ldl_factorize!(Symmetric(K, :U), K_fact)
 
   elseif regu.regul == :classic
     ldl_factorize!(Symmetric(K, :U), K_fact)
     while !factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts, T, T0)
-      if out == 1
-        # restore J for next iteration
-        D .= one(T)
-        D[ilow] ./= sqrt.(x_m_lvar)
-        D[iupp] ./= sqrt.(uvar_m_x)
-        lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
-        return out
-      end
+      out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
       D .= -regu.ρ
@@ -308,17 +360,12 @@ function factorize_K2_5!(
       D[iupp] .-= s_u ./ uvar_m_x
       D[diag_Q.nzind] .-= diag_Q.nzval
       K.nzval[view(diagind_K, 1:nvar)] = D
-
-      D .= one(T)
-      D[ilow] .*= sqrt.(x_m_lvar)
-      D[iupp] .*= sqrt.(uvar_m_x)
-      K.nzval[view(diagind_K, 1:nvar)] .*= D .^ 2
       K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
       ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
   else # no Regularization
-    K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    ldl_factorize!(Symmetric(K, :U), K_fact)
   end
 
   return 0 # factorization succeeded

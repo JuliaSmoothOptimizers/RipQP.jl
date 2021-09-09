@@ -102,15 +102,16 @@ First, you will need a [`RipQP.SolverParams`](@ref) to define parameters for you
 using RipQP, LinearAlgebra, LDLFactorizations, SparseArrays
 
 struct K2basicLDLParams{T<:Real} <: SolverParams
-    ρ :: T # dual regularization
-    δ :: T # primal regularization
+    uplo   :: Symbol # mandatory, tells RipQP which triangle of the augmented system to store
+    ρ      :: T # dual regularization
+    δ      :: T # primal regularization
 end
 ```
 
 Then, you will have to create a type that allocates space for your solver, and a constructor using the following parameters:
 
 ```julia
-mutable struct PreallocatedData_K2basic{T<:Real} <: RipQP.PreallocatedData{T}
+mutable struct PreallocatedDataK2basic{T<:Real} <: RipQP.PreallocatedData{T}
     D                :: Vector{T} # temporary top-left diagonal of the K2 system
     ρ                :: T # dual regularization
     δ                :: T # primal regularization
@@ -123,7 +124,8 @@ Now you need to write a `RipQP.PreallocatedData` function that returns your type
 
 ```julia
 function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
-                                id :: RipQP.QM_IntData,
+                                id :: RipQP.QM_IntData, itd :: IterData{T},
+                                pt :: Point{T},
                                 iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
 
     ρ, δ = T(sp.ρ), T(sp.δ)
@@ -133,10 +135,11 @@ function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
     K[diagind(K)[id.nvar+1:end]] .= δ
 
     K_fact = ldl_analyze(Symmetric(K, :U))
+    @assert sp.uplo == :U # LDLFactorizations does not work with the lower triangle
     K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
     K_fact.__factorized = true
 
-    return PreallocatedData_K2basic(zeros(T, id.nvar),
+    return PreallocatedDataK2basic(zeros(T, id.nvar),
                                     ρ,
                                     δ,
                                     K, #K
@@ -149,7 +152,7 @@ Then, you need to write a `RipQP.update_pad!` function that will update the `Rip
 struct before computing the direction of descent.
 
 ```julia
-function RipQP.update_pad!(pad :: PreallocatedData_K2basic{T}, dda :: RipQP.DescentDirectionAllocs{T},
+function RipQP.update_pad!(pad :: PreallocatedDataK2basic{T}, dda :: RipQP.DescentDirectionAllocs{T},
                            pt :: RipQP.Point{T}, itd :: RipQP.IterData{T},
                            fd :: RipQP.Abstract_QM_FloatData{T}, id :: RipQP.QM_IntData,
                            res :: RipQP.Residuals{T}, cnts :: RipQP.Counters,
@@ -175,7 +178,7 @@ That is why the direction of descent `dd`
 countains the right hand side of the linear system to solve.
 
 ```julia
-function RipQP.solver!(dd :: AbstractVector{T}, pad :: PreallocatedData_K2basic{T},
+function RipQP.solver!(dd :: AbstractVector{T}, pad :: PreallocatedDataK2basic{T},
                        dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T},
                        itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T},
                        id :: RipQP.QM_IntData, res :: RipQP.Residuals{T},
@@ -192,5 +195,5 @@ Then, you can use your solver:
 ```julia
 using QuadraticModels, QPSReader
 qm = QuadraticModel(readqps("QAFIRO.SIF"))
-stats1 = ripqp(qm, iconf = RipQP.InputConfig(sp = K2basicLDLParams(1.0e-6, 1.0e-6)))
+stats1 = ripqp(qm, iconf = RipQP.InputConfig(sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6)))
 ```
