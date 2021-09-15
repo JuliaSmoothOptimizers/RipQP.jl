@@ -179,8 +179,8 @@ function update_dd!(
     itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
   elseif typeof(pad) <: PreallocatedDataNewton
     itd.Δxy[1:end] .= 0
-    itd.Δs_l .= σ * itd.μ .- dda.Δxy_aff[id.ilow] .* dda.Δs_l_aff
-    itd.Δs_u .= σ * itd.μ .+ dda.Δxy_aff[id.iupp] .* dda.Δs_u_aff
+    itd.Δs_l .= @views σ * itd.μ .- dda.Δxy_aff[id.ilow] .* dda.Δs_l_aff
+    itd.Δs_u .= @views σ * itd.μ .+ dda.Δxy_aff[id.iupp] .* dda.Δs_u_aff
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
