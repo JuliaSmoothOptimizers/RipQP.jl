@@ -195,19 +195,11 @@ function solver!(
   # erase dda.Δxy_aff only for affine predictor step with PC method
   pad.rhs[1:(id.nvar)] .= @views dd[1:(id.nvar)] .* pad.sqrtX1X2
   pad.rhs[(id.nvar + 1):end] .= @views dd[(id.nvar + 1):end]
-  rhsNorm = norm(pad.rhs)
-  if rhsNorm != zero(T)
-    pad.rhs ./= rhsNorm
-  end
+  rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
-  if typeof(res) <: ResidualsHistory
-    mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
-    res.Kres .= res.KΔxy .- pad.rhs
-  end
-  if rhsNorm != zero(T)
-    pad.KS.x .*= rhsNorm
-  end
+  update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
+  kunscale!(pad.KS.x, rhsNorm)
   pad.KS.x[1:(id.nvar)] .*= pad.sqrtX1X2
 
   dd .= pad.KS.x

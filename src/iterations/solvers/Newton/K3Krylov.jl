@@ -276,10 +276,7 @@ function solver!(
   pad.rhs[1:(id.nvar + id.ncon)] .= dd
   pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l
   pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u
-  rhsNorm = norm(pad.rhs)
-  if rhsNorm != zero(T)
-    pad.rhs ./= rhsNorm
-  end
+  rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
   ksolve!(
     pad.KS,
@@ -290,13 +287,8 @@ function solver!(
     atol = pad.atol,
     rtol = pad.rtol,
   )
-  if typeof(res) <: ResidualsHistory
-    mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
-    res.Kres = res.KΔxy .- pad.rhs
-  end
-  if rhsNorm != zero(T)
-    pad.KS.x .*= rhsNorm
-  end
+  update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
+  kunscale!(pad.KS.x, rhsNorm)
 
   dd .= @views pad.KS.x[1:(id.nvar + id.ncon)]
   Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)]

@@ -163,19 +163,11 @@ function solver!(
   else
     @views mul!(pad.rhs, fd.A, dd[1:(id.nvar)] ./ pad.D, one(T), one(T))
   end
-  rhsNorm = norm(pad.rhs)
-  if rhsNorm != zero(T)
-    pad.rhs ./= rhsNorm
-  end
+  rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, I(id.ncon), verbose = 0, atol = pad.atol, rtol = pad.rtol)
-  if typeof(res) <: ResidualsHistory
-    mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
-    res.Kres = res.KΔxy .- pad.rhs
-  end
-  if rhsNorm != zero(T)
-    pad.KS.x .*= rhsNorm
-  end
+  update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
+  kunscale!(pad.KS.x, rhsNorm)
 
   if fd.uplo == :U
     @views mul!(dd[1:(id.nvar)], fd.A, pad.KS.x, one(T), -one(T))
