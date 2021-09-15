@@ -250,7 +250,7 @@ function initialize!(
   end
   out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
   pt.x .= itd.Δxy[1:(id.nvar)]
-  pt.y .= itd.Δxy[(id.nvar + 1):end]
+  pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]
 
   starting_points!(pt, fd, id, itd, spd)
 
