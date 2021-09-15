@@ -22,6 +22,7 @@ K2KrylovParams
 K2_5KrylovParams
 K3KrylovParams
 K3_5KrylovParams
+K1KrylovParams
 ```
 
 ## Preconditioners

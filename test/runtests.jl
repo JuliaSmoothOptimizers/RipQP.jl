@@ -294,7 +294,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = true,
-      iconf = InputConfig(sp = K2KrylovParams(kmethod = kmethod)),
+      iconf = InputConfig(sp = K2KrylovParams(uplo = :U, kmethod = kmethod)),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
@@ -321,7 +321,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = :IPF),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -359,7 +359,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      iconf = InputConfig(sp = K3KrylovParams(kmethod = kmethod)),
+      iconf = InputConfig(sp = K3KrylovParams(uplo = :U, kmethod = kmethod)),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
@@ -383,7 +383,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3_5KrylovParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = :IPF),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -399,6 +399,36 @@ end
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
     @test stats3.status == :acceptable
   end
+end
+
+@testset "Krylov K1" begin
+  qps4 = readqps("AFIRO.SIF") # low/upp bounds
+  stats4 = ripqp(
+    QuadraticModel(qps4),
+    display = false,
+    iconf = InputConfig(
+      sp = K1KrylovParams(),
+      solve_method = :IPF,
+      history = true,
+    ),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+  )
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
+
+  qps4 = readqps("AFIRO.SIF") # low/upp bounds
+  stats4 = ripqp(
+    QuadraticModel(qps4),
+    display = false,
+    iconf = InputConfig(
+      sp = K1KrylovParams(uplo = :U),
+      solve_method = :PC,
+      history = true,
+    ),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+  )
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
 end
 
 function QuadraticModelMaximize(qps, x0 = zeros(qps.nvar))

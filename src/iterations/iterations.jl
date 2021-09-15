@@ -5,6 +5,7 @@ include("system_write.jl")
 include("preconditioners/abstract-precond.jl")
 include("solvers/augmented/augmented.jl")
 include("solvers/Newton/Newton.jl")
+include("solvers/normal/normal.jl")
 include("solvers/Krylov_utils.jl")
 
 function compute_α_dual(v, dir_v)

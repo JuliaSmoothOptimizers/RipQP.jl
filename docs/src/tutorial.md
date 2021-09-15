@@ -111,8 +111,8 @@ end
 Then, you will have to create a type that allocates space for your solver, and a constructor using the following parameters:
 
 ```julia
-mutable struct PreallocatedDataK2basic{T<:Real} <: RipQP.PreallocatedData{T}
-    D                :: Vector{T} # temporary top-left diagonal of the K2 system
+mutable struct PreallocatedDataK2basic{T<:Real, S} <: RipQP.PreallocatedDataAugmented{T, S}
+    D                :: S # temporary top-left diagonal of the K2 system
     ρ                :: T # dual regularization
     δ                :: T # primal regularization
     K                :: SparseMatrixCSC{T,Int} # K2 matrix
@@ -124,14 +124,15 @@ Now you need to write a `RipQP.PreallocatedData` function that returns your type
 
 ```julia
 function RipQP.PreallocatedData(sp :: SolverParams, fd :: RipQP.QM_FloatData{T},
-                                id :: RipQP.QM_IntData, itd :: IterData{T},
-                                pt :: Point{T},
+                                id :: RipQP.QM_IntData, itd :: RipQP.IterData{T},
+                                pt :: RipQP.Point{T},
                                 iconf :: InputConfig{Tconf}) where {T<:Real, Tconf<:Real}
 
     ρ, δ = T(sp.ρ), T(sp.δ)
     K = spzeros(T, id.ncon+id.nvar, id.ncon + id.nvar)
     K[1:id.nvar, 1:id.nvar] = .-fd.Q .- ρ .* Diagonal(ones(T, id.nvar))
-    K[1:id.nvar, id.nvar+1:end] = fd.AT
+    # A = Aᵀ of the input QuadraticModel since we use the upper triangle:
+    K[1:id.nvar, id.nvar+1:end] = fd.A 
     K[diagind(K)[id.nvar+1:end]] .= δ
 
     K_fact = ldl_analyze(Symmetric(K, :U))
