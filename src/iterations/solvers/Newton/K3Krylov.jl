@@ -90,9 +90,9 @@ function opK3prod!(
   uplo::Symbol,
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= α .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= α .* v[(nvar + ncon + nlow + 1):end]
+  res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
+  res[ilow] .+= @views α .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  res[iupp] .-= @views α .* v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
@@ -137,9 +137,9 @@ function opK3tprod!(
   uplo::Symbol,
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= α .* s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= α .* s_u .* v[(nvar + ncon + nlow + 1):end]
+  res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
+  res[ilow] .+= @views α .* s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  res[iupp] .-= @views α .* s_u .* v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
