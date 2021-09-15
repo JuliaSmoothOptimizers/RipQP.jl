@@ -1,7 +1,7 @@
-# [-Q - ρI   Aᵀ   I   -I ][ Δx ]   [    -rc        ]
-# [  A       δI   0    0 ][ Δy ]   [    -rb        ]
-# [  S_l     0   X-L   0 ][Δs_l] = [σμe - (X-L)S_le]
-# [ -S_u     0    0   U-X][Δs_u]   [σμe + (U-X)S_ue]
+# (A D⁻¹ Aᵀ + δI) Δy = A D⁻¹ ξ₁ + ξ₂ 
+# where D = s_l (x - lvar)⁻¹ + s_u (uvar - x)⁻¹ + ρI,
+# and the right hand side of K2 is rhs = [ξ₁]
+#                                        [ξ₂] 
 export K1KrylovParams
 
 """
