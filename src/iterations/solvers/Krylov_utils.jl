@@ -98,8 +98,12 @@ function kunscale!(sol::AbstractVector{T}, rhsNorm::T) where {T <: Real}
   end
 end
 
-function update_kresiduals_history!(res::AbstractResiduals{T}, K, sol::AbstractVector{T}, 
-                            rhs::AbstractVector{T}) where {T <: Real}
+function update_kresiduals_history!(
+  res::AbstractResiduals{T},
+  K,
+  sol::AbstractVector{T},
+  rhs::AbstractVector{T},
+) where {T <: Real}
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, K, sol) # krylov residuals
     res.Kres = res.KΔxy .- rhs
