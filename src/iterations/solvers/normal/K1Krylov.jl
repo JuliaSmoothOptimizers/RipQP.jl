@@ -57,7 +57,7 @@ end
 
 mutable struct PreallocatedDataK1Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
                PreallocatedDataNormalKrylov{T, S}
-  D::S        
+  D::S
   rhs::S
   regu::Regularization{T}
   δv::Vector{T}
@@ -99,13 +99,12 @@ function PreallocatedData(
   pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
-
   D = similar(fd.c, id.nvar)
   # init Regularization values
   if iconf.mode == :mono
     regu =
       Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
-      D .= T(1.0e0) / 2
+    D .= T(1.0e0) / 2
   else
     regu = Regularization(
       T(sqrt(eps()) * 1e5),
@@ -124,17 +123,7 @@ function PreallocatedData(
     id.ncon,
     true,
     true,
-    (res, v, α, β) -> opK1prod!(
-      res,
-      D,
-      fd.A,
-      δv,
-      v,
-      similar(fd.c),
-      α,
-      β,
-      fd.uplo,
-    ),
+    (res, v, α, β) -> opK1prod!(res, D, fd.A, δv, v, similar(fd.c), α, β, fd.uplo),
   )
 
   rhs = similar(fd.c, id.ncon)
@@ -168,27 +157,18 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-
-  pad.rhs .= @views dd[id.nvar + 1 : end]
+  pad.rhs .= @views dd[(id.nvar + 1):end]
   if fd.uplo == :U
-    @views mul!(pad.rhs, fd.A', dd[1: id.nvar] ./ pad.D, one(T), one(T))
+    @views mul!(pad.rhs, fd.A', dd[1:(id.nvar)] ./ pad.D, one(T), one(T))
   else
-    @views mul!(pad.rhs, fd.A, dd[1: id.nvar] ./ pad.D, one(T), one(T))
+    @views mul!(pad.rhs, fd.A, dd[1:(id.nvar)] ./ pad.D, one(T), one(T))
   end
   rhsNorm = norm(pad.rhs)
   if rhsNorm != zero(T)
     pad.rhs ./= rhsNorm
   end
   pad.K.nprod = 0
-  ksolve!(
-    pad.KS,
-    pad.K,
-    pad.rhs,
-    I(id.ncon),
-    verbose = 0,
-    atol = pad.atol,
-    rtol = pad.rtol,
-  )
+  ksolve!(pad.KS, pad.K, pad.rhs, I(id.ncon), verbose = 0, atol = pad.atol, rtol = pad.rtol)
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, pad.K, pad.KS.x) # krylov residuals
     res.Kres = res.KΔxy .- pad.rhs
@@ -198,12 +178,12 @@ function solver!(
   end
 
   if fd.uplo == :U
-    @views mul!(dd[1:id.nvar], fd.A, pad.KS.x, one(T), -one(T))
+    @views mul!(dd[1:(id.nvar)], fd.A, pad.KS.x, one(T), -one(T))
   else
-    @views mul!(dd[1:id.nvar], fd.A', pad.KS.x, one(T), -one(T))
+    @views mul!(dd[1:(id.nvar)], fd.A', pad.KS.x, one(T), -one(T))
   end
-  dd[1:id.nvar] ./= pad.D
-  dd[id.nvar + 1: end] .= pad.KS.x
+  dd[1:(id.nvar)] ./= pad.D
+  dd[(id.nvar + 1):end] .= pad.KS.x
   return 0
 end
 
