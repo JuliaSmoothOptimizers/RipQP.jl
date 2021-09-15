@@ -20,11 +20,14 @@ function push_history_residuals!(
   (id.nlow > 0 || id.nupp > 0) && push!(res.min_bound_distH, bound_dist)
 
   pad_type = typeof(pad)
-  if pad_type <: PreallocatedDataAugmentedKrylov
+  if pad_type <: PreallocatedDataAugmentedKrylov || pad_type <: PreallocatedDataNewtonKrylov
     push!(res.nprodH, pad.K.nprod)
     push!(res.KresNormH, norm(res.Kres))
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
+  elseif pad_type <: PreallocatedDataNormalKrylov
+    push!(res.nprodH, pad.K.nprod)
+    push!(res.KresNormH, norm(res.Kres))
   end
 end
 

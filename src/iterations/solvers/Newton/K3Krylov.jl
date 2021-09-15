@@ -15,8 +15,8 @@ The outer constructor
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
 - `:qmr`
-- `bicgstab`
-- `usymqr`
+- `:bicgstab`
+- `:usymqr`
 
 """
 struct K3KrylovParams <: SolverParams

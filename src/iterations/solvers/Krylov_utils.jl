@@ -3,6 +3,8 @@ function KSolver(s::Symbol)
     return :MinresSolver
   elseif s == :minres_qlp
     return :MinresQlpSolver
+  elseif s == :cg
+    return :CgSolver
   elseif s == :qmr
     return :QmrSolver
   elseif s == :usymqr
@@ -41,6 +43,16 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::CgSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = cg!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
   KS::QmrSolver{T, S},

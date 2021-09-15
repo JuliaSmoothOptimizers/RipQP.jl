@@ -102,7 +102,7 @@ function update_dd!(
   # solve system aff
   dda.Δxy_aff[1:(id.nvar)] .= .-res.rc
   dda.Δxy_aff[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     dda.Δxy_aff[id.ilow] .+= pt.s_l
     dda.Δxy_aff[id.iupp] .-= pt.s_u
   elseif typeof(pad) <: PreallocatedDataNewton
@@ -113,7 +113,7 @@ function update_dd!(
   cnts.w.write == true && write_system(cnts.w, pad.K, dda.Δxy_aff, :aff, cnts.k)
   out = solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, T0, :aff)
   out == 1 && return out
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     dda.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* dda.Δxy_aff[id.ilow] ./ itd.x_m_lvar
     dda.Δs_u_aff .= @views .-pt.s_u .+ pt.s_u .* dda.Δxy_aff[id.iupp] ./ itd.uvar_m_x
   end
@@ -171,7 +171,7 @@ function update_dd!(
   σ = (μ_aff / itd.μ)^3
 
   # corrector-centering step
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     dda.rxs_l .= @views -σ * itd.μ .+ dda.Δxy_aff[id.ilow] .* dda.Δs_l_aff
     dda.rxs_u .= @views σ * itd.μ .+ dda.Δxy_aff[id.iupp] .* dda.Δs_u_aff
     itd.Δxy .= 0
@@ -186,7 +186,7 @@ function update_dd!(
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
   out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
   out == 1 && return out
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
     itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
   end
@@ -238,7 +238,7 @@ function update_dd!(
 
   itd.Δxy[1:(id.nvar)] .= .-res.rc
   itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δxy[id.ilow] .+= pt.s_l - σ * itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .-= pt.s_u - σ * itd.μ ./ itd.uvar_m_x
   elseif typeof(pad) <: PreallocatedDataNewton
@@ -249,7 +249,7 @@ function update_dd!(
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :IPF, cnts.k)
   out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
   out == 1 && return out
-  if typeof(pad) <: PreallocatedDataAugmented
+  if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views (σ * itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
     itd.Δs_u .= @views (σ * itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
   end
