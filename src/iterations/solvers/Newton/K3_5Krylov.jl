@@ -99,9 +99,9 @@ function opK3_5prod!(
   uplo::Symbol,
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .-= (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= α .* sqrt.(s_l) .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= α .* sqrt.(s_u) .* v[(nvar + ncon + nlow + 1):end]
+  res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
+  res[ilow] .+= @views α .* sqrt.(s_l) .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  res[iupp] .-= @views α .* sqrt.(s_u) .* v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
