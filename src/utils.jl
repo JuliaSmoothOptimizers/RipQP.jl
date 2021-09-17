@@ -31,6 +31,15 @@ function push_history_residuals!(
   end
 end
 
+function get_nprod!(pad::PreallocatedData)
+  padT = typeof(pad)
+  nprod = (typeof(pad) <: PreallocatedDataNewtonKrylov ||
+    typeof(pad) <: PreallocatedDataAugmentedKrylov ||
+    typeof(pad) <: PreallocatedDataNormalKrylov
+  ) ? pad.K.nprod : zero(Int)
+  return nprod
+end
+
 struct IntDataInit{I <: Integer}
   nvar::I
   ncon::I
