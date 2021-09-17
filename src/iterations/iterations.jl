@@ -236,7 +236,7 @@ function iter!(
           α_pri,
           α_dual,
           itd.μ,
-          (typeof(pad) <: PreallocatedDataAugmentedKrylov) ? pad.K.nprod : zero(Int),
+          get_nprod!(pad),
         ],
       )
     end
