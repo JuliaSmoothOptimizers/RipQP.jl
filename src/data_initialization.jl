@@ -99,7 +99,7 @@ function allocate_workspace(
   end
 
   uplo = iconf.sp.uplo
-  fd_T0, id, ps = get_QM_data(QM, uplo, iconf.presolve) # apply presolve at the same time
+  fd_T0, id = get_QM_data(QM, uplo) # apply presolve at the same time
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
   ϵ = Tolerances(
