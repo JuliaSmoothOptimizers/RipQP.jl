@@ -19,43 +19,41 @@ function createQuadraticModel128(qpdata; name = "qp_pb")
     name = name,
   )
 end
+qps1 = readqps("QAFIRO.SIF") #lower bounds
+qps2 = readqps("HS21.SIF") # low/upp bounds
+qps3 = readqps("HS52.SIF") # free bounds
+qps4 = readqps("AFIRO.SIF") # LP
+qps5 = readqps("HS35MOD.SIF") # fixed variables
 
 @testset "mono_mode" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(presolve = false))
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(QuadraticModel(qps2))
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(QuadraticModel(qps3))
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
 end
 
 @testset "multi_mode" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
 end
 
 @testset "dynamic_regularization" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds, history = true
   stats1 = ripqp(
     QuadraticModel(qps1),
     iconf = InputConfig(sp = K2LDLParams(regul = :dynamic), history = true),
@@ -64,7 +62,6 @@ end
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     iconf = InputConfig(sp = K2LDLParams(regul = :dynamic)),
@@ -73,7 +70,6 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(
     QuadraticModel(qps3),
     iconf = InputConfig(sp = K2LDLParams(regul = :dynamic)),
@@ -84,24 +80,20 @@ end
 end
 
 @testset "centrality_corrections" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(kc = -1), display = false) # automatic centrality corrections computation
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(kc = 2), display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(kc = 2), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
 end
 
 @testset "Float128" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   qm128_1 = createQuadraticModel128(qps1)
   stats1 = ripqp(
     qm128_1,
@@ -112,7 +104,6 @@ end
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   qm128_2 = createQuadraticModel128(qps2)
   stats2 = ripqp(qm128_2, display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
@@ -120,17 +111,14 @@ end
 end
 
 @testset "refinement" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement = :zoom), display = false) # automatic centrality corrections computation
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement = :ref), display = false) # automatic centrality corrections computation
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     iconf = InputConfig(mode = :multi, scaling = false, refinement = :multizoom),
@@ -139,7 +127,6 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(
     QuadraticModel(qps3),
     iconf = InputConfig(mode = :multi, refinement = :multiref),
@@ -150,12 +137,10 @@ end
 end
 
 @testset "K2_5" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModel(qps1), display = false, iconf = InputConfig(sp = K2_5LDLParams()))
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
@@ -164,7 +149,6 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(
     QuadraticModel(qps3),
     display = false,
@@ -175,7 +159,6 @@ end
 end
 
 @testset "IPF" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
@@ -184,12 +167,10 @@ end
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(QuadraticModel(qps2), display = false, iconf = InputConfig(solve_method = :IPF))
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
@@ -198,7 +179,6 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
@@ -207,7 +187,6 @@ end
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
@@ -221,7 +200,6 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
@@ -260,7 +238,6 @@ end
 end
 
 @testset "matrixwrite" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
@@ -277,7 +254,6 @@ end
 
 @testset "KrylovK2" begin
   for kmethod in [:minres, :minres_qlp]
-    qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = true,
@@ -290,7 +266,6 @@ end
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
     @test stats2.status == :acceptable
 
-    qps3 = readqps("HS52.SIF") # free bounds
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = true,
@@ -304,7 +279,6 @@ end
 
 @testset "KrylovK2_5" begin
   for kmethod in [:minres, :minres_qlp]
-    qps1 = readqps("QAFIRO.SIF") #lower bounds
     stats1 = ripqp(
       QuadraticModel(qps1),
       display = false,
@@ -317,7 +291,6 @@ end
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
     @test stats1.status == :acceptable
 
-    qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
@@ -327,7 +300,6 @@ end
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
     @test stats2.status == :acceptable
 
-    qps3 = readqps("HS52.SIF") # free bounds
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
@@ -341,7 +313,6 @@ end
 
 @testset "Krylov K3" begin
   for kmethod in [:bicgstab, :usymqr, :qmr]
-    qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
@@ -355,7 +326,6 @@ end
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
     @test stats2.status == :acceptable
 
-    qps3 = readqps("HS52.SIF") # free bounds
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
@@ -369,7 +339,6 @@ end
 
 @testset "KrylovK3_5" begin
   for kmethod in [:minres, :minres_qlp]
-    qps1 = readqps("QAFIRO.SIF") #lower bounds
     stats1 = ripqp(
       QuadraticModel(qps1),
       display = false,
@@ -379,7 +348,6 @@ end
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
     @test stats1.status == :acceptable
 
-    qps2 = readqps("HS21.SIF") # low/upp bounds
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
@@ -389,7 +357,6 @@ end
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
     @test stats2.status == :acceptable
 
-    qps3 = readqps("HS52.SIF") # free bounds
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
@@ -402,7 +369,6 @@ end
 end
 
 @testset "Krylov K1" begin
-  qps4 = readqps("AFIRO.SIF") # low/upp bounds
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
@@ -412,7 +378,6 @@ end
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :acceptable
 
-  qps4 = readqps("AFIRO.SIF") # low/upp bounds
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
@@ -443,30 +408,25 @@ function QuadraticModelMaximize(qps, x0 = zeros(qps.nvar))
 end
 
 @testset "maximize" begin
-  qps1 = readqps("QAFIRO.SIF") #lower bounds
   stats1 = ripqp(QuadraticModelMaximize(qps1), display = false)
   @test isapprox(stats1.objective, 1.59078179, atol = 1e-2)
   @test stats1.status == :acceptable
 
-  qps2 = readqps("HS21.SIF") # low/upp bounds
   stats2 = ripqp(QuadraticModelMaximize(qps2), display = false)
   @test isapprox(stats2.objective, 9.99599999e1, atol = 1e-2)
   @test stats2.status == :acceptable
 
-  qps3 = readqps("HS52.SIF") # free bounds
   stats3 = ripqp(QuadraticModelMaximize(qps3), display = false)
   @test isapprox(stats3.objective, -5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
 end
 
 @testset "presolve" begin
-  qps1 = readqps("HS35MOD.SIF") # fixed variables
-  stats1 = ripqp(QuadraticModel(qps1), display = false)
-  @test isapprox(stats1.objective, 0.250000001, atol = 1e-2)
-  @test stats1.status == :acceptable
+  stats5 = ripqp(QuadraticModel(qps5), display = false)
+  @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
+  @test stats5.status == :acceptable
 
-  qps2 = readqps("HS35MOD.SIF") # fixed variables
-  stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(sp = K2KrylovParams()), display = false)
-  @test isapprox(stats2.objective, 0.250000001, atol = 1e-2)
-  @test stats2.status == :acceptable
+  stats5 = ripqp(QuadraticModel(qps5), iconf = InputConfig(sp = K2KrylovParams()), display = false)
+  @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
+  @test stats5.status == :acceptable
 end
