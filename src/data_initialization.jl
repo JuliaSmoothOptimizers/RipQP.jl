@@ -93,7 +93,7 @@ function allocate_workspace(
   end
 
   QM = SlackModel(QM)
-  if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve
+  if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
     QM = deepcopy(QM) # if not modified by SlackModel and presolve
   end
 
