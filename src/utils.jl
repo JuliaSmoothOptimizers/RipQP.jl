@@ -33,10 +33,12 @@ end
 
 function get_nprod!(pad::PreallocatedData)
   padT = typeof(pad)
-  nprod = (typeof(pad) <: PreallocatedDataNewtonKrylov ||
-    typeof(pad) <: PreallocatedDataAugmentedKrylov ||
-    typeof(pad) <: PreallocatedDataNormalKrylov
-  ) ? pad.K.nprod : zero(Int)
+  nprod =
+    (
+      typeof(pad) <: PreallocatedDataNewtonKrylov ||
+      typeof(pad) <: PreallocatedDataAugmentedKrylov ||
+      typeof(pad) <: PreallocatedDataNormalKrylov
+    ) ? pad.K.nprod : zero(Int)
   return nprod
 end
 
