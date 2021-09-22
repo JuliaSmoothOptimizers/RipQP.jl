@@ -92,10 +92,9 @@ function allocate_workspace(
     QM.data.c0 = -QM.data.c0
   end
 
-  if typeof(QM.data.c) <: Vector
-    SlackModel!(QM) # add slack variables to the problem if QM.meta.lcon != QM.meta.ucon
-  else
-    QM = SlackModel(QM)
+  QM = SlackModel(QM)
+  if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
+    QM = deepcopy(QM) # if not modified by SlackModel and presolve
   end
 
   uplo = iconf.sp.uplo
