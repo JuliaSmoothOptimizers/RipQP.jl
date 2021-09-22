@@ -610,11 +610,6 @@ mutable struct ScaleData{T <: Real, S}
   c_k::S
 end
 
-mutable struct PresolveData{T <: Real, S}
-  xrm::S
-  xout::S
-end
-
 mutable struct StartingPointData{T <: Real, S}
   dual_val::S
   s0_l1::S

@@ -34,49 +34,37 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
-function get_QM_data(QM::QuadraticModel{T, S}, uplo::Symbol, presolve::Bool) where {T <: Real, S}
+function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
-  # As Q is symmetric (but lower triangular in QuadraticModels.jl) we leave its name unchanged.
-  if presolve
-    Q, A, xrm, c0, nvar, lvar, uvar, lcon, ucon, ilow, iupp, irng, ifree, ifix =
-      presolveQM(QM, uplo = uplo)
-    ps = PresolveData{T, S}(xrm, QM.meta.x0)
+  # Q is lower triangular in QuadraticModels.jl
+  if uplo == :U # A is Aᵀ of QuadraticModel QM
+    A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
+    Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   else
-    nvar = QM.meta.nvar
-    c, c0 = QM.data.c, QM.data.c0
-    lvar, uvar, lcon, ucon = QM.meta.lvar, QM.meta.uvar, QM.meta.lcon, QM.meta.ucon
-    ilow, iupp, irng, ifree, ifix =
-      QM.meta.ilow, QM.meta.iupp, QM.meta.irng, QM.meta.ifree, QM.meta.ifix
-    if uplo == :U # A is Aᵀ of QuadraticModel QM
-      A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
-      Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-    else
-      A = sparse_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
-      Q = sparse_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-    end
-    ps = PresolveData{T, S}(S(undef, 0), S(undef, 0))
+    A = sparse_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
+    Q = sparse_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
   end
 
   id = QM_IntData(
-    vcatsort(ilow, irng),
-    vcatsort(iupp, irng),
-    irng,
-    ifree,
-    ifix,
+    vcatsort(QM.meta.ilow, QM.meta.irng),
+    vcatsort(QM.meta.iupp, QM.meta.irng),
+    QM.meta.irng,
+    QM.meta.ifree,
+    QM.meta.ifix,
     QM.meta.ncon,
-    nvar,
+    QM.meta.nvar,
     0,
     0,
   )
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
-  @assert lcon == ucon # equality constraint (Ax=b)
-  @assert length(lvar) == length(uvar) == nvar
-  fd = QM_FloatData(Q, A, lcon, QM.data.c, c0, lvar, uvar, uplo)
-  return fd, id, ps
+  @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
+  @assert length(QM.meta.lvar) == length(QM.meta.uvar) == QM.meta.nvar
+  fd = QM_FloatData(Q, A, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar, uplo)
+  return fd, id
 end
 
 function allocate_workspace(
-  QM::QuadraticModel,
+  QM::AbstractQuadraticModel,
   iconf::InputConfig,
   itol::InputTol,
   start_time,
@@ -111,7 +99,7 @@ function allocate_workspace(
   end
 
   uplo = iconf.sp.uplo
-  fd_T0, id, ps = get_QM_data(QM, uplo, iconf.presolve) # apply presolve at the same time
+  fd_T0, id = get_QM_data(QM, uplo) # apply presolve at the same time
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
   ϵ = Tolerances(
@@ -183,7 +171,7 @@ function allocate_workspace(
   spd = StartingPointData{T, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
 
   #####
-  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, ps, spd, cnts, T
+  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T
 end
 
 function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
