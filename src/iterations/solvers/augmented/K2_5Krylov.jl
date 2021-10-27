@@ -142,7 +142,7 @@ function PreallocatedData(
     (res, v, α, β) -> opK2_5prod!(
       res,
       id.nvar,
-      Symmetric(fd.Q, fd.uplo),
+      fd.Q,
       D,
       fd.A,
       sqrtX1X2,

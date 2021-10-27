@@ -1,22 +1,13 @@
+convert_sym(T::DataType, Q::Symmetric{T0, M0}) where {T0, M0 <: AbstractMatrix{T0}} = 
+  Symmetric(convert(M0.name.wrapper{T, Int}, Q.data), Symbol(Q.uplo))
+
 function convert_FloatData(
   T::DataType,
-  fd_T0::QM_FloatData{T0, S0, Ssp0},
-) where {T0 <: Real, S0, Ssp0}
+  fd_T0::QM_FloatData{T0, S0, M10, M20},
+) where {T0 <: Real, S0, M10, M20}
   return QM_FloatData(
-    Ssp0.name.wrapper{T, Int}(
-      fd_T0.Q.m,
-      fd_T0.Q.n,
-      fd_T0.Q.colptr,
-      fd_T0.Q.rowval,
-      S0.name.wrapper{T, 1}(fd_T0.Q.nzval),
-    ),
-    Ssp0.name.wrapper{T, Int}(
-      fd_T0.A.m,
-      fd_T0.A.n,
-      fd_T0.A.colptr,
-      fd_T0.A.rowval,
-      S0.name.wrapper{T, 1}(fd_T0.A.nzval),
-    ),
+    convert_sym(T, fd_T0.Q),
+    convert(M20.name.wrapper{T, Int}, fd_T0.A),
     S0.name.wrapper{T, 1}(fd_T0.b),
     S0.name.wrapper{T, 1}(fd_T0.c),
     T(fd_T0.c0),

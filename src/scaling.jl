@@ -67,26 +67,26 @@ function scaling_Ruiz!(
 ) where {T <: Real}
   d1, d2, d3, r_k, c_k = sd.d1, sd.d2, sd.d3, sd.r_k, sd.c_k
   # scaling Q (symmetric)
-  if length(fd_T0.Q.rowval) > 0
+  if length(fd_T0.Q.data.rowval) > 0
     if fd_T0.uplo == :U
-      get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+      get_norm_rc!(r_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :row)
       convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-      mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+      mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, r_k)
     else
-      get_norm_rc!(c_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :col)
+      get_norm_rc!(c_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :col)
       convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
-      mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, c_k)
+      mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, c_k)
     end
     k = 1
     while !convergence && k < max_iter
       if fd_T0.uplo == :U
-        get_norm_rc!(r_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :row)
+        get_norm_rc!(r_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :row)
         convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-        mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, r_k)
+        mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, r_k)
       else
-        get_norm_rc!(c_k, fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, id.nvar, :col)
+        get_norm_rc!(c_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :col)
         convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
-        mul_Q_D!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d3, c_k)
+        mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, c_k)
       end
       k += 1
     end
@@ -110,7 +110,7 @@ function scaling_Ruiz!(
     mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
     k += 1
   end
-  length(fd_T0.Q.rowval) > 0 && mul_Q_D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2)
+  length(fd_T0.Q.data.rowval) > 0 && mul_Q_D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
@@ -145,8 +145,8 @@ function post_scale!(
   itd::IterData{T},
 ) where {T <: Real}
   pt.x .*= d2 .* d3
-  div_D2D3_Q_D3D2!(fd_T0.Q.colptr, fd_T0.Q.rowval, fd_T0.Q.nzval, d2, d3, id.nvar)
-  mul!(itd.Qx, Symmetric(fd_T0.Q, fd_T0.uplo), pt.x)
+  div_D2D3_Q_D3D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2, d3, id.nvar)
+  mul!(itd.Qx, fd_T0.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   div_D1_A_D2D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, d3, fd_T0.A.n, fd_T0.uplo)
   pt.y .*= d1

@@ -3,11 +3,13 @@ import Base: convert
 export InputConfig, InputTol, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
-abstract type Abstract_QM_FloatData{T <: Real, S, Ssp} end
+abstract type Abstract_QM_FloatData{T <: Real, S,
+  M1 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  M2 <: Union{AbstractMatrix{T}, AbstractLinearOperator{T}}} end
 
-mutable struct QM_FloatData{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
-  Q::Ssp # size nvar * nvar
-  A::Ssp # size ncon * nvar, using Aᵀ is easier to form systems
+mutable struct QM_FloatData{T <: Real, S, M1, M2} <: Abstract_QM_FloatData{T, S, M1, M2}
+  Q::M1 # size nvar * nvar
+  A::M2 # size ncon * nvar, using Aᵀ is easier to form systems
   b::S # size ncon
   c::S # size nvar
   c0::T

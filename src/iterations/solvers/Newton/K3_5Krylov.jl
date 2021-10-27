@@ -166,7 +166,7 @@ function PreallocatedData(
       itd.uvar_m_x,
       pt.s_l,
       pt.s_u,
-      Symmetric(fd.Q, fd.uplo),
+      fd.Q,
       fd.A,
       ρv,
       δv,

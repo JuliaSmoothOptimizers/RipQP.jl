@@ -34,17 +34,33 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
+function get_mat_QPData(data::QuadraticModels.QPDataCOO, nvar::Int, ncon::Int, uplo::Symbol)
+  if uplo == :U # A is Aᵀ of QuadraticModel QM
+    A = sparse_dropzeros(data.Acols, data.Arows, data.Avals, ncon, nvar)
+    Q = sparse_dropzeros(data.Hcols, data.Hrows, data.Hvals, nvar, nvar)
+  else
+    A = sparse_dropzeros(data.Arows, data.Acols, data.Avals, nvar, ncon)
+    Q = sparse_dropzeros(data.Hrows, data.Hcols, data.Hvals, nvar, nvar)
+  end
+  return A, Symmetric(Q, uplo)
+end
+
+function get_mat_QPData(data::QuadraticModels.QPDataLinOp, nvar::Int, ncon::Int, uplo::Symbol)
+  A = uplo == :U ? transpose(data.A) : data.A
+  return A, data.Q
+end
+
+function switch_H_to_max!(data::QuadraticModels.QPDataCOO)
+  data.Hvals .= .-data.Hvals
+end
+
+function switch_H_to_max!(data::QuadraticModels.QPDataLinOp)
+  data.H = -dataH
+end
+
 function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
-  # Q is lower triangular in QuadraticModels.jl
-  if uplo == :U # A is Aᵀ of QuadraticModel QM
-    A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
-    Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-  else
-    A = sparse_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
-    Q = sparse_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-  end
-
+  A, Q = get_mat_QPData(QM.data, QM.meta.nvar, QM.meta.ncon, uplo)
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
@@ -87,7 +103,7 @@ function allocate_workspace(
   )
 
   if !QM.meta.minimize
-    QM.data.Hvals .= .-QM.data.Hvals
+    switch_H_to_max!(QM.data)
     QM.data.c .= .-QM.data.c
     QM.data.c0 = -QM.data.c0
   end
@@ -156,7 +172,7 @@ function allocate_workspace(
     zero(T),#pdd
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
-    nnz(fd_T0.Q) > 0,
+    nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
   )
 

@@ -131,7 +131,7 @@ function PreallocatedData(
     true,
     true,
     (res, v, α, β) ->
-      opK2prod!(res, id.nvar, Symmetric(fd.Q, fd.uplo), D, fd.A, δv, v, α, β, fd.uplo),
+      opK2prod!(res, id.nvar, fd.Q, D, fd.A, δv, v, α, β, fd.uplo),
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon)
