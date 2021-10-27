@@ -25,6 +25,7 @@ struct K2KrylovParams <: SolverParams
   rtol_min::Float64
   ρ_min::Float64
   δ_min::Float64
+  memory::Int
 end
 
 function K2KrylovParams(;
@@ -35,8 +36,9 @@ function K2KrylovParams(;
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
-  ρ_min::T = 1e3 * sqrt(eps()),
-  δ_min::T = 1e4 * sqrt(eps()),
+  ρ_min::T = 1e2 * sqrt(eps()),
+  δ_min::T = 1e2 * sqrt(eps()),
+  memory::Int = 5,
 ) where {T <: Real}
   return K2KrylovParams(
     uplo,
@@ -48,6 +50,7 @@ function K2KrylovParams(;
     rtol_min,
     ρ_min,
     δ_min,
+    memory,
   )
 end
 
@@ -133,7 +136,11 @@ function PreallocatedData(
 
   rhs = similar(fd.c, id.nvar + id.ncon)
   kstring = string(sp.kmethod)
-  KS = eval(KSolver(sp.kmethod))(K, rhs)
+  if sp.kmethod == :dqgmres
+    KS = eval(KSolver(sp.kmethod))(K, rhs, sp.memory)
+  else
+    KS = eval(KSolver(sp.kmethod))(K, rhs)
+  end
 
   pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
 

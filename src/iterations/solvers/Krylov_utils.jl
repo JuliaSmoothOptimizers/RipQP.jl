@@ -11,6 +11,8 @@ function KSolver(s::Symbol)
     return :UsymqrSolver
   elseif s == :bicgstab
     return :BicgstabSolver
+  elseif s == :dqgmres
+    return :DqgmresSolver
   end
 end
 
@@ -83,6 +85,16 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} = bicgstab!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::DqgmresSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = dqgmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
