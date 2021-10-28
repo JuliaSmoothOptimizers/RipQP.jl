@@ -77,9 +77,9 @@ end
 function opK2prod!(
   res::AbstractVector{T},
   nvar::Int,
-  Q::AbstractMatrix{T},
+  Q::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   D::AbstractVector{T},
-  A::AbstractMatrix{T},
+  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   δv::AbstractVector{T},
   v::AbstractVector{T},
   α::T,

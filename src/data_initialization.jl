@@ -47,7 +47,7 @@ end
 
 function get_mat_QPData(data::QuadraticModels.QPDataLinOp, nvar::Int, ncon::Int, uplo::Symbol)
   A = uplo == :U ? transpose(data.A) : data.A
-  return A, data.Q
+  return A, data.H
 end
 
 function switch_H_to_max!(data::QuadraticModels.QPDataCOO)
@@ -109,6 +109,7 @@ function allocate_workspace(
   end
 
   QM = SlackModel(QM)
+  
   if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
     QM = deepcopy(QM) # if not modified by SlackModel and presolve
   end
@@ -172,7 +173,7 @@ function allocate_workspace(
     zero(T),#pdd
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
-    nnz(fd_T0.Q.data) > 0,
+    typeof(fd_T0.Q) <: AbstractLinearOperator || nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
   )
 

@@ -72,7 +72,7 @@ end
 function opK1prod!(
   res::AbstractVector{T},
   D::AbstractVector{T},
-  A::AbstractMatrix{T},
+  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   δv::AbstractVector{T},
   v::AbstractVector{T},
   vtmp::AbstractVector{T},
