@@ -9,3 +9,4 @@ abstract type PreallocatedDataAugmentedKrylov{T <: Real, S} <: PreallocatedDataA
 
 include("K2Krylov.jl")
 include("K2_5Krylov.jl")
+include("K2Structured.jl")
