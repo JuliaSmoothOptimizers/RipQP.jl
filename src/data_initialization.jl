@@ -45,7 +45,7 @@ function get_mat_QPData(data::QuadraticModels.QPDataCOO, nvar::Int, ncon::Int, u
   return A, Symmetric(Q, uplo)
 end
 
-function get_mat_QPData(data::QuadraticModels.QPDataLinOp, nvar::Int, ncon::Int, uplo::Symbol)
+function get_mat_QPData(data::QuadraticModels.QPData, nvar::Int, ncon::Int, uplo::Symbol)
   A = uplo == :U ? transpose(data.A) : data.A
   return A, data.H
 end
@@ -54,7 +54,7 @@ function switch_H_to_max!(data::QuadraticModels.QPDataCOO)
   data.Hvals .= .-data.Hvals
 end
 
-function switch_H_to_max!(data::QuadraticModels.QPDataLinOp)
+function switch_H_to_max!(data::QuadraticModels.QPData)
   data.H = -dataH
 end
 
