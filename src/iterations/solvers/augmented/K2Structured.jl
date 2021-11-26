@@ -92,7 +92,7 @@ function PreallocatedData(
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  KS = TricgSolver(fd.A', fd.b)
+  KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
 
   return PreallocatedDataK2Structured(
     E,
@@ -143,8 +143,7 @@ function solver!(
   pad.ξ2 .= dd[id.nvar+1: end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
-  tricg!(pad.KS, fd.A', pad.ξ1, pad.ξ2, M = inv(Diagonal(pad.E)), N = (one(T)/pad.regu.δ) .* I, flip = true,
-         verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, fd.A', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
   # kunscale!(pad.KS.x, rhsNorm)
 

@@ -13,6 +13,10 @@ function KSolver(s::Symbol)
     return :BicgstabSolver
   elseif s == :dqgmres
     return :DqgmresSolver
+  elseif s == :tricg
+    return :TricgSolver
+  elseif s == :trimr
+    return :TrimrSolver
   end
 end
 
@@ -95,6 +99,30 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} = dqgmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::TricgSolver{T, S},
+  A,
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  M,
+  N;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::TrimrSolver{T, S},
+  A,
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  M,
+  N;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
