@@ -1,11 +1,11 @@
-export K2StructuredParams
+export K2_5StructuredParams
 
 """
-Type to use the K2 formulation with a structured Krylov method, using the package 
+Type to use the K2.5 formulation with a structured Krylov method, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2StructuredParams(; uplo = :L, kmethod = :trimr, ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2_5StructuredParams(; uplo = :L, kmethod = :trimr, ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -14,7 +14,7 @@ The available methods are:
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 """
-struct K2StructuredParams <: SolverParams
+struct K2_5StructuredParams <: SolverParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64
@@ -25,7 +25,7 @@ struct K2StructuredParams <: SolverParams
   δ_min::Float64
 end
 
-function K2StructuredParams(;
+function K2_5StructuredParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :trimr,
   atol0::T = 1.0e-4,
@@ -35,7 +35,7 @@ function K2StructuredParams(;
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
 ) where {T <: Real}
-  return K2StructuredParams(
+  return K2_5StructuredParams(
     uplo,
     kmethod,
     atol0,
@@ -47,12 +47,15 @@ function K2StructuredParams(;
   )
 end
 
-mutable struct PreallocatedDataK2Structured{
+mutable struct PreallocatedDataK2_5Structured{
   T <: Real,
   S,
   Ksol <: KrylovSolver,
+  L <: AbstractLinearOperator{T}
 } <: PreallocatedDataAugmentedStructured{T, S}
   E::S                                  # temporary top-left diagonal
+  sqrtX1X2::S # vector to scale K2 to K2.5
+  AsqrtX1X2::L
   ξ1::S
   ξ2::S
   regu::Regularization{T}
@@ -63,10 +66,10 @@ mutable struct PreallocatedDataK2Structured{
   rtol_min::T
 end
 
-get_nprod!(pad::PreallocatedDataK2Structured) = 0
+get_nprod!(pad::PreallocatedDataK2_5Structured) = 0
 
 function PreallocatedData(
-  sp::K2StructuredParams,
+  sp::K2_5StructuredParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},
@@ -91,12 +94,16 @@ function PreallocatedData(
     E .= T(1.0e-2)
   end
 
+  sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
   KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
+  AsqrtX1X2 = LinearOperator(fd.A) * Diagonal(sqrtX1X2)
 
-  return PreallocatedDataK2Structured(
+  return PreallocatedDataK2_5Structured(
     E,
+    sqrtX1X2,
+    AsqrtX1X2,
     ξ1,
     ξ2,
     regu,
@@ -129,7 +136,7 @@ end
 
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedDataK2Structured{T},
+  pad::PreallocatedDataK2_5Structured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -140,22 +147,22 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= dd[1:id.nvar]
+  pad.ξ1 .= dd[1:id.nvar] .* pad.sqrtX1X2
   pad.ξ2 .= dd[id.nvar+1: end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
-  ksolve!(pad.KS, fd.A', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, pad.AsqrtX1X2', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
   # kunscale!(pad.KS.x, rhsNorm)
 
-  dd[1:id.nvar] .= pad.KS.x
+  dd[1:id.nvar] .= pad.KS.x .* pad.sqrtX1X2
   dd[id.nvar+1: end] .= pad.KS.y
 
   return 0
 end
 
 function update_pad!(
-  pad::PreallocatedDataK2Structured{T},
+  pad::PreallocatedDataK2_5Structured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -176,9 +183,13 @@ function update_pad!(
     pad.rtol /= 10
   end
 
+  pad.sqrtX1X2 .= one(T)
+  pad.sqrtX1X2[id.ilow] .*= sqrt.(itd.x_m_lvar)
+  pad.sqrtX1X2[id.iupp] .*= sqrt.(itd.uvar_m_x)
   pad.E .= pad.regu.ρ
   pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
   pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
+  pad.E .*= pad.sqrtX1X2.^2
 
   return 0
 end
