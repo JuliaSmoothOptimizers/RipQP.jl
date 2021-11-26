@@ -107,6 +107,25 @@ function PreallocatedData(
   )
 end
 
+function update_kresiduals_history!(
+  res::AbstractResiduals{T},
+  E::AbstractVector{T},
+  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  δ::T,
+  solx::AbstractVector{T},
+  soly::AbstractVector{T},
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  nvar::Int,
+) where {T <: Real}
+  if typeof(res) <: ResidualsHistory
+    @views mul!(res.Kres[1:nvar], A', soly)
+    res.Kres[1:nvar] .+= .-E .* solx .- ξ1
+    @views mul!(res.Kres[nvar+1: end], A, solx)
+    res.Kres[nvar+1: end] .+= δ .* soly .- ξ2
+  end
+end
+
 function solver!(
   dd::AbstractVector{T},
   pad::PreallocatedDataK2Structured{T},
@@ -126,7 +145,7 @@ function solver!(
   # pad.K.nprod = 0
   tricg!(pad.KS, fd.A', pad.ξ1, pad.ξ2, M = inv(Diagonal(pad.E)), N = (one(T)/pad.regu.δ) .* I, flip = true,
          verbose = 0, atol = pad.atol, rtol = pad.rtol)
-  # update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
+  update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
   # kunscale!(pad.KS.x, rhsNorm)
 
   dd[1:id.nvar] .= pad.KS.x
