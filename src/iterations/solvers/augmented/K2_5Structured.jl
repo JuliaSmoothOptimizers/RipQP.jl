@@ -148,7 +148,7 @@ function solver!(
   step::Symbol,
 ) where {T <: Real}
   pad.ξ1 .= step == :init ? fd.c : dd[1:id.nvar] .* pad.sqrtX1X2
-  pad.ξ2 .= dd[id.nvar+1: end]
+  pad.ξ2 .= (step == :init && dd[id.nvar+1: end] .== zero(T)) ? one(T) : dd[id.nvar+1: end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
   ksolve!(pad.KS, pad.AsqrtX1X2', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
