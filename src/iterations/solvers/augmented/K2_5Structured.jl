@@ -147,7 +147,7 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= dd[1:id.nvar] .* pad.sqrtX1X2
+  pad.ξ1 .= step == :init ? fd.c : dd[1:id.nvar] .* pad.sqrtX1X2
   pad.ξ2 .= dd[id.nvar+1: end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0

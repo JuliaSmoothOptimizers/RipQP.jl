@@ -140,10 +140,11 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= dd[1:id.nvar]
+  pad.ξ1 .= step == :init ? fd.c : dd[1:id.nvar]
   pad.ξ2 .= dd[id.nvar+1: end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
+  println(norm(pad.ξ1))
   ksolve!(pad.KS, fd.A', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
   # kunscale!(pad.KS.x, rhsNorm)
