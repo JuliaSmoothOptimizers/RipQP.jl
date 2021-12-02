@@ -38,23 +38,11 @@ function K2StructuredParams(;
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
 ) where {T <: Real}
-  return K2StructuredParams(
-    uplo,
-    kmethod,
-    atol0,
-    rtol0,
-    atol_min,
-    rtol_min,
-    ρ_min,
-    δ_min,
-  )
+  return K2StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
-mutable struct PreallocatedDataK2Structured{
-  T <: Real,
-  S,
-  Ksol <: KrylovSolver,
-} <: PreallocatedDataAugmentedStructured{T, S}
+mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
+               PreallocatedDataAugmentedStructured{T, S}
   E::S                                  # temporary top-left diagonal
   ξ1::S
   ξ2::S
@@ -125,8 +113,8 @@ function update_kresiduals_history!(
   if typeof(res) <: ResidualsHistory
     @views mul!(res.Kres[1:nvar], A', soly)
     res.Kres[1:nvar] .+= .-E .* solx .- ξ1
-    @views mul!(res.Kres[nvar+1: end], A, solx)
-    res.Kres[nvar+1: end] .+= δ .* soly .- ξ2
+    @views mul!(res.Kres[(nvar + 1):end], A, solx)
+    res.Kres[(nvar + 1):end] .+= δ .* soly .- ξ2
   end
 end
 
@@ -143,16 +131,37 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= step == :init ? fd.c : dd[1:id.nvar]
-  pad.ξ2 .= (step == :init && all(dd[id.nvar+1: end] .== zero(T))) ? one(T) : dd[id.nvar+1: end]
+  pad.ξ1 .= step == :init ? fd.c : dd[1:(id.nvar)]
+  pad.ξ2 .=
+    (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
-  ksolve!(pad.KS, fd.A', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
-  update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
+  ksolve!(
+    pad.KS,
+    fd.A',
+    pad.ξ1,
+    pad.ξ2,
+    inv(Diagonal(pad.E)),
+    (one(T) / pad.regu.δ) .* I,
+    verbose = 0,
+    atol = pad.atol,
+    rtol = pad.rtol,
+  )
+  update_kresiduals_history!(
+    res,
+    pad.E,
+    fd.A,
+    pad.regu.δ,
+    pad.KS.x,
+    pad.KS.y,
+    pad.ξ1,
+    pad.ξ2,
+    id.nvar,
+  )
   # kunscale!(pad.KS.x, rhsNorm)
 
-  dd[1:id.nvar] .= pad.KS.x
-  dd[id.nvar+1: end] .= pad.KS.y
+  dd[1:(id.nvar)] .= pad.KS.x
+  dd[(id.nvar + 1):end] .= pad.KS.y
 
   return 0
 end

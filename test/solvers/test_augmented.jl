@@ -34,7 +34,6 @@ end
   @test stats3.status == :acceptable
 end
 
-
 @testset "KrylovK2" begin
   for kmethod in [:minres, :minres_qlp, :dqgmres]
     stats2 = ripqp(
@@ -111,8 +110,7 @@ end
     stats4 = ripqp(
       QuadraticModel(qps4),
       display = false,
-      iconf = InputConfig(sp = K2_5StructuredParams(kmethod = kmethod),
-      solve_method=:IPF),
+      iconf = InputConfig(sp = K2_5StructuredParams(kmethod = kmethod), solve_method = :IPF),
     )
     @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
     @test stats4.status == :acceptable

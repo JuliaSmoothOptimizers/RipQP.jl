@@ -38,23 +38,14 @@ function K2_5StructuredParams(;
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
 ) where {T <: Real}
-  return K2_5StructuredParams(
-    uplo,
-    kmethod,
-    atol0,
-    rtol0,
-    atol_min,
-    rtol_min,
-    ρ_min,
-    δ_min,
-  )
+  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedDataK2_5Structured{
   T <: Real,
   S,
   Ksol <: KrylovSolver,
-  L <: AbstractLinearOperator{T}
+  L <: AbstractLinearOperator{T},
 } <: PreallocatedDataAugmentedStructured{T, S}
   E::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
@@ -131,16 +122,37 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= step == :init ? fd.c : dd[1:id.nvar] .* pad.sqrtX1X2
-  pad.ξ2 .= (step == :init && all(dd[id.nvar+1: end] .== zero(T))) ? one(T) : dd[id.nvar+1: end]
+  pad.ξ1 .= step == :init ? fd.c : dd[1:(id.nvar)] .* pad.sqrtX1X2
+  pad.ξ2 .=
+    (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
-  ksolve!(pad.KS, pad.AsqrtX1X2', pad.ξ1, pad.ξ2, inv(Diagonal(pad.E)), (one(T)/pad.regu.δ) .* I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
-  update_kresiduals_history!(res, pad.E, fd.A, pad.regu.δ, pad.KS.x, pad.KS.y, pad.ξ1, pad.ξ2, id.nvar)
+  ksolve!(
+    pad.KS,
+    pad.AsqrtX1X2',
+    pad.ξ1,
+    pad.ξ2,
+    inv(Diagonal(pad.E)),
+    (one(T) / pad.regu.δ) .* I,
+    verbose = 0,
+    atol = pad.atol,
+    rtol = pad.rtol,
+  )
+  update_kresiduals_history!(
+    res,
+    pad.E,
+    fd.A,
+    pad.regu.δ,
+    pad.KS.x,
+    pad.KS.y,
+    pad.ξ1,
+    pad.ξ2,
+    id.nvar,
+  )
   # kunscale!(pad.KS.x, rhsNorm)
 
-  dd[1:id.nvar] .= pad.KS.x .* pad.sqrtX1X2
-  dd[id.nvar+1: end] .= pad.KS.y
+  dd[1:(id.nvar)] .= pad.KS.x .* pad.sqrtX1X2
+  dd[(id.nvar + 1):end] .= pad.KS.y
 
   return 0
 end
@@ -173,7 +185,7 @@ function update_pad!(
   pad.E .= pad.regu.ρ
   pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
   pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.E .*= pad.sqrtX1X2.^2
+  pad.E .*= pad.sqrtX1X2 .^ 2
 
   return 0
 end
