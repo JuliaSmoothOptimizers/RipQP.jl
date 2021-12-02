@@ -2,10 +2,13 @@ export K2StructuredParams
 
 """
 Type to use the K2 formulation with a structured Krylov method, using the package 
-[`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
+[`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl).
+This only works for solving Linear Problems.
 The outer constructor 
 
-    K2StructuredParams(; uplo = :L, kmethod = :trimr, ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2StructuredParams(; uplo = :L, kmethod = :trimr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+                       atol_min = 1.0e-10, rtol_min = 1.0e-10, 
+                       ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:

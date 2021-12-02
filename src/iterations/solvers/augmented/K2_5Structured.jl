@@ -2,10 +2,13 @@ export K2_5StructuredParams
 
 """
 Type to use the K2.5 formulation with a structured Krylov method, using the package 
-[`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
+[`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl).
+This only works for solving Linear Problems.
 The outer constructor 
 
-    K2_5StructuredParams(; uplo = :L, kmethod = :trimr, ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2_5StructuredParams(; uplo = :L, kmethod = :trimr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+                         atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                         ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -113,25 +116,6 @@ function PreallocatedData(
     sp.atol_min,
     sp.rtol_min,
   )
-end
-
-function update_kresiduals_history!(
-  res::AbstractResiduals{T},
-  E::AbstractVector{T},
-  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
-  δ::T,
-  solx::AbstractVector{T},
-  soly::AbstractVector{T},
-  ξ1::AbstractVector{T},
-  ξ2::AbstractVector{T},
-  nvar::Int,
-) where {T <: Real}
-  if typeof(res) <: ResidualsHistory
-    @views mul!(res.Kres[1:nvar], A', soly)
-    res.Kres[1:nvar] .+= .-E .* solx .- ξ1
-    @views mul!(res.Kres[nvar+1: end], A, solx)
-    res.Kres[nvar+1: end] .+= δ .* soly .- ξ2
-  end
 end
 
 function solver!(
