@@ -8,7 +8,7 @@ convex quadratic problems.
 Here is a basic example:
 
 ```@example QM
-using QuadraticModels, RipQP, SparseArrays
+using QuadraticModels, SparseArrays
 Q = [6. 2. 1.
     2. 5. 2.
     1. 2. 4.]
@@ -24,6 +24,7 @@ QM = QuadraticModel(c, sparse(Q), A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., na
 Once your `QuadraticModel` is loaded, you can simply solve it RipQP:
 
 ```@example QM
+using RipQP
 stats = ripqp(QM)
 println(stats)
 ```
