@@ -110,7 +110,8 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+) where {T, S} =
+  tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
   KS::TrimrSolver{T, S},
@@ -122,7 +123,8 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+) where {T, S} =
+  trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
