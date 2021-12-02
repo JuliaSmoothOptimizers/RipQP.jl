@@ -21,7 +21,7 @@ function push_history_residuals!(
 
   pad_type = typeof(pad)
   if pad_type <: PreallocatedDataAugmentedKrylov || pad_type <: PreallocatedDataNewtonKrylov
-    push!(res.nprodH, pad.K.nprod)
+    !(pad_type <: PreallocatedDataAugmentedStructured) && push!(res.nprodH, pad.K.nprod)
     push!(res.KresNormH, norm(res.Kres))
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))

@@ -7,8 +7,8 @@ convex quadratic problems.
 
 Here is a basic example:
 
-```julia
-using QuadraticModels
+```@example QM
+using QuadraticModels, SparseArrays
 Q = [6. 2. 1.
     2. 5. 2.
     1. 2. 4.]
@@ -18,8 +18,19 @@ A = [1. 0. 1.
 b = [0.; 3]
 l = [0.;0;0]
 u = [Inf; Inf; Inf]
-QM = QuadraticModel(c, Q, A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM")
+QM = QuadraticModel(c, sparse(Q), A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM")
 ```
+
+Once your `QuadraticModel` is loaded, you can simply solve it RipQP:
+
+```@example QM
+using RipQP
+stats = ripqp(QM)
+println(stats)
+```
+
+The `stats` output is a
+[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats).
 
 It is also possible to use the package [QPSReader.jl](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) in order to
 read convex quadratic problems in MPS or SIF formats:
@@ -28,18 +39,6 @@ read convex quadratic problems in MPS or SIF formats:
 using QPSReader, QuadraticModels
 QM = QuadraticModel(readqps("QAFIRO.SIF"))
 ```
-
-## Solve the problem and read the statistics
-
-Once your `QuadraticModel` is loaded, you can simply solve it with:
-
-```julia
-using RipQP
-stats = ripqp(QM)
-```
-
-The `stats` output is a
-[GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats).
 
 ## Logging
 
