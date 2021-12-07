@@ -140,7 +140,21 @@ function ksolve!(
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S}
   sqrtδI = sqrt(N.λ) * I
-  return gpmr!(KS, A, A', ξ1, ξ2, C = sqrt.(M), D = sqrtδI, E = sqrt.(M), F = sqrtδI, λ = -one(T), verbose = verbose, atol = atol, rtol = rtol)
+  return gpmr!(
+    KS,
+    A,
+    A',
+    ξ1,
+    ξ2,
+    C = sqrt.(M),
+    D = sqrtδI,
+    E = sqrt.(M),
+    F = sqrtδI,
+    λ = -one(T),
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+  )
 end
 
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
