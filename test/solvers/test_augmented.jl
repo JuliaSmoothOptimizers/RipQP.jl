@@ -94,7 +94,7 @@ end
 end
 
 @testset "K2 structured LP" begin
-  for kmethod in [:tricg, :trimr]
+  for kmethod in [:tricg, :trimr, :gpmr]
     stats4 = ripqp(
       QuadraticModel(qps4),
       display = false,
@@ -106,7 +106,7 @@ end
 end
 
 @testset "K2.5 structured LP" begin
-  for kmethod in [:tricg, :trimr]
+  for kmethod in [:tricg, :trimr, :gpmr]
     stats4 = ripqp(
       QuadraticModel(qps4),
       display = false,
