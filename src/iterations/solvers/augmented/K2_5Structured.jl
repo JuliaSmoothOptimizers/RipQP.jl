@@ -14,6 +14,7 @@ creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.I
 The available methods are:
 - `:tricg`
 - `:trimr`
+- `:gpmr`
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 The `mem` argument sould be used only with `gpmr`.
