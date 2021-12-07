@@ -16,6 +16,7 @@ The available methods are:
 - `:trimr`
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
+The `mem` argument sould be used only with `gpmr`.
 """
 struct K2_5StructuredParams <: SolverParams
   uplo::Symbol
@@ -26,6 +27,7 @@ struct K2_5StructuredParams <: SolverParams
   rtol_min::Float64
   ρ_min::Float64
   δ_min::Float64
+  mem::Int
 end
 
 function K2_5StructuredParams(;
@@ -37,8 +39,9 @@ function K2_5StructuredParams(;
   rtol_min::T = 1.0e-10,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
+  mem::Int = 20,
 ) where {T <: Real}
-  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
 end
 
 mutable struct PreallocatedDataK2_5Structured{
@@ -91,7 +94,11 @@ function PreallocatedData(
   sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
+  if sp.kmethod == :gpmr
+    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b, sp.mem)
+  else
+    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
+  end
   AsqrtX1X2 = LinearOperator(fd.A) * Diagonal(sqrtX1X2)
 
   return PreallocatedDataK2_5Structured(

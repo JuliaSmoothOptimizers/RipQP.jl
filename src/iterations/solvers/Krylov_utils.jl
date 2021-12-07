@@ -17,6 +17,8 @@ function KSolver(s::Symbol)
     return :TricgSolver
   elseif s == :trimr
     return :TrimrSolver
+  elseif s == :gpmr
+    return :GpmrSolver
   end
 end
 
@@ -125,6 +127,19 @@ ksolve!(
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} =
   trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::GpmrSolver{T, S},
+  A,
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  M,
+  N;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} =
+  gpmr!(KS, A, A', ξ1, ξ2, C = sqrt.(M), D = sqrt(N), E = sqrt.(M), F = sqrt(N), λ = -one(T), verbose = verbose, atol = atol, rtol = rtol)
 
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
