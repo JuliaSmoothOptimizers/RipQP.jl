@@ -5,7 +5,7 @@ Type to use the K2 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Jacobi, 
+    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity, 
                    ratol = 1.0e-10, rrtol = 1.0e-10)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
@@ -31,7 +31,7 @@ end
 function K2KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
-  preconditioner::Symbol = :Jacobi,
+  preconditioner::Symbol = :Identity,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,

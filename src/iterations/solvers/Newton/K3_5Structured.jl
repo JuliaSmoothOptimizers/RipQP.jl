@@ -15,8 +15,10 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity, 
-                   ratol = 1.0e-10, rrtol = 1.0e-10)
+    K3_5KrylovParams(; uplo = :L,   kmethod::Symbol = :trimr,
+                     atol0 = 1.0e-4, rtol0 = 1.0e-4, 
+                     atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                     ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -36,13 +38,13 @@ struct K3_5StructuredParams <: SolverParams
 end
 
 function K3_5StructuredParams(;
-  uplo::Symbol = :L,
+  uplo::Symbol = :U,
   kmethod::Symbol = :trimr,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
-  ρ_min::T = 1e3 * sqrt(eps()),
+  ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
   return K3_5StructuredParams(
@@ -71,7 +73,8 @@ mutable struct PreallocatedDataK3_5Structured{
   δv::Vector{T}
   As::L1
   Qreg::AbstractMatrix{T} # regularized Q
-  QregF::L2 # factorized matrix Qreg
+  QregF::LDLFactorizations.LDLFactorization{T, Int, Int, Int}
+  Qregop::L2 # factorized matrix Qreg
   opBR::L3
   KS::Ksol
   atol::T
@@ -248,8 +251,10 @@ function PreallocatedData(
     )
   )
 
-  Qreg = fd.Q + regu.ρ * I
-  QregF = opLDL(Symmetric(Qreg, :U))
+  Qreg = fd.Q + regu.ρ_min * I
+  QregF = ldl(Symmetric(Qreg, :U))
+  display(Qreg)
+  Qregop = LinearOperator(T, id.nvar, id.nvar, true, true, (res, v) -> ldiv!(res, QregF, v))
   Rd = δv[1] * I(id.ncon)
   opBR = LinearOperator(
     T,
@@ -282,6 +287,7 @@ function PreallocatedData(
     As,
     Qreg,
     QregF,
+    Qregop,
     opBR,
     KS,
     sp.atol0,
@@ -321,7 +327,7 @@ function solver!(
     pad.As',
     pad.rhs1,
     pad.rhs2,
-    pad.QregF,
+    pad.Qregop,
     pad.opBR,
     verbose = 0,
     atol = pad.atol,
@@ -355,6 +361,18 @@ function solver!(
   return 0
 end
 
+function update_upper_Qreg!(Qreg, Q, ρ)
+  n = size(Qreg, 1)
+  nnzQ = nnz(Q)
+  if nnzQ > 0
+    for i=1:n
+      diag_idx = Qreg.colptr[i+1] - 1
+      ptrQ = Q.colptr[i+1] - 1
+      Qreg.nzval[diag_idx] = (ptrQ ≤ nnzQ && Q.rowval[ptrQ] == i) ? Q.nzval[ptrQ] + ρ : ρ
+    end
+  end
+end
+
 function update_pad!(
   pad::PreallocatedDataK3_5Structured{T},
   dda::DescentDirectionAllocs{T},
@@ -368,6 +386,11 @@ function update_pad!(
 ) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
+  end
+  if cnts.k == 4
+    # update_upper_Qreg!(pad.Qreg, fd.Q, pad.regu.ρ)
+    # pad.Qreg[diagind(pad.Qreg)] .= fd.Q[diagind(fd.Q)] .+ pad.regu.ρ
+    # ldl_factorize!(Symmetric(pad.Qreg, :U), pad.QregF)
   end
 
   if pad.atol > pad.atol_min
