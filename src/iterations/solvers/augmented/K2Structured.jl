@@ -140,9 +140,9 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.ξ1 .= step == :init ? fd.c : dd[1:(id.nvar)]
+  pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)]
   pad.ξ2 .=
-    (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
+    @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
   ksolve!(
