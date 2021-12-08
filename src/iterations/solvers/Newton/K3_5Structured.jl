@@ -253,7 +253,6 @@ function PreallocatedData(
 
   Qreg = fd.Q + regu.ρ_min * I
   QregF = ldl(Symmetric(Qreg, :U))
-  display(Qreg)
   Qregop = LinearOperator(T, id.nvar, id.nvar, true, true, (res, v) -> ldiv!(res, QregF, v))
   Rd = δv[1] * I(id.ncon)
   opBR = LinearOperator(
