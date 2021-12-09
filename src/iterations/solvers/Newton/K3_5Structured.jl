@@ -309,13 +309,9 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  if step == :aff
-    Δs_l = dda.Δs_l_aff
-    Δs_u = dda.Δs_u_aff
-  else
-    Δs_l = itd.Δs_l
-    Δs_u = itd.Δs_u
-  end
+
+  Δs_l = itd.Δs_l
+  Δs_u = itd.Δs_u
   pad.rhs1 .= @views step == :init ? fd.c : dd[1:id.nvar]
   if step == :init && all(pad.rhs1 .== zero(T))
     pad.rhs1 .= one(T)
@@ -363,17 +359,17 @@ function solver!(
   return 0
 end
 
-function update_upper_Qreg!(Qreg, Q, ρ)
-  n = size(Qreg, 1)
-  nnzQ = nnz(Q)
-  if nnzQ > 0
-    for i=1:n
-      diag_idx = Qreg.colptr[i+1] - 1
-      ptrQ = Q.colptr[i+1] - 1
-      Qreg.nzval[diag_idx] = (ptrQ ≤ nnzQ && Q.rowval[ptrQ] == i) ? Q.nzval[ptrQ] + ρ : ρ
-    end
-  end
-end
+# function update_upper_Qreg!(Qreg, Q, ρ)
+#   n = size(Qreg, 1)
+#   nnzQ = nnz(Q)
+#   if nnzQ > 0
+#     for i=1:n
+#       diag_idx = Qreg.colptr[i+1] - 1
+#       ptrQ = Q.colptr[i+1] - 1
+#       Qreg.nzval[diag_idx] = (ptrQ ≤ nnzQ && Q.rowval[ptrQ] == i) ? Q.nzval[ptrQ] + ρ : ρ
+#     end
+#   end
+# end
 
 function update_pad!(
   pad::PreallocatedDataK3_5Structured{T},
@@ -389,11 +385,11 @@ function update_pad!(
   if cnts.k != 0
     update_regu!(pad.regu)
   end
-  if cnts.k == 4
+  # if cnts.k == 4
     # update_upper_Qreg!(pad.Qreg, fd.Q, pad.regu.ρ)
     # pad.Qreg[diagind(pad.Qreg)] .= fd.Q[diagind(fd.Q)] .+ pad.regu.ρ
     # ldl_factorize!(Symmetric(pad.Qreg, :U), pad.QregF)
-  end
+  # end
 
   if pad.atol > pad.atol_min
     pad.atol /= 10
