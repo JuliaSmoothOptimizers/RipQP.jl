@@ -24,6 +24,7 @@ K2StructuredParams
 K2_5StructuredParams
 K3KrylovParams
 K3_5KrylovParams
+K3_5StructuredParams
 K1KrylovParams
 ```
 
