@@ -15,10 +15,10 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5KrylovParams(; uplo = :L,   kmethod::Symbol = :trimr,
-                     atol0 = 1.0e-4, rtol0 = 1.0e-4, 
-                     atol_min = 1.0e-10, rtol_min = 1.0e-10,
-                     ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
+    K3_5StructuredParams(; uplo = :U,   kmethod::Symbol = :trimr,
+                         atol0 = 1.0e-4, rtol0 = 1.0e-4, 
+                         atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                         ρ_min = 1e4 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
