@@ -317,6 +317,9 @@ function solver!(
     Δs_u = itd.Δs_u
   end
   pad.rhs1 .= @views step == :init ? fd.c : dd[1:id.nvar]
+  if step == :init && all(pad.rhs1 .== zero(T))
+    pad.rhs1 .= one(T)
+  end
   pad.rhs2[1:id.ncon] .=
     @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
   pad.rhs2[id.ncon + 1:(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ sqrt.(pt.s_l)
