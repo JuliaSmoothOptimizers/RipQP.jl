@@ -305,7 +305,7 @@ function fill_diag_Q_dense!(
   Q_nzval::Vector{T},
   diagval::Vector{T},
   n,
-  uplo::Symbol
+  uplo::Symbol,
 ) where {T <: Real}
   for j = 1:n
     if uplo == :U

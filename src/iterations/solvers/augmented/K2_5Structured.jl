@@ -131,8 +131,8 @@ function solver!(
   step::Symbol,
 ) where {T <: Real}
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)] .* pad.sqrtX1X2
-  pad.ξ2 .=
-    @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
+  pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
+         dd[(id.nvar + 1):end]
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
   ksolve!(

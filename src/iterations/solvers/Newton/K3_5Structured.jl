@@ -47,16 +47,7 @@ function K3_5StructuredParams(;
   ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
-  return K3_5StructuredParams(
-    uplo,
-    kmethod,
-    atol0,
-    rtol0,
-    atol_min,
-    rtol_min,
-    ρ_min,
-    δ_min,
-  )
+  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedDataK3_5Structured{
@@ -83,7 +74,6 @@ mutable struct PreallocatedDataK3_5Structured{
   rtol_min::T
 end
 
-
 function opAsprod!(
   res::AbstractVector{T},
   nvar::Int,
@@ -100,11 +90,13 @@ function opAsprod!(
   uplo::Symbol,
 ) where {T}
   if β == 0
-    res[ncon + 1: ncon + nlow] .= @views α .* sqrt.(s_l) .* v[ilow]
-    res[ncon + nlow + 1: end] .= @views (-α) .* sqrt.(s_u) .* v[iupp]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) .* v[ilow]
+    res[(ncon + nlow + 1):end] .= @views (-α) .* sqrt.(s_u) .* v[iupp]
   else
-    res[ncon + 1: ncon + nlow] .= @views α .* sqrt.(s_l) .* v[ilow] .+ β .* res[ncon + 1: ncon + nlow]
-    res[ncon + nlow + 1: end] .= @views (-α) .* sqrt.(s_u) .* v[iupp] .+ β .* res[ncon + nlow + 1: end]
+    res[(ncon + 1):(ncon + nlow)] .=
+      @views α .* sqrt.(s_l) .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .=
+      @views (-α) .* sqrt.(s_u) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
   end
   if uplo == :U
     @views mul!(res[1:ncon], A', v, α, β)
@@ -149,13 +141,15 @@ function opBRprod!(
   β::T,
 ) where {T <: Real}
   if β == zero(T)
-    res[1:ncon] .= @views (α / δv[1]) .* v[1: ncon]
-    res[ncon + 1: ncon + nlow] .= @views α ./ x_m_lvar .* v[ncon + 1: ncon + nlow]
-    res[ncon + nlow + 1: end] .= @views α ./ uvar_m_x .* v[ncon + nlow + 1: end]
+    res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon]
+    res[(ncon + 1):(ncon + nlow)] .= @views α ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .= @views α ./ uvar_m_x .* v[(ncon + nlow + 1):end]
   else
-    res[1:ncon] .= @views (α / δv[1]) .* v[1: ncon] .+ β .* res[1:ncon]
-    res[ncon + 1: ncon + nlow] .= @views α ./ x_m_lvar .* v[ncon + 1: ncon + nlow] .+ β .* res[ncon + 1: ncon + nlow]
-    res[ncon + nlow + 1: end] .= @views α ./ uvar_m_x .* v[ncon + nlow + 1: end] .+ β .* res[ncon + nlow + 1: end]
+    res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon] .+ β .* res[1:ncon]
+    res[(ncon + 1):(ncon + nlow)] .=
+      @views α ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+ β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .=
+      @views α ./ uvar_m_x .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
   end
 end
 
@@ -181,12 +175,14 @@ function update_kresiduals_history!(
   if typeof(res) <: ResidualsHistory
     @views mul!(res.Kres[1:nvar], Symmetric(Qreg, :U), solx)
     @views mul!(res.Kres[1:nvar], As', soly, one(T), one(T))
-    @views mul!(res.Kres[nvar + 1: end], As, solx)
-    res.Kres[nvar + 1: nvar + ncon] .+= δ .* soly[1: ncon]
-    res.Kres[nvar + ncon + 1: nvar + ncon + nlow] .+= @views s_l .* solx[ilow]  .+ x_m_lvar .* soly[ncon + 1: ncon + nlow]
-    res.Kres[nvar + ncon + nlow + 1: end] .+= @views .-s_u .* solx[iupp] .+ uvar_m_x .* soly[ncon + nlow + 1: end]
+    @views mul!(res.Kres[(nvar + 1):end], As, solx)
+    res.Kres[(nvar + 1):(nvar + ncon)] .+= δ .* soly[1:ncon]
+    res.Kres[(nvar + ncon + 1):(nvar + ncon + nlow)] .+=
+      @views s_l .* solx[ilow] .+ x_m_lvar .* soly[(ncon + 1):(ncon + nlow)]
+    res.Kres[(nvar + ncon + nlow + 1):end] .+=
+      @views .-s_u .* solx[iupp] .+ uvar_m_x .* soly[(ncon + nlow + 1):end]
     res.Kres[1:nvar] .-= rhs1
-    res.Kres[nvar + 1: end] .-= rhs2
+    res.Kres[(nvar + 1):end] .-= rhs2
   end
 end
 
@@ -248,7 +244,7 @@ function PreallocatedData(
       α,
       β,
       fd.uplo,
-    )
+    ),
   )
 
   Qreg = fd.Q + regu.ρ_min * I
@@ -261,17 +257,7 @@ function PreallocatedData(
     id.ncon + id.nlow + id.nupp,
     true,
     true,
-    (res, v, α, β) -> opBRprod!(
-      res,
-      id.ncon,
-      id.nlow,
-      itd.x_m_lvar,
-      itd.uvar_m_x,
-      δv,
-      v,
-      α,
-      β,
-    ),
+    (res, v, α, β) -> opBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
   )
   rhs1 = similar(fd.c, id.nvar)
   rhs2 = similar(fd.c, id.ncon + id.nlow + id.nupp)
@@ -309,16 +295,16 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-
   Δs_l = itd.Δs_l
   Δs_u = itd.Δs_u
-  pad.rhs1 .= @views step == :init ? fd.c : dd[1:id.nvar]
+  pad.rhs1 .= @views step == :init ? fd.c : dd[1:(id.nvar)]
   if step == :init && all(pad.rhs1 .== zero(T))
     pad.rhs1 .= one(T)
   end
-  pad.rhs2[1:id.ncon] .=
-    @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) : dd[(id.nvar + 1):end]
-  pad.rhs2[id.ncon + 1:(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ sqrt.(pt.s_l)
+  pad.rhs2[1:(id.ncon)] .=
+    @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
+           dd[(id.nvar + 1):end]
+  pad.rhs2[(id.ncon + 1):(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ sqrt.(pt.s_l)
   pad.rhs2[(id.ncon + id.nlow + 1):end] .= (step == :init) ? one(T) : Δs_u ./ sqrt.(pt.s_u)
   ksolve!(
     pad.KS,
@@ -351,8 +337,8 @@ function solver!(
     id.iupp,
   )
 
-  dd[1:id.nvar] .= @views pad.KS.x
-  dd[id.nvar + 1: end] .= @views pad.KS.y[1: id.ncon]
+  dd[1:(id.nvar)] .= @views pad.KS.x
+  dd[(id.nvar + 1):end] .= @views pad.KS.y[1:(id.ncon)]
   Δs_l .= @views pad.KS.y[(id.ncon + 1):(id.ncon + id.nlow)] .* sqrt.(pt.s_l)
   Δs_u .= @views pad.KS.y[(id.ncon + id.nlow + 1):end] .* sqrt.(pt.s_u)
 
@@ -386,9 +372,9 @@ function update_pad!(
     update_regu!(pad.regu)
   end
   # if cnts.k == 4
-    # update_upper_Qreg!(pad.Qreg, fd.Q, pad.regu.ρ)
-    # pad.Qreg[diagind(pad.Qreg)] .= fd.Q[diagind(fd.Q)] .+ pad.regu.ρ
-    # ldl_factorize!(Symmetric(pad.Qreg, :U), pad.QregF)
+  # update_upper_Qreg!(pad.Qreg, fd.Q, pad.regu.ρ)
+  # pad.Qreg[diagind(pad.Qreg)] .= fd.Q[diagind(fd.Q)] .+ pad.regu.ρ
+  # ldl_factorize!(Symmetric(pad.Qreg, :U), pad.QregF)
   # end
 
   if pad.atol > pad.atol_min
