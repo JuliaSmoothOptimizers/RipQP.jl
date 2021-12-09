@@ -44,7 +44,13 @@ end
           sp = K2KrylovParams(uplo = :L, kmethod = kmethod, preconditioner = precond),
           history = true,
         ),
-        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+        itol = InputTol(
+          max_iter = 50,
+          max_time = 20.0,
+          ϵ_rc = 1.0e-2,
+          ϵ_rb = 1.0e-2,
+          ϵ_pdd = 1.0e-2,
+        ),
       )
       @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
       @test stats2.status == :acceptable
@@ -52,8 +58,16 @@ end
       stats3 = ripqp(
         QuadraticModel(qps3),
         display = false,
-        iconf = InputConfig(sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond)),
-        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+        iconf = InputConfig(
+          sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond),
+        ),
+        itol = InputTol(
+          max_iter = 50,
+          max_time = 20.0,
+          ϵ_rc = 1.0e-2,
+          ϵ_rb = 1.0e-2,
+          ϵ_pdd = 1.0e-2,
+        ),
       )
       @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
       @test stats3.status == :acceptable
@@ -78,7 +92,10 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :Jacobi), solve_method = :IPF),
+      iconf = InputConfig(
+        sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :Jacobi),
+        solve_method = :IPF,
+      ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
