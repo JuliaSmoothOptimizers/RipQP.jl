@@ -35,27 +35,29 @@ end
 end
 
 @testset "KrylovK2" begin
-  for kmethod in [:minres, :minres_qlp, :dqgmres]
-    stats2 = ripqp(
-      QuadraticModel(qps2),
-      display = true,
-      iconf = InputConfig(
-        sp = K2KrylovParams(kmethod = kmethod, preconditioner = :Identity),
-        history = true,
-      ),
-      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-    )
-    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :acceptable
+  for precond in [:Identity, :Jacobi]
+    for kmethod in [:minres, :minres_qlp, :dqgmres]
+      stats2 = ripqp(
+        QuadraticModel(qps2),
+        display = false,
+        iconf = InputConfig(
+          sp = K2KrylovParams(uplo = :L, kmethod = kmethod, preconditioner = precond),
+          history = true,
+        ),
+        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+      )
+      @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+      @test stats2.status == :acceptable
 
-    stats3 = ripqp(
-      QuadraticModel(qps3),
-      display = true,
-      iconf = InputConfig(sp = K2KrylovParams(uplo = :U, kmethod = kmethod)),
-      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
-    )
-    @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+      stats3 = ripqp(
+        QuadraticModel(qps3),
+        display = false,
+        iconf = InputConfig(sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond)),
+        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+      )
+      @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+      @test stats3.status == :acceptable
+    end
   end
 end
 
@@ -63,7 +65,7 @@ end
   for kmethod in [:minres, :minres_qlp]
     stats1 = ripqp(
       QuadraticModel(qps1),
-      display = false,
+      display = true,
       iconf = InputConfig(
         sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Identity),
         history = true,
@@ -76,7 +78,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :Jacobi), solve_method = :IPF),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -85,7 +87,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod)),
+      iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Jacobi)),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)

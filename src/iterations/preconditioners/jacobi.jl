@@ -12,7 +12,7 @@ function Jacobi(
   K::LinearOperator{T},
 ) where {T <: Real}
   invDiagK = (one(T) / regu.δ) .* fill!(similar(fd.c, id.nvar + id.ncon), one(T))
-  diagQ = get_diag_Q_dense(fd.Q)
+  diagQ = get_diag_Q_dense(fd.Q, fd.uplo)
   invDiagK[1:(id.nvar)] .= .-one(T) ./ (D .- diagQ)
   P = opDiagonal(invDiagK)
   return JacobiData{eltype(diagQ), typeof(diagQ), typeof(P)}(P, diagQ, invDiagK)
