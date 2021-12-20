@@ -34,7 +34,13 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
-function get_mat_QPData(A::SparseMatrixCOO{T, Int}, H::SparseMatrixCOO{T, Int}, nvar::Int, ncon::Int, uplo::Symbol) where {T}
+function get_mat_QPData(
+  A::SparseMatrixCOO{T, Int},
+  H::SparseMatrixCOO{T, Int},
+  nvar::Int,
+  ncon::Int,
+  uplo::Symbol,
+) where {T}
   if uplo == :U # A is Aᵀ of QuadraticModel QM
     fdA = sparse_dropzeros(A.cols, A.rows, A.vals, ncon, nvar)
     fdQ = sparse_dropzeros(H.cols, H.rows, H.vals, nvar, nvar)
@@ -50,7 +56,9 @@ function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
   return fdA, H
 end
 
-function switch_H_to_max!(data::QuadraticModels.QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+function switch_H_to_max!(
+  data::QuadraticModels.QPData{T, S, M1, M2},
+) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   data.H.vals .= .-data.H.vals
 end
 
@@ -109,7 +117,7 @@ function allocate_workspace(
   end
 
   QM = SlackModel(QM)
-  
+
   if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
     QM = deepcopy(QM) # if not modified by SlackModel and presolve
   end
@@ -316,7 +324,8 @@ function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}, uplo::Symbol) where {T <: 
   return diagval
 end
 
-get_diag_Q_dense(Q::Symmetric{T, SparseMatrixCSC{T, Int}}, uplo::Symbol) where {T} = get_diag_Q_dense(Q.data, uplo)
+get_diag_Q_dense(Q::Symmetric{T, SparseMatrixCSC{T, Int}}, uplo::Symbol) where {T} =
+  get_diag_Q_dense(Q.data, uplo)
 
 function fill_diag_Q_dense!(
   Q_colptr,

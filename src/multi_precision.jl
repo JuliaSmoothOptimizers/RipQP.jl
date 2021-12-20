@@ -1,4 +1,4 @@
-convert_sym(T::DataType, Q::Symmetric{T0, M0}) where {T0, M0 <: AbstractMatrix{T0}} = 
+convert_sym(T::DataType, Q::Symmetric{T0, M0}) where {T0, M0 <: AbstractMatrix{T0}} =
   Symmetric(convert(M0.name.wrapper{T, Int}, Q.data), Symbol(Q.uplo))
 
 function convert_FloatData(

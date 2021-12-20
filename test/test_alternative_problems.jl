@@ -81,24 +81,47 @@ end
   @test stats5.status == :acceptable
 end
 
-Q = [6. 2. 1.
-    2. 5. 2.
-    1. 2. 4.]
-c = [-8.; -3; -3]
-A = [1. 0. 1.
-    0. 2. 1.]
-b = [0.; 3]
-l = [0.;0;0]
+Q = [
+  6.0 2.0 1.0
+  2.0 5.0 2.0
+  1.0 2.0 4.0
+]
+c = [-8.0; -3; -3]
+A = [
+  1.0 0.0 1.0
+  0.0 2.0 1.0
+]
+b = [0.0; 3]
+l = [0.0; 0; 0]
 u = [Inf; Inf; Inf]
-qp_linop = QuadraticModel(c, LinearOperator(Q), A=LinearOperator(A), lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM_LINOP")
-qp_dense = QuadraticModel(c, Q, A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM_LINOP")
+qp_linop = QuadraticModel(
+  c,
+  LinearOperator(Q),
+  A = LinearOperator(A),
+  lcon = b,
+  ucon = b,
+  lvar = l,
+  uvar = u,
+  c0 = 0.0,
+  name = "QM_LINOP",
+)
+qp_dense =
+  QuadraticModel(c, Q, A = A, lcon = b, ucon = b, lvar = l, uvar = u, c0 = 0.0, name = "QM_LINOP")
 
 @testset "Dense and LinearOperator QPs" begin
-  stats_linop = ripqp(qp_linop, iconf = InputConfig(sp = K2KrylovParams(), presolve=false, scaling=false), display = false)
+  stats_linop = ripqp(
+    qp_linop,
+    iconf = InputConfig(sp = K2KrylovParams(), presolve = false, scaling = false),
+    display = false,
+  )
   @test isapprox(stats_linop.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_linop.status == :acceptable
 
-  stats_dense = ripqp(qp_dense, iconf = InputConfig(sp = K2KrylovParams(), presolve=false, scaling=false), display = false)
+  stats_dense = ripqp(
+    qp_dense,
+    iconf = InputConfig(sp = K2KrylovParams(), presolve = false, scaling = false),
+    display = false,
+  )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :acceptable
 end
