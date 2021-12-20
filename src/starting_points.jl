@@ -5,7 +5,7 @@ function starting_points!(
   itd::IterData{T},
   spd::StartingPointData{T},
 ) where {T <: Real}
-  itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, fd.uplo), pt0.x)
+  mul!(itd.Qx, fd.Q, pt0.x)
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt0.y) : mul!(itd.ATy, fd.A', pt0.y)
   spd.dual_val .= itd.Qx .- itd.ATy .+ fd.c
   pt0.s_l = spd.dual_val[id.ilow]

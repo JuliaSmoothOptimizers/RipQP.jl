@@ -34,17 +34,33 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
+function get_mat_QPData(A::SparseMatrixCOO{T, Int}, H::SparseMatrixCOO{T, Int}, nvar::Int, ncon::Int, uplo::Symbol) where {T}
+  if uplo == :U # A is Aᵀ of QuadraticModel QM
+    fdA = sparse_dropzeros(A.cols, A.rows, A.vals, ncon, nvar)
+    fdQ = sparse_dropzeros(H.cols, H.rows, H.vals, nvar, nvar)
+  else
+    fdA = sparse_dropzeros(A.rows, A.cols, A.vals, nvar, ncon)
+    fdQ = sparse_dropzeros(H.rows, H.cols, H.vals, nvar, nvar)
+  end
+  return fdA, Symmetric(fdQ, uplo)
+end
+
+function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
+  fdA = uplo == :U ? transpose(A) : A
+  return fdA, H
+end
+
+function switch_H_to_max!(data::QuadraticModels.QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+  data.H.vals .= .-data.H.vals
+end
+
+function switch_H_to_max!(data::QuadraticModels.QPData)
+  data.H = -data.H
+end
+
 function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
-  # Q is lower triangular in QuadraticModels.jl
-  if uplo == :U # A is Aᵀ of QuadraticModel QM
-    A = sparse_dropzeros(QM.data.Acols, QM.data.Arows, QM.data.Avals, QM.meta.ncon, QM.meta.nvar)
-    Q = sparse_dropzeros(QM.data.Hcols, QM.data.Hrows, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-  else
-    A = sparse_dropzeros(QM.data.Arows, QM.data.Acols, QM.data.Avals, QM.meta.nvar, QM.meta.ncon)
-    Q = sparse_dropzeros(QM.data.Hrows, QM.data.Hcols, QM.data.Hvals, QM.meta.nvar, QM.meta.nvar)
-  end
-
+  A, Q = get_mat_QPData(QM.data.A, QM.data.H, QM.meta.nvar, QM.meta.ncon, uplo)
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
@@ -87,12 +103,13 @@ function allocate_workspace(
   )
 
   if !QM.meta.minimize
-    QM.data.Hvals .= .-QM.data.Hvals
+    switch_H_to_max!(QM.data)
     QM.data.c .= .-QM.data.c
     QM.data.c0 = -QM.data.c0
   end
 
   QM = SlackModel(QM)
+  
   if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
     QM = deepcopy(QM) # if not modified by SlackModel and presolve
   end
@@ -156,7 +173,7 @@ function allocate_workspace(
     zero(T),#pdd
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
-    nnz(fd_T0.Q) > 0,
+    typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
   )
 
@@ -298,6 +315,8 @@ function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}, uplo::Symbol) where {T <: 
   fill_diag_Q_dense!(Q.colptr, Q.rowval, Q.nzval, diagval, n, uplo)
   return diagval
 end
+
+get_diag_Q_dense(Q::Symmetric{T, SparseMatrixCSC{T, Int}}, uplo::Symbol) where {T} = get_diag_Q_dense(Q.data, uplo)
 
 function fill_diag_Q_dense!(
   Q_colptr,

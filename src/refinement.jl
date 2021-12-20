@@ -1,6 +1,6 @@
-mutable struct QM_FloatData_ref{T <: Real, S, Ssp} <: Abstract_QM_FloatData{T, S, Ssp}
-  Q::Ssp
-  A::Ssp # using AT is easier to form systems
+mutable struct QM_FloatData_ref{T <: Real, S, M1, M2} <: Abstract_QM_FloatData{T, S, M1, M2}
+  Q::M1
+  A::M2 # using AT is easier to form systems
   b::S
   c::S
   c0::T
@@ -137,7 +137,7 @@ function update_pt_ref!(
   pt.s_u .= pt_z.s_u ./ Δref
 
   # update IterData
-  itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, fd.uplo), pt.x)
+  itd.Qx = mul!(itd.Qx, fd.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
   fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) : mul!(itd.Ax, fd.A, pt.x)
@@ -188,7 +188,7 @@ function update_data!(
   boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
 
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
-  itd.Qx = mul!(itd.Qx, Symmetric(fd.Q, :U), pt.x)
+  itd.Qx = mul!(itd.Qx, fd.Q, pt.x)
   x_approxQx = dot(fd.x_approx, itd.Qx)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)

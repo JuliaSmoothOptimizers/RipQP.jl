@@ -84,7 +84,7 @@ function update_IterData!(itd, pt, fd, id, safety)
   safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
 
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
-  mul!(itd.Qx, Symmetric(fd.Q, fd.uplo), pt.x)
+  mul!(itd.Qx, fd.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
   fd.uplo == :U ? mul!(itd.Ax, fd.A', pt.x) : mul!(itd.Ax, fd.A, pt.x)

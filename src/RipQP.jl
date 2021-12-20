@@ -3,7 +3,7 @@ module RipQP
 using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics
 
 using Krylov,
-  LDLFactorizations, LinearOperators, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore
+  LDLFactorizations, LinearOperators, LLSModels, NLPModelsModifiers, QuadraticModels, SolverCore, SparseMatricesCOO
 
 using Requires
 function __init__()

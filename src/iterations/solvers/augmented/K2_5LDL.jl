@@ -72,8 +72,8 @@ function PreallocatedData(
     )
     D .= -T(1.0e-2)
   end
-  diag_Q = get_diag_Q(fd.Q.colptr, fd.Q.rowval, fd.Q.nzval, id.nvar)
-  K = create_K2(id, D, fd.Q, fd.A, diag_Q, regu)
+  diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
+  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu)
 
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
   K_fact = ldl_analyze(Symmetric(K, :U))

@@ -75,9 +75,9 @@ end
 function opK2_5prod!(
   res::AbstractVector{T},
   nvar::Int,
-  Q::AbstractMatrix{T},
+  Q::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   D::AbstractVector{T},
-  A::AbstractMatrix{T},
+  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   sqrtX1X2::AbstractVector{T},
   tmp::AbstractVector{T},
   δv::AbstractVector{T},
@@ -142,7 +142,7 @@ function PreallocatedData(
     (res, v, α, β) -> opK2_5prod!(
       res,
       id.nvar,
-      Symmetric(fd.Q, fd.uplo),
+      fd.Q,
       D,
       fd.A,
       sqrtX1X2,

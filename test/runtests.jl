@@ -1,5 +1,5 @@
-using RipQP, LLSModels, QPSReader, QuadraticModels, Quadmath
-using DelimitedFiles, LinearAlgebra, MatrixMarket, Test
+using RipQP, LinearOperators, LLSModels, QPSReader, QuadraticModels, Quadmath
+using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, Test
 
 qps1 = readqps("QAFIRO.SIF") #lower bounds
 qps2 = readqps("HS21.SIF") # low/upp bounds
