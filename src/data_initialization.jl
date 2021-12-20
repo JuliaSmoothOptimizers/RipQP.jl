@@ -34,20 +34,20 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
-function get_mat_QPData(data::QuadraticModels.QPData{T, S, M1, M2}, nvar::Int, ncon::Int, uplo::Symbol) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+function get_mat_QPData(A::SparseMatrixCOO{T, Int}, H::SparseMatrixCOO{T, Int}, nvar::Int, ncon::Int, uplo::Symbol) where {T}
   if uplo == :U # A is Aᵀ of QuadraticModel QM
-    A = sparse_dropzeros(data.A.cols, data.A.rows, data.A.vals, ncon, nvar)
-    Q = sparse_dropzeros(data.H.cols, data.H.rows, data.H.vals, nvar, nvar)
+    fdA = sparse_dropzeros(A.cols, A.rows, A.vals, ncon, nvar)
+    fdQ = sparse_dropzeros(H.cols, H.rows, H.vals, nvar, nvar)
   else
-    A = sparse_dropzeros(data.A.rows, data.A.cols, data.A.vals, nvar, ncon)
-    Q = sparse_dropzeros(data.H.rows, data.H.cols, data.H.vals, nvar, nvar)
+    fdA = sparse_dropzeros(A.rows, A.cols, A.vals, nvar, ncon)
+    fdQ = sparse_dropzeros(H.rows, H.cols, H.vals, nvar, nvar)
   end
-  return A, Symmetric(Q, uplo)
+  return fdA, Symmetric(fdQ, uplo)
 end
 
-function get_mat_QPData(data::QuadraticModels.QPData, nvar::Int, ncon::Int, uplo::Symbol)
-  A = uplo == :U ? transpose(data.A) : data.A
-  return A, data.H
+function get_mat_QPData(A::AbstractMatrix{T}, H::AbstractMatrix{T}, nvar::Int, ncon::Int, uplo::Symbol) where {T}
+  fdA = uplo == :U ? transpose(A) : A
+  return fdA, H
 end
 
 function switch_H_to_max!(data::QuadraticModels.QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
@@ -60,7 +60,7 @@ end
 
 function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
-  A, Q = get_mat_QPData(QM.data, QM.meta.nvar, QM.meta.ncon, uplo)
+  A, Q = get_mat_QPData(QM.data.A, QM.data.H, QM.meta.nvar, QM.meta.ncon, uplo)
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
