@@ -104,7 +104,7 @@ function PreallocatedData(
   if iconf.mode == :mono
     regu =
       Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
-      # Regularization(T(0.), T(0.), T(sp.ρ_min), T(sp.δ_min), :classic)
+    # Regularization(T(0.), T(0.), T(sp.ρ_min), T(sp.δ_min), :classic)
     D .= T(1.0e0) / 2
   else
     regu = Regularization(

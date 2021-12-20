@@ -80,11 +80,25 @@ function scaling_Ruiz!(
     k = 1
     while !convergence && k < max_iter
       if fd_T0.uplo == :U
-        get_norm_rc!(r_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :row)
+        get_norm_rc!(
+          r_k,
+          fd_T0.Q.data.colptr,
+          fd_T0.Q.data.rowval,
+          fd_T0.Q.data.nzval,
+          id.nvar,
+          :row,
+        )
         convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
         mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, r_k)
       else
-        get_norm_rc!(c_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :col)
+        get_norm_rc!(
+          c_k,
+          fd_T0.Q.data.colptr,
+          fd_T0.Q.data.rowval,
+          fd_T0.Q.data.nzval,
+          id.nvar,
+          :col,
+        )
         convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
         mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, c_k)
       end
@@ -110,7 +124,8 @@ function scaling_Ruiz!(
     mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
     k += 1
   end
-  length(fd_T0.Q.data.rowval) > 0 && mul_Q_D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2)
+  length(fd_T0.Q.data.rowval) > 0 &&
+    mul_Q_D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
