@@ -34,13 +34,13 @@ function sparse_dropzeros(rows, cols, vals::Vector, nrows, ncols)
   return M
 end
 
-function get_mat_QPData(data::QuadraticModels.QPDataCOO, nvar::Int, ncon::Int, uplo::Symbol)
+function get_mat_QPData(data::QuadraticModels.QPData{T, S, M1, M2}, nvar::Int, ncon::Int, uplo::Symbol) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
   if uplo == :U # A is Aᵀ of QuadraticModel QM
-    A = sparse_dropzeros(data.Acols, data.Arows, data.Avals, ncon, nvar)
-    Q = sparse_dropzeros(data.Hcols, data.Hrows, data.Hvals, nvar, nvar)
+    A = sparse_dropzeros(data.A.cols, data.A.rows, data.A.vals, ncon, nvar)
+    Q = sparse_dropzeros(data.H.cols, data.H.rows, data.H.vals, nvar, nvar)
   else
-    A = sparse_dropzeros(data.Arows, data.Acols, data.Avals, nvar, ncon)
-    Q = sparse_dropzeros(data.Hrows, data.Hcols, data.Hvals, nvar, nvar)
+    A = sparse_dropzeros(data.A.rows, data.A.cols, data.A.vals, nvar, ncon)
+    Q = sparse_dropzeros(data.H.rows, data.H.cols, data.H.vals, nvar, nvar)
   end
   return A, Symmetric(Q, uplo)
 end
@@ -50,12 +50,12 @@ function get_mat_QPData(data::QuadraticModels.QPData, nvar::Int, ncon::Int, uplo
   return A, data.H
 end
 
-function switch_H_to_max!(data::QuadraticModels.QPDataCOO)
-  data.Hvals .= .-data.Hvals
+function switch_H_to_max!(data::QuadraticModels.QPData{T, S, M1, M2}) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+  data.H.vals .= .-data.H.vals
 end
 
 function switch_H_to_max!(data::QuadraticModels.QPData)
-  data.H = -dataH
+  data.H = -data.H
 end
 
 function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
@@ -315,6 +315,8 @@ function get_diag_Q_dense(Q::SparseMatrixCSC{T, Int}, uplo::Symbol) where {T <: 
   fill_diag_Q_dense!(Q.colptr, Q.rowval, Q.nzval, diagval, n, uplo)
   return diagval
 end
+
+get_diag_Q_dense(Q::Symmetric{T, SparseMatrixCSC{T, Int}}, uplo::Symbol) where {T} = get_diag_Q_dense(Q.data, uplo)
 
 function fill_diag_Q_dense!(
   Q_colptr,
