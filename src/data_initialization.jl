@@ -45,7 +45,7 @@ function get_mat_QPData(A::SparseMatrixCOO{T, Int}, H::SparseMatrixCOO{T, Int}, 
   return fdA, Symmetric(fdQ, uplo)
 end
 
-function get_mat_QPData(A::AbstractMatrix{T}, H::AbstractMatrix{T}, nvar::Int, ncon::Int, uplo::Symbol) where {T}
+function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
   fdA = uplo == :U ? transpose(A) : A
   return fdA, H
 end
@@ -173,7 +173,7 @@ function allocate_workspace(
     zero(T),#pdd
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
-    typeof(fd_T0.Q) <: AbstractLinearOperator || nnz(fd_T0.Q.data) > 0,
+    typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
   )
 
