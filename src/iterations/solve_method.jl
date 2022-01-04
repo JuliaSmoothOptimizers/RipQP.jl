@@ -200,21 +200,22 @@ function update_dd!(
 end
 
 mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs{T, S}
-  compl::S # complementarity s_lᵀ(x-lvar) + s_uᵀ(uvar-x)
-  function DescentDirectionAllocsIPF(compl::AbstractVector{T}) where {T <: Real}
-    S = typeof(compl)
-    return new{T, S}(compl)
+  compl_l::S # complementarity s_lᵀ(x-lvar)
+  compl_u::S # complementarity s_uᵀ(uvar-x)
+  function DescentDirectionAllocsIPF(compl_l::AbstractVector{T}, compl_u::AbstractVector{T}) where {T <: Real}
+    S = typeof(compl_l)
+    return new{T, S}(compl_l, compl_u)
   end
 end
 
 DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) =
-  DescentDirectionAllocsIPF(S(undef, id.nvar))
+  DescentDirectionAllocsIPF(S(undef, id.nlow), S(undef, id.nupp))
 
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
 ) where {T <: Real, S, T0 <: Real, S0} =
-  DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl))
+  DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl_l), convert(S.name.wrapper{T, 1}, dda.compl_u))
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},
@@ -229,12 +230,17 @@ function update_dd!(
 ) where {T <: Real}
   r, γ = T(0.999), T(0.05)
   # D = [s_l (x-lvar) + s_u (uvar-x)]
-  dda.compl .= 0
-  dda.compl[id.ilow] .+= pt.s_l .* itd.x_m_lvar
-  dda.compl[id.iupp] .+= pt.s_u .* itd.uvar_m_x
-  dda.compl[id.ifree] .= one(T)
-  ξ = minimum(dda.compl) / itd.μ
+  dda.compl_l .= pt.s_l .* itd.x_m_lvar
+  dda.compl_u .= pt.s_u .* itd.uvar_m_x
+  min_compl_l = (id.nlow > 0) ? minimum(dda.compl_l) / (sum(dda.compl_l) / id.nlow) : one(T)
+  min_compl_u = (id.nupp > 0) ?  minimum(dda.compl_u) / (sum(dda.compl_u) / id.nupp) : one(T)
+  # ξ = min(min_compl_l, min_compl_u)
+  compl_l = minimum(pt.s_l .* itd.x_m_lvar)
+  compl_u = minimum(pt.s_u .* itd.uvar_m_x)
+  ξ = min(compl_l, compl_u) / itd.μ
   σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3
+  # println(σ)
+  # println("xi", ξ)
 
   itd.Δxy[1:(id.nvar)] .= .-res.rc
   itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
