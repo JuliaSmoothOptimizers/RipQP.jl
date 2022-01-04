@@ -202,7 +202,10 @@ end
 mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs{T, S}
   compl_l::S # complementarity s_lᵀ(x-lvar)
   compl_u::S # complementarity s_uᵀ(uvar-x)
-  function DescentDirectionAllocsIPF(compl_l::AbstractVector{T}, compl_u::AbstractVector{T}) where {T <: Real}
+  function DescentDirectionAllocsIPF(
+    compl_l::AbstractVector{T},
+    compl_u::AbstractVector{T},
+  ) where {T <: Real}
     S = typeof(compl_l)
     return new{T, S}(compl_l, compl_u)
   end
@@ -214,8 +217,10 @@ DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) =
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
-) where {T <: Real, S, T0 <: Real, S0} =
-  DescentDirectionAllocsIPF(convert(S.name.wrapper{T, 1}, dda.compl_l), convert(S.name.wrapper{T, 1}, dda.compl_u))
+) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsIPF(
+  convert(S.name.wrapper{T, 1}, dda.compl_l),
+  convert(S.name.wrapper{T, 1}, dda.compl_u),
+)
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},
@@ -233,7 +238,7 @@ function update_dd!(
   dda.compl_l .= pt.s_l .* itd.x_m_lvar
   dda.compl_u .= pt.s_u .* itd.uvar_m_x
   min_compl_l = (id.nlow > 0) ? minimum(dda.compl_l) / (sum(dda.compl_l) / id.nlow) : one(T)
-  min_compl_u = (id.nupp > 0) ?  minimum(dda.compl_u) / (sum(dda.compl_u) / id.nupp) : one(T)
+  min_compl_u = (id.nupp > 0) ? minimum(dda.compl_u) / (sum(dda.compl_u) / id.nupp) : one(T)
   ξ = min(min_compl_l, min_compl_u)
   σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3
 
