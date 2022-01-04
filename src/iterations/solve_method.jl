@@ -235,12 +235,7 @@ function update_dd!(
   min_compl_l = (id.nlow > 0) ? minimum(dda.compl_l) / (sum(dda.compl_l) / id.nlow) : one(T)
   min_compl_u = (id.nupp > 0) ?  minimum(dda.compl_u) / (sum(dda.compl_u) / id.nupp) : one(T)
   ξ = min(min_compl_l, min_compl_u)
-  # compl_l = minimum(pt.s_l .* itd.x_m_lvar)
-  # compl_u = minimum(pt.s_u .* itd.uvar_m_x)
-  # ξ = min(compl_l, compl_u) / itd.μ
   σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3
-  # println(σ)
-  # println("xi", ξ)
 
   itd.Δxy[1:(id.nvar)] .= .-res.rc
   itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
