@@ -7,6 +7,7 @@ include("solvers/augmented/augmented.jl")
 include("solvers/Newton/Newton.jl")
 include("solvers/normal/normal.jl")
 include("solvers/Krylov_utils.jl")
+include("solvers/ldl_dense.jl")
 
 function compute_α_dual(v, dir_v)
   n = length(v)
