@@ -10,25 +10,28 @@ Type to use the K2.5 formulation with a LDLᵀ factorization, using the package
 [`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
 The outer constructor 
 
-    sp = K2_5LDLParams(; regul :: Symbol = :classic) 
+    sp = K2_5LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
+When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 """
-struct K2_5LDLParams <: SolverParams
+mutable struct K2_5LDLParams <: SolverParams
   uplo::Symbol
   regul::Symbol
+  ρ0::Float64
+  δ0::Float64
 end
 
-function K2_5LDLParams(; regul::Symbol = :classic)
+function K2_5LDLParams(; regul::Symbol = :classic, ρ0::Float64 = sqrt(eps()) * 1e5, δ0::Float64 = sqrt(eps()) * 1e5)
   regul == :classic ||
     regul == :dynamic ||
     regul == :none ||
     error("regul should be :classic or :dynamic or :none")
   uplo = :U # mandatory for LDLFactorizations
-  return K2_5LDLParams(uplo, regul)
+  return K2_5LDLParams(uplo, regul, ρ0, δ0)
 end
 
 mutable struct PreallocatedDataK2_5LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}
@@ -55,8 +58,8 @@ function PreallocatedData(
   D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       1e-5 * sqrt(eps(T)),
       1e0 * sqrt(eps(T)),
       sp.regul,
@@ -64,8 +67,8 @@ function PreallocatedData(
     D .= -T(1.0e0) / 2
   else
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       T(sqrt(eps(T)) * 1e0),
       T(sqrt(eps(T)) * 1e0),
       sp.regul,

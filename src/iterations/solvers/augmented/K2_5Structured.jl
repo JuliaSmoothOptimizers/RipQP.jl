@@ -8,6 +8,7 @@ The outer constructor
 
     K2_5StructuredParams(; uplo = :L, kmethod = :trimr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                         ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
                          ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
@@ -19,13 +20,15 @@ The available methods are:
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 The `mem` argument sould be used only with `gpmr`.
 """
-struct K2_5StructuredParams <: SolverParams
+mutable struct K2_5StructuredParams <: SolverParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
   rtol_min::Float64
+  ρ0::Float64
+  δ0::Float64
   ρ_min::Float64
   δ_min::Float64
   mem::Int
@@ -38,11 +41,13 @@ function K2_5StructuredParams(;
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
+  ρ0::T = sqrt(eps()) * 1e5,
+  δ0::T = sqrt(eps()) * 1e5,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min, mem)
 end
 
 mutable struct PreallocatedDataK2_5Structured{
@@ -78,13 +83,12 @@ function PreallocatedData(
   # init Regularization values
   E = similar(fd.c, id.nvar)
   if iconf.mode == :mono
-    regu =
-      Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
     E .= T(1.0e0) / 2
   else
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       T(sqrt(eps(T)) * 1e0),
       T(sqrt(eps(T)) * 1e0),
       :classic,

@@ -8,25 +8,28 @@ Type to use the K2 formulation with a LDLᵀ factorization, using the package
 [`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
 The outer constructor 
 
-    sp = K2LDLParams(; regul :: Symbol = :classic) 
+    sp = K2LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
+When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 """
-struct K2LDLParams <: SolverParams
+mutable struct K2LDLParams <: SolverParams
   uplo::Symbol
   regul::Symbol
+  ρ0::Float64
+  δ0::Float64
 end
 
-function K2LDLParams(; regul::Symbol = :classic)
+function K2LDLParams(; regul::Symbol = :classic, ρ0::Float64 = sqrt(eps()) * 1e5, δ0::Float64 = sqrt(eps()) * 1e5)
   regul == :classic ||
     regul == :dynamic ||
     regul == :none ||
     error("regul should be :classic or :dynamic or :none")
   uplo = :U # mandatory for LDLFactorizations
-  return K2LDLParams(uplo, regul)
+  return K2LDLParams(uplo, regul, ρ0, δ0)
 end
 
 mutable struct PreallocatedDataK2LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}
@@ -53,8 +56,8 @@ function PreallocatedData(
   D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       1e-5 * sqrt(eps(T)),
       1e0 * sqrt(eps(T)),
       sp.regul,
@@ -62,8 +65,8 @@ function PreallocatedData(
     D .= -T(1.0e0) / 2
   else
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       T(sqrt(eps(T)) * 1e0),
       T(sqrt(eps(T)) * 1e0),
       sp.regul,
@@ -250,16 +253,16 @@ function fill_K2!(
   nnz_top_left = countsum # number of coefficients + 1 already added
   @inbounds for j = 1:ncon
     countsum += A_colptr[j + 1] - A_colptr[j]
-    if regul == :classic
+    if regul == :classic && δ > 0
       countsum += 1
     end
     K_colptr[nvar + j + 1] = countsum
     for k = A_colptr[j]:(A_colptr[j + 1] - 1)
-      nz_idx = regul == :classic ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
+      nz_idx = (regul == :classic && δ > 0) ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
       K_rowval[nz_idx] = A_rowval[k]
       K_nzval[nz_idx] = A_nzval[k]
     end
-    if regul == :classic
+    if regul == :classic && δ > 0
       nz_idx = K_colptr[nvar + j + 1] - 1
       K_rowval[nz_idx] = nvar + j
       K_nzval[nz_idx] = δ
@@ -271,7 +274,7 @@ function create_K2(id, D, Q, A, diag_Q, regu)
   # for classic regul only
   n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
   T = eltype(D)
-  if regu.regul == :classic
+  if regu.regul == :classic && regu.δ > zero(T)
     n_nz += id.ncon
   end
   K_colptr = Vector{Int}(undef, id.ncon + id.nvar + 1)
@@ -325,7 +328,9 @@ function factorize_K2!(
 )
   if regu.regul == :classic
     D .= -regu.ρ
-    K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+    if regu.δ > zero(T)
+      K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+    end
   else
     D .= zero(T)
   end
@@ -360,7 +365,9 @@ function factorize_K2!(
       D[iupp] .-= s_u ./ uvar_m_x
       D[diag_Q.nzind] .-= diag_Q.nzval
       K.nzval[view(diagind_K, 1:nvar)] = D
-      K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+      if regu.δ > zero(T)
+        K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+      end
       ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
