@@ -185,13 +185,8 @@ function PreallocatedData(
   if iconf.mode == :mono
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
   else
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      T(sqrt(eps(T)) * 1e0),
-      T(sqrt(eps(T)) * 1e0),
-      :classic,
-    )
+    regu =
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
   end
   ρv = [regu.ρ]
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!

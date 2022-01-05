@@ -123,13 +123,8 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
     D .= -T(1.0e0) / 2
   else
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      T(sqrt(eps(T)) * 1e0),
-      T(sqrt(eps(T)) * 1e0),
-      :classic,
-    )
+    regu =
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!

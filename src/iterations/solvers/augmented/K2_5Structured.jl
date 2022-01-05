@@ -47,7 +47,19 @@ function K2_5StructuredParams(;
   δ_min::T = 1e2 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K2_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min, mem)
+  return K2_5StructuredParams(
+    uplo,
+    kmethod,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ0,
+    δ0,
+    ρ_min,
+    δ_min,
+    mem,
+  )
 end
 
 mutable struct PreallocatedDataK2_5Structured{
@@ -86,13 +98,8 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
     E .= T(1.0e0) / 2
   else
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      T(sqrt(eps(T)) * 1e0),
-      T(sqrt(eps(T)) * 1e0),
-      :classic,
-    )
+    regu =
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
     E .= T(1.0e-2)
   end
 
