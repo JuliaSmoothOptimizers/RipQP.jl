@@ -20,7 +20,7 @@ The available methods are:
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 The `mem` argument sould be used only with `gpmr`.
 """
-struct K2_5StructuredParams <: SolverParams
+mutable struct K2_5StructuredParams <: SolverParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64

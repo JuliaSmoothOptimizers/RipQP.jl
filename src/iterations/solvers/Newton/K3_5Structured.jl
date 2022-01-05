@@ -27,7 +27,7 @@ The available methods are:
 - `:trimr`
 
 """
-struct K3_5StructuredParams <: SolverParams
+mutable struct K3_5StructuredParams <: SolverParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64

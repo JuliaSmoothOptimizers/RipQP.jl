@@ -22,7 +22,7 @@ The available methods are:
 - `:usymqr`
 
 """
-struct K3KrylovParams <: SolverParams
+mutable struct K3KrylovParams <: SolverParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol

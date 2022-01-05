@@ -288,9 +288,10 @@ function ripqp(
   return stats
 end
 
-function ripqp(LLS::LLSModel; kwargs...)
+function ripqp(LLS::LLSModel; iconf::InputConfig{Int} = InputConfig(), kwargs...)
+  iconf.sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
   FLLS = FeasibilityFormNLS(LLS)
-  return ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); kwargs...)
+  return ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); iconf = iconf, kwargs...)
 end
 
 end
