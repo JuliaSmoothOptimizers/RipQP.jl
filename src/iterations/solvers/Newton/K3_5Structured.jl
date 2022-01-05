@@ -47,7 +47,7 @@ function K3_5StructuredParams(;
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
-  ρ0::T = sqrt(eps()) * 1e3, 
+  ρ0::T = sqrt(eps()) * 1e3,
   δ0::T = sqrt(eps()) * 1e4,
   ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
@@ -204,13 +204,8 @@ function PreallocatedData(
   if iconf.mode == :mono
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
   else
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      T(sqrt(eps(T)) * 1e0),
-      T(sqrt(eps(T)) * 1e0),
-      :classic,
-    )
+    regu =
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   As = LinearOperator(

@@ -23,7 +23,11 @@ mutable struct K2LDLParams <: SolverParams
   δ0::Float64
 end
 
-function K2LDLParams(; regul::Symbol = :classic, ρ0::Float64 = sqrt(eps()) * 1e5, δ0::Float64 = sqrt(eps()) * 1e5)
+function K2LDLParams(;
+  regul::Symbol = :classic,
+  ρ0::Float64 = sqrt(eps()) * 1e5,
+  δ0::Float64 = sqrt(eps()) * 1e5,
+)
   regul == :classic ||
     regul == :dynamic ||
     regul == :none ||
@@ -55,22 +59,11 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      1e-5 * sqrt(eps(T)),
-      1e0 * sqrt(eps(T)),
-      sp.regul,
-    )
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), 1e-5 * sqrt(eps(T)), 1e0 * sqrt(eps(T)), sp.regul)
     D .= -T(1.0e0) / 2
   else
-    regu = Regularization(
-      T(sp.ρ0),
-      T(sp.δ0),
-      T(sqrt(eps(T)) * 1e0),
-      T(sqrt(eps(T)) * 1e0),
-      sp.regul,
-    )
+    regu =
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), sp.regul)
     D .= -T(1.0e-2)
   end
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
