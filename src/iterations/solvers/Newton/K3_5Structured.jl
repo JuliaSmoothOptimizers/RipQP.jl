@@ -15,9 +15,10 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5StructuredParams(; uplo = :U,   kmethod::Symbol = :trimr,
+    K3_5StructuredParams(; uplo = :U,   kmethod = :trimr,
                          atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                         ρ0 =  sqrt(eps()) * 1e3, δ0 = sqrt(eps()) * 1e4,
                          ρ_min = 1e4 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
@@ -33,6 +34,8 @@ struct K3_5StructuredParams <: SolverParams
   rtol0::Float64
   atol_min::Float64
   rtol_min::Float64
+  ρ0::Float64
+  δ0::Float64
   ρ_min::Float64
   δ_min::Float64
 end
@@ -44,10 +47,12 @@ function K3_5StructuredParams(;
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
+  ρ0::T = sqrt(eps()) * 1e3, 
+  δ0::T = sqrt(eps()) * 1e4,
   ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
 ) where {T <: Real}
-  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min)
+  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min)
 end
 
 mutable struct PreallocatedDataK3_5Structured{
@@ -197,12 +202,11 @@ function PreallocatedData(
 
   # init Regularization values
   if iconf.mode == :mono
-    regu =
-      Regularization(T(sqrt(eps()) * 1e3), T(sqrt(eps()) * 1e4), T(sp.ρ_min), T(sp.δ_min), :classic)
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
   else
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       T(sqrt(eps(T)) * 1e0),
       T(sqrt(eps(T)) * 1e0),
       :classic,

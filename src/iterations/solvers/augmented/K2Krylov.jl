@@ -5,8 +5,12 @@ Type to use the K2 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity, 
-                   ratol = 1.0e-10, rrtol = 1.0e-10)
+    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+                   atol0 = 1.0e-4, rtol0 = 1.0e-4, 
+                   atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                   ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
+                   ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
+                   memory = 5)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -23,6 +27,8 @@ struct K2KrylovParams <: SolverParams
   rtol0::Float64
   atol_min::Float64
   rtol_min::Float64
+  ρ0::Float64
+  δ0::Float64
   ρ_min::Float64
   δ_min::Float64
   memory::Int
@@ -36,6 +42,8 @@ function K2KrylovParams(;
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
   rtol_min::T = 1.0e-10,
+  ρ0::T = sqrt(eps()) * 1e5,
+  δ0::T = sqrt(eps()) * 1e5,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
   memory::Int = 5,
@@ -48,6 +56,8 @@ function K2KrylovParams(;
     rtol0,
     atol_min,
     rtol_min,
+    ρ0,
+    δ0,
     ρ_min,
     δ_min,
     memory,
@@ -110,13 +120,12 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   if iconf.mode == :mono
-    regu =
-      Regularization(T(sqrt(eps()) * 1e5), T(sqrt(eps()) * 1e5), T(sp.ρ_min), T(sp.δ_min), :classic)
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
     D .= -T(1.0e0) / 2
   else
     regu = Regularization(
-      T(sqrt(eps()) * 1e5),
-      T(sqrt(eps()) * 1e5),
+      T(sp.ρ0),
+      T(sp.δ0),
       T(sqrt(eps(T)) * 1e0),
       T(sqrt(eps(T)) * 1e0),
       :classic,
