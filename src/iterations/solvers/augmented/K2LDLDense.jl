@@ -27,7 +27,8 @@ function K2LDLDenseParams(;
   return K2LDLDenseParams(uplo, fact_alg, ρ0, δ0)
 end
 
-mutable struct PreallocatedDataK2LDLDense{T <: Real, S, M <: AbstractMatrix{T}} <: PreallocatedDataAugmentedLDL{T, S}
+mutable struct PreallocatedDataK2LDLDense{T <: Real, S, M <: AbstractMatrix{T}} <:
+               PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   K::M # augmented matrix
@@ -56,11 +57,10 @@ function PreallocatedData(
   end
 
   K = Symmetric(zeros(T, id.nvar + id.ncon, id.nvar + id.ncon), :L)
-  K.data[1:id.nvar, 1:id.nvar] .= .-fd.Q.data .+ Diagonal(D)
-  K.data[id.nvar+1: id.nvar+id.ncon, 1:id.nvar] .= fd.A
-  K.data[view(diagind(K), id.nvar+1: id.nvar+id.ncon)] .= regu.δ
+  K.data[1:(id.nvar), 1:(id.nvar)] .= .-fd.Q.data .+ Diagonal(D)
+  K.data[(id.nvar + 1):(id.nvar + id.ncon), 1:(id.nvar)] .= fd.A
+  K.data[view(diagind(K), (id.nvar + 1):(id.nvar + id.ncon))] .= regu.δ
 
-  
   if sp.fact_alg == :bunchkaufman
     bunchkaufman!(K)
   elseif sp.fact_alg == :ldl
@@ -112,16 +112,16 @@ function update_pad!(
   pad.D .= -pad.regu.ρ
   pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
   pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
-  pad.K.data[1:id.nvar, 1:id.nvar] .= .-fd.Q.data .+ Diagonal(pad.D)
-  pad.K.data[id.nvar+1: id.nvar+id.ncon, 1:id.nvar] .= fd.A
-  pad.K.data[id.nvar+1: id.nvar+id.ncon, id.nvar+1: id.nvar+id.ncon] .= zero(T)
-  pad.K.data[view(diagind(pad.K), id.nvar+1: id.nvar+id.ncon)] .= pad.regu.δ
+  pad.K.data[1:(id.nvar), 1:(id.nvar)] .= .-fd.Q.data .+ Diagonal(pad.D)
+  pad.K.data[(id.nvar + 1):(id.nvar + id.ncon), 1:(id.nvar)] .= fd.A
+  pad.K.data[(id.nvar + 1):(id.nvar + id.ncon), (id.nvar + 1):(id.nvar + id.ncon)] .= zero(T)
+  pad.K.data[view(diagind(pad.K), (id.nvar + 1):(id.nvar + id.ncon))] .= pad.regu.δ
 
   if pad.fact_alg == :bunchkaufman
     bunchkaufman!(pad.K)
   elseif pad.fact_alg == :ldl
     ldl_dense!(pad.K)
   end
-  
+
   return 0
 end
