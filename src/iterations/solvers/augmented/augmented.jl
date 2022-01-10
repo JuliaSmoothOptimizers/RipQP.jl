@@ -4,6 +4,7 @@ abstract type PreallocatedDataAugmentedLDL{T <: Real, S} <: PreallocatedDataAugm
 
 include("K2LDL.jl")
 include("K2_5LDL.jl")
+include("K2LDLDense.jl")
 
 abstract type PreallocatedDataAugmentedKrylov{T <: Real, S} <: PreallocatedDataAugmented{T, S} end
 
