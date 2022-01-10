@@ -26,6 +26,7 @@ K3KrylovParams
 K3_5KrylovParams
 K3_5StructuredParams
 K1KrylovParams
+K2LDLDenseParams
 ```
 
 ## Preconditioners

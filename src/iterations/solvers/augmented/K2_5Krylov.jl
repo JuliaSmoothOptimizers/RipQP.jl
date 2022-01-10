@@ -70,7 +70,8 @@ mutable struct PreallocatedDataK2_5Krylov{
   pdat::Pr
   D::S                                  # temporary top-left diagonal
   sqrtX1X2::S # vector to scale K2 to K2.5
-  tmp::S # temporary vector for products
+  tmp1::S # temporary vector for products
+  tmp2::S # temporary vector for products
   rhs::S
   regu::Regularization{T}
   δv::Vector{T}
@@ -89,28 +90,30 @@ function opK2_5prod!(
   D::AbstractVector{T},
   A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   sqrtX1X2::AbstractVector{T},
-  tmp::AbstractVector{T},
+  tmp1::AbstractVector{T},
+  tmp2::AbstractVector{T},
   δv::AbstractVector{T},
   v::AbstractVector{T},
   α::T,
   β::T,
   uplo::Symbol,
 ) where {T}
-  @views mul!(tmp, Q, sqrtX1X2 .* v[1:nvar], -α, zero(T))
-  tmp .= sqrtX1X2 .* tmp .+ α .* D .* v[1:nvar]
+  tmp2 .= @views sqrtX1X2 .* v[1:nvar]
+  mul!(tmp1, Q, tmp2, -α, zero(T))
+  tmp1 .= @views sqrtX1X2 .* tmp1 .+ α .* D .* v[1:nvar]
   if β == zero(T)
-    res[1:nvar] .= tmp
+    res[1:nvar] .= tmp1
   else
-    res[1:nvar] .= @views tmp .+ β .* res[1:nvar]
+    res[1:nvar] .= @views tmp1 .+ β .* res[1:nvar]
   end
   if uplo == :U
-    @views mul!(tmp, A, v[(nvar + 1):end], α, zero(T))
-    res[1:nvar] .+= sqrtX1X2 .* tmp
-    @views mul!(res[(nvar + 1):end], A', sqrtX1X2 .* v[1:nvar], α, β)
+    @views mul!(tmp1, A, v[(nvar + 1):end], α, zero(T))
+    res[1:nvar] .+= sqrtX1X2 .* tmp1
+    @views mul!(res[(nvar + 1):end], A', tmp2, α, β)
   else
-    @views mul!(tmp, A', v[(nvar + 1):end], α, zero(T))
-    res[1:nvar] .+= sqrtX1X2 .* tmp
-    @views mul!(res[(nvar + 1):end], A, sqrtX1X2 .* v[1:nvar], α, β)
+    @views mul!(tmp1, A', v[(nvar + 1):end], α, zero(T))
+    res[1:nvar] .+= sqrtX1X2 .* tmp1
+    @views mul!(res[(nvar + 1):end], A, tmp2, α, β)
   end
   res[(nvar + 1):end] .+= @views (α * δv[1]) .* v[(nvar + 1):end]
 end
@@ -135,7 +138,8 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   sqrtX1X2 = fill!(similar(D), one(T))
-  tmp = similar(D)
+  tmp1 = similar(D)
+  tmp2 = similar(D)
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   K = LinearOperator(
     T,
@@ -144,7 +148,7 @@ function PreallocatedData(
     true,
     true,
     (res, v, α, β) ->
-      opK2_5prod!(res, id.nvar, fd.Q, D, fd.A, sqrtX1X2, tmp, δv, v, α, β, fd.uplo),
+      opK2_5prod!(res, id.nvar, fd.Q, D, fd.A, sqrtX1X2, tmp1, tmp2, δv, v, α, β, fd.uplo),
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon)
@@ -157,7 +161,8 @@ function PreallocatedData(
     pdat,
     D,
     sqrtX1X2,
-    tmp,
+    tmp1,
+    tmp2,
     rhs,
     regu,
     δv,
@@ -228,10 +233,10 @@ function update_pad!(
   pad.D .= zero(T)
   pad.D[id.ilow] .-= pt.s_l
   pad.D[id.iupp] .*= itd.uvar_m_x
-  pad.tmp .= zero(T)
-  pad.tmp[id.iupp] .-= pt.s_u
-  pad.tmp[id.ilow] .*= itd.x_m_lvar
-  pad.D .+= pad.tmp .- pad.regu.ρ
+  pad.tmp1 .= zero(T)
+  pad.tmp1[id.iupp] .-= pt.s_u
+  pad.tmp1[id.ilow] .*= itd.x_m_lvar
+  pad.D .+= pad.tmp1 .- pad.regu.ρ
 
   pad.δv[1] = pad.regu.δ
 

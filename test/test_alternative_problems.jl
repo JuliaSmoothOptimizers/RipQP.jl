@@ -1,4 +1,3 @@
-
 @testset "LLS" begin
   # least-square problem without constraints
   m, n = 20, 10
@@ -106,7 +105,7 @@ qp_linop = QuadraticModel(
   name = "QM_LINOP",
 )
 qp_dense =
-  QuadraticModel(c, Q, A = A, lcon = b, ucon = b, lvar = l, uvar = u, c0 = 0.0, name = "QM_LINOP")
+  QuadraticModel(c, Symmetric(tril(Q), :L), A = A, lcon = b, ucon = b, lvar = l, uvar = u, c0 = 0.0, name = "QM_LINOP")
 
 @testset "Dense and LinearOperator QPs" begin
   stats_linop = ripqp(
@@ -124,4 +123,14 @@ qp_dense =
   )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :acceptable
+
+  for fact_alg in [:bunchkaufman, :ldl]
+    stats_dense = ripqp(
+      qp_dense,
+      iconf = InputConfig(sp = K2LDLDenseParams(fact_alg = fact_alg, ρ0 = 0.0, δ0 = 0.0), presolve = false, scaling = false),
+      display = false,
+    )
+    @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
+    @test stats_dense.status == :acceptable
+  end
 end
