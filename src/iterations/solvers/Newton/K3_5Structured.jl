@@ -15,17 +15,20 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5StructuredParams(; uplo = :U,   kmethod = :trimr,
+    K3_5StructuredParams(; uplo = :U, kmethod = :trimr,
                          atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
                          ρ0 =  sqrt(eps()) * 1e3, δ0 = sqrt(eps()) * 1e4,
-                         ρ_min = 1e4 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
+                         ρ_min = 1e4 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
+                         mem = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
 - `:tricg`
 - `:trimr`
+- `:gpmr`
 
+The `mem` argument sould be used only with `gpmr`.
 """
 mutable struct K3_5StructuredParams <: SolverParams
   uplo::Symbol
@@ -38,6 +41,7 @@ mutable struct K3_5StructuredParams <: SolverParams
   δ0::Float64
   ρ_min::Float64
   δ_min::Float64
+  mem::Int
 end
 
 function K3_5StructuredParams(;
@@ -51,8 +55,9 @@ function K3_5StructuredParams(;
   δ0::T = sqrt(eps()) * 1e4,
   ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
+  mem::Int = 20,
 ) where {T <: Real}
-  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min)
+  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min, mem)
 end
 
 mutable struct PreallocatedDataK3_5Structured{
@@ -208,6 +213,7 @@ function PreallocatedData(
       Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
+  # LinearOperator to compute [A  √S_l  -√S_u] v
   As = LinearOperator(
     T,
     id.ncon + id.nlow + id.nupp,
@@ -248,20 +254,40 @@ function PreallocatedData(
 
   Qreg = fd.Q + regu.ρ_min * I
   QregF = ldl(Symmetric(Qreg, :U))
-  Qregop = LinearOperator(T, id.nvar, id.nvar, true, true, (res, v) -> ldiv!(res, QregF, v))
-  Rd = δv[1] * I(id.ncon)
-  opBR = LinearOperator(
-    T,
-    id.ncon + id.nlow + id.nupp,
-    id.ncon + id.nlow + id.nupp,
-    true,
-    true,
-    (res, v, α, β) -> opBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
-  )
+
   rhs1 = similar(fd.c, id.nvar)
   rhs2 = similar(fd.c, id.ncon + id.nlow + id.nupp)
   kstring = string(sp.kmethod)
-  KS = eval(KSolver(sp.kmethod))(As', rhs1)
+  if sp.kmethod == :gpmr
+    KS = eval(KSolver(sp.kmethod))(As', rhs1, sp.mem)
+    # operator to model the square root of the inverse of Q
+    QregF.d .= sqrt.(QregF.d)
+    Qregop = LinearOperator(T, id.nvar, id.nvar, false, false, 
+      (res, v) -> ld_div!(res, QregF, v),
+      (res, v) -> dlt_div!(res, QregF, v))
+    # operator to model the square root of the inverse of the bottom right block of K3.5
+    opBR = LinearOperator(
+      T,
+      id.ncon + id.nlow + id.nupp,
+      id.ncon + id.nlow + id.nupp,
+      true,
+      true,
+      (res, v, α, β) -> opsqrtBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+    )
+  else
+    # operator to model the inverse of Q
+    Qregop = LinearOperator(T, id.nvar, id.nvar, true, true, (res, v) -> ldiv!(res, QregF, v))
+    # operator to model the inverse of the bottom right block of K3.5
+    opBR = LinearOperator(
+      T,
+      id.ncon + id.nlow + id.nupp,
+      id.ncon + id.nlow + id.nupp,
+      true,
+      true,
+      (res, v, α, β) -> opBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+    )
+    KS = eval(KSolver(sp.kmethod))(As', rhs1)
+  end
 
   return PreallocatedDataK3_5Structured(
     rhs1,

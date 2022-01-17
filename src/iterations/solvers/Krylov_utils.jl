@@ -157,6 +157,35 @@ function ksolve!(
   )
 end
 
+# gpmr solver for K3.5
+function ksolve!(
+  KS::GpmrSolver{T, S},
+  A,
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  M,
+  N::AbstractLinearOperator{T};
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return gpmr!(
+    KS,
+    A,
+    A',
+    ξ1,
+    ξ2,
+    C = M,
+    D = N,
+    E = transpose(M),
+    F = N,
+    λ = -one(T),
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+  )
+end
+
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
   if rhsNorm != zero(T)
