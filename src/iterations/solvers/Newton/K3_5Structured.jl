@@ -57,7 +57,19 @@ function K3_5StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K3_5StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ0, δ0, ρ_min, δ_min, mem)
+  return K3_5StructuredParams(
+    uplo,
+    kmethod,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ0,
+    δ0,
+    ρ_min,
+    δ_min,
+    mem,
+  )
 end
 
 mutable struct PreallocatedDataK3_5Structured{
@@ -262,9 +274,15 @@ function PreallocatedData(
     KS = eval(KSolver(sp.kmethod))(As', rhs1, sp.mem)
     # operator to model the square root of the inverse of Q
     QregF.d .= sqrt.(QregF.d)
-    Qregop = LinearOperator(T, id.nvar, id.nvar, false, false, 
+    Qregop = LinearOperator(
+      T,
+      id.nvar,
+      id.nvar,
+      false,
+      false,
       (res, v) -> ld_div!(res, QregF, v),
-      (res, v) -> dlt_div!(res, QregF, v))
+      (res, v) -> dlt_div!(res, QregF, v),
+    )
     # operator to model the square root of the inverse of the bottom right block of K3.5
     opBR = LinearOperator(
       T,
@@ -272,7 +290,8 @@ function PreallocatedData(
       id.ncon + id.nlow + id.nupp,
       true,
       true,
-      (res, v, α, β) -> opsqrtBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+      (res, v, α, β) ->
+        opsqrtBRprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
     )
   else
     # operator to model the inverse of Q
