@@ -8,7 +8,7 @@ convex quadratic problems.
 Here is a basic example:
 
 ```@example QM
-using QuadraticModels, SparseArrays
+using QuadraticModels, LinearAlgebra, SparseMatricesCOO
 Q = [6. 2. 1.
     2. 5. 2.
     1. 2. 4.]
@@ -18,7 +18,8 @@ A = [1. 0. 1.
 b = [0.; 3]
 l = [0.;0;0]
 u = [Inf; Inf; Inf]
-QM = QuadraticModel(c, sparse(Q), A=A, lcon=b, ucon=b, lvar=l, uvar=u, c0=0., name="QM")
+QM = QuadraticModel(c, SparseMatrixCOO(tril(Q)), A=SparseMatrixCOO(A), lcon=b, ucon=b, 
+                    lvar=l, uvar=u, c0=0., name="QM")
 ```
 
 Once your `QuadraticModel` is loaded, you can simply solve it RipQP:
