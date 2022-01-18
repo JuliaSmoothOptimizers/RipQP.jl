@@ -106,7 +106,7 @@ qp_linop = QuadraticModel(
 )
 qp_dense = QuadraticModel(
   c,
-  Symmetric(tril(Q), :L),
+  tril(Q),
   A = A,
   lcon = b,
   ucon = b,

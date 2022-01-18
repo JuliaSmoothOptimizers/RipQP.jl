@@ -53,7 +53,7 @@ end
 
 function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
   fdA = uplo == :U ? transpose(A) : A
-  return fdA, H
+  return fdA, Symmetric(H, :L)
 end
 
 function switch_H_to_max!(
