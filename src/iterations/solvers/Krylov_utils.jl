@@ -168,6 +168,7 @@ function ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
+  gsp::Bool = false,
 ) where {T, S}
   return gpmr!(
     KS,
@@ -180,6 +181,7 @@ function ksolve!(
     E = transpose(M),
     F = N,
     λ = -one(T),
+    μ = gsp ? zero(T) : one(T),
     verbose = verbose,
     atol = atol,
     rtol = rtol,

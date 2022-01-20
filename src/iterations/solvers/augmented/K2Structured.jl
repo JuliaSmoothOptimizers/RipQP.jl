@@ -86,6 +86,9 @@ function PreallocatedData(
     )
     E .= T(1.0e-2)
   end
+  if regu.δ_min == zero(T) # gsp for gpmr
+    regu.δ = zero(T)
+  end
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
@@ -155,6 +158,7 @@ function solver!(
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
+    gsp = (pad.regu.δ == zero(T)),
   )
   update_kresiduals_history!(
     res,

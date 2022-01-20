@@ -102,6 +102,9 @@ function PreallocatedData(
       Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
     E .= T(1.0e-2)
   end
+  if regu.δ_min == zero(T) # gsp for gpmr
+    regu.δ = zero(T)
+  end
 
   sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
@@ -156,6 +159,7 @@ function solver!(
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
+    gsp = (pad.regu.δ == zero(T)),
   )
   update_kresiduals_history!(
     res,
