@@ -112,7 +112,6 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-  gsp::Bool = false,
 ) where {T, S} =
   tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
@@ -126,9 +125,39 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-  gsp::Bool = false,
 ) where {T, S} =
   trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+
+function ksolve!(
+  KS::GpmrSolver{T, S},
+  A,
+  ξ1::AbstractVector{T},
+  ξ2::AbstractVector{T},
+  M,
+  N;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+  gsp::Bool = false,
+) where {T, S}
+  sqrtδI = sqrt(N.λ) * I
+  return gpmr!(
+    KS,
+    A,
+    A',
+    ξ1,
+    ξ2,
+    C = sqrt.(M),
+    D = sqrtδI,
+    E = sqrt.(M),
+    F = sqrtδI,
+    λ = -one(T),
+    μ = gsp ? zero(T) : one(T),
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+  )
+end
 
 # gpmr solver for K3.5
 function ksolve!(
@@ -141,7 +170,6 @@ function ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-  gsp::Bool = false,
 ) where {T, S}
   return gpmr!(
     KS,
@@ -154,7 +182,6 @@ function ksolve!(
     E = transpose(M),
     F = N,
     λ = -one(T),
-    μ = gsp ? zero(T) : one(T),
     verbose = verbose,
     atol = atol,
     rtol = rtol,
