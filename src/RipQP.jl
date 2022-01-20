@@ -58,7 +58,7 @@ function ripqp(
   T0 = eltype(QM0.data.c)
   # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
   QM0 = convert_QM(QM0, iconf, display)
-  
+
   if iconf.presolve
     QM = presolve(QM0)
   else

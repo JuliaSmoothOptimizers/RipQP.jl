@@ -1,14 +1,21 @@
 # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
-function convert_QM(QM::QuadraticModel{T, S, M1, M2}, iconf::InputConfig, display::Bool) where {T, S, M1, M2}
+function convert_QM(
+  QM::QuadraticModel{T, S, M1, M2},
+  iconf::InputConfig,
+  display::Bool,
+) where {T, S, M1, M2}
   T_sp = typeof(iconf.sp)
-  if (T_sp <: K2LDLParams || T_sp <: K2_5LDLParams) && !(M1 <: SparseMatrixCOO) && !(M2 <: SparseMatrixCOO)
+  if (T_sp <: K2LDLParams || T_sp <: K2_5LDLParams) &&
+     !(M1 <: SparseMatrixCOO) &&
+     !(M2 <: SparseMatrixCOO)
     QM = convert(QuadraticModel{T, S, SparseMatrixCOO{T, Int}, SparseMatrixCOO{T, Int}}, QM)
   end
   # deactivate presolve and scaling if H and A are not SparseMatricesCOO
   # (TODO: write scaling and presolve for other types)
   M12, M22 = typeof(QM.data.H), typeof(QM.data.A)
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
-    display && @warn "No presolve and scaling operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
+    display &&
+      @warn "No presolve and scaling operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     iconf.presolve = false
     iconf.scaling = false
   end
