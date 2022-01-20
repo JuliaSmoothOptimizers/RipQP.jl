@@ -127,8 +127,7 @@ qp_dense = QuadraticModel(
 
   stats_dense = ripqp(
     qp_dense,
-    iconf = InputConfig(sp = K2KrylovParams(), presolve = false, scaling = false),
-    display = false,
+    iconf = InputConfig(sp = K2KrylovParams()),
   )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :acceptable
@@ -146,4 +145,9 @@ qp_dense = QuadraticModel(
     @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
     @test stats_dense.status == :acceptable
   end
+
+  # test conversion
+  stats_dense = ripqp(qp_dense)
+  @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
+  @test stats_dense.status == :acceptable
 end

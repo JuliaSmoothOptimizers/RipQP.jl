@@ -108,7 +108,7 @@ The constructor
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
-struct InputConfig{I <: Integer}
+mutable struct InputConfig{I <: Integer}
   mode::Symbol
   scaling::Bool
   presolve::Bool
