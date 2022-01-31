@@ -11,7 +11,7 @@ The outer constructor
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 """
-mutable struct K2LDLDenseParams <: SolverParams
+mutable struct K2LDLDenseParams <: AugmentedParams
   uplo::Symbol
   fact_alg::Symbol
   ρ0::Float64

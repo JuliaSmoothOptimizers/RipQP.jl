@@ -364,9 +364,9 @@ function init_residuals(
   S = typeof(rb)
   if iconf.history
     stype = typeof(iconf.sp)
-    if stype == K3KrylovParams || stype == K3_5KrylovParams || stype == K3_5StructuredParams
+    if stype <: NewtonParams
       Kn = length(rb) + length(rc) + id.nlow + id.nupp
-    elseif stype == K1KrylovParams
+    elseif stype <: NormalParams
       Kn = length(rb)
     else
       Kn = length(rb) + length(rc)

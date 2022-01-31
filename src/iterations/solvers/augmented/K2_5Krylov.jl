@@ -18,7 +18,7 @@ The available methods are:
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
 """
-mutable struct K2_5KrylovParams <: SolverParams
+mutable struct K2_5KrylovParams <: AugmentedParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
