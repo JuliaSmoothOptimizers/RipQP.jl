@@ -1,21 +1,17 @@
-# K3.5 = D K3 D⁻¹ , 
-#      [ I   0   0       0  ]
-# D² = [ 0   I   0       0  ] 
-#      [ 0   0  S_l⁻¹    0  ]
-#      [ 0   0   0     S_u⁻¹]
+# K3S
 #
-# [-Q - ρI    Aᵀ   √S_l  -√S_u ][ Δx  ]     [    -rc        ]
-# [   A       δI    0      0   ][ Δy  ]     [    -rb        ]
-# [  √S_l     0    X-L     0   ][Δs_l2] = D [σμe - (X-L)S_le]
-# [ -√S_u     0     0     U-X  ][Δs_u2]     [σμe + (U-X)S_ue]
-export K3_5StructuredParams
+# [-Q - ρI   Aᵀ      I           -I     ][ Δx  ]   [       -rc       ]
+# [   A      δI      0            0     ][ Δy  ]   [       -rb       ]
+# [   I      0   S_l⁻¹(X-L)       0     ][Δs_l2] = [-(x-l) + σμS_l⁻¹e]
+# [  -I      0       0       S_u⁻¹(U-X) ][Δs_u2]   [-(u-x) + σμS_u⁻¹e]
+export K3SStructuredParams
 
 """
-Type to use the K3.5 formulation with a Krylov method, using the package 
+Type to use the K3S formulation with a Krylov method, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5StructuredParams(; uplo = :U, kmethod = :trimr,
+    K3SStructuredParams(; uplo = :U, kmethod = :trimr,
                          atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
                          ρ0 =  sqrt(eps()) * 1e3, δ0 = sqrt(eps()) * 1e4,
@@ -30,7 +26,7 @@ The available methods are:
 
 The `mem` argument sould be used only with `gpmr`.
 """
-mutable struct K3_5StructuredParams <: NewtonParams
+mutable struct K3SStructuredParams <: NewtonParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64
@@ -44,7 +40,7 @@ mutable struct K3_5StructuredParams <: NewtonParams
   mem::Int
 end
 
-function K3_5StructuredParams(;
+function K3SStructuredParams(;
   uplo::Symbol = :U,
   kmethod::Symbol = :trimr,
   atol0::T = 1.0e-4,
@@ -57,7 +53,7 @@ function K3_5StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K3_5StructuredParams(
+  return K3SStructuredParams(
     uplo,
     kmethod,
     atol0,
@@ -72,7 +68,7 @@ function K3_5StructuredParams(;
   )
 end
 
-mutable struct PreallocatedDataK3_5Structured{
+mutable struct PreallocatedDataK3SStructured{
   T <: Real,
   S,
   L1 <: LinearOperator,
@@ -84,7 +80,7 @@ mutable struct PreallocatedDataK3_5Structured{
   rhs2::S
   regu::Regularization{T}
   δv::Vector{T}
-  As::L1
+  AI::L1
   Qreg::AbstractMatrix{T} # regularized Q
   QregF::LDLFactorizations.LDLFactorization{T, Int, Int, Int}
   Qregop::L2 # factorized matrix Qreg
@@ -96,7 +92,7 @@ mutable struct PreallocatedDataK3_5Structured{
   rtol_min::T
 end
 
-function opAsprod!(
+function opAIprod!(
   res::AbstractVector{T},
   nvar::Int,
   ncon::Int,
@@ -112,13 +108,13 @@ function opAsprod!(
   uplo::Symbol,
 ) where {T}
   if β == 0
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) .* v[ilow]
-    res[(ncon + nlow + 1):end] .= @views (-α) .* sqrt.(s_u) .* v[iupp]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* v[ilow]
+    res[(ncon + nlow + 1):end] .= @views (-α) .* v[iupp]
   else
     res[(ncon + 1):(ncon + nlow)] .=
-      @views α .* sqrt.(s_l) .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
+      @views α .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
     res[(ncon + nlow + 1):end] .=
-      @views (-α) .* sqrt.(s_u) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
+      @views (-α) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
   end
   if uplo == :U
     @views mul!(res[1:ncon], A', v, α, β)
@@ -127,7 +123,7 @@ function opAsprod!(
   end
 end
 
-function opAstprod!(
+function opAItprod!(
   res::AbstractVector{T},
   nvar::Int,
   ncon::Int,
@@ -147,16 +143,18 @@ function opAstprod!(
   else
     @views mul!(res, A', v[1:ncon], α, β)
   end
-  res[ilow] .+= @views α .* sqrt.(s_l) .* v[(ncon + 1):(ncon + nlow)]
-  res[iupp] .-= @views α .* sqrt.(s_u) .* v[(ncon + nlow + 1):end]
+  res[ilow] .+= @views α .* v[(ncon + 1):(ncon + nlow)]
+  res[iupp] .-= @views α .* v[(ncon + nlow + 1):end]
 end
 
-function opBRK3_5prod!(
+function opBRK3Sprod!(
   res::AbstractVector{T},
   ncon::Int,
   nlow::Int,
   x_m_lvar::AbstractVector{T},
   uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
   δv::AbstractVector{T},
   v::AbstractVector{T},
   α::T,
@@ -164,21 +162,21 @@ function opBRK3_5prod!(
 ) where {T <: Real}
   if β == zero(T)
     res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .= @views α ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .= @views α ./ uvar_m_x .* v[(ncon + nlow + 1):end]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .= @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end]
   else
     res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon] .+ β .* res[1:ncon]
     res[(ncon + 1):(ncon + nlow)] .=
-      @views α ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+ β .* res[(ncon + 1):(ncon + nlow)]
+      @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+ β .* res[(ncon + 1):(ncon + nlow)]
     res[(ncon + nlow + 1):end] .=
-      @views α ./ uvar_m_x .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
+      @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
   end
 end
 
-function update_kresiduals_history!(
+function update_kresiduals_historyK3S!(
   res::AbstractResiduals{T},
   Qreg::AbstractMatrix{T},
-  As::AbstractLinearOperator{T},
+  AI::AbstractLinearOperator{T},
   δ::T,
   solx::AbstractVector{T},
   soly::AbstractVector{T},
@@ -196,20 +194,20 @@ function update_kresiduals_history!(
 ) where {T <: Real}
   if typeof(res) <: ResidualsHistory
     @views mul!(res.Kres[1:nvar], Symmetric(Qreg, :U), solx)
-    @views mul!(res.Kres[1:nvar], As', soly, one(T), one(T))
-    @views mul!(res.Kres[(nvar + 1):end], As, solx)
+    @views mul!(res.Kres[1:nvar], AI', soly, one(T), one(T))
+    @views mul!(res.Kres[(nvar + 1):end], AI, solx)
     res.Kres[(nvar + 1):(nvar + ncon)] .+= δ .* soly[1:ncon]
     res.Kres[(nvar + ncon + 1):(nvar + ncon + nlow)] .+=
-      @views s_l .* solx[ilow] .+ x_m_lvar .* soly[(ncon + 1):(ncon + nlow)]
+      @views solx[ilow] .+ x_m_lvar .* soly[(ncon + 1):(ncon + nlow)] ./ s_l
     res.Kres[(nvar + ncon + nlow + 1):end] .+=
-      @views .-s_u .* solx[iupp] .+ uvar_m_x .* soly[(ncon + nlow + 1):end]
+      @views .-solx[iupp] .+ uvar_m_x .* soly[(ncon + nlow + 1):end] ./ s_u
     res.Kres[1:nvar] .-= rhs1
     res.Kres[(nvar + 1):end] .-= rhs2
   end
 end
 
 function PreallocatedData(
-  sp::K3_5StructuredParams,
+  sp::K3SStructuredParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},
@@ -225,14 +223,14 @@ function PreallocatedData(
       Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  # LinearOperator to compute [A  √S_l  -√S_u] v
-  As = LinearOperator(
+  # LinearOperator to compute [A  I  -I] v
+  AI = LinearOperator(
     T,
     id.ncon + id.nlow + id.nupp,
     id.nvar,
     false,
     false,
-    (res, v, α, β) -> opAsprod!(
+    (res, v, α, β) -> opAIprod!(
       res,
       id.nvar,
       id.ncon,
@@ -247,7 +245,7 @@ function PreallocatedData(
       β,
       fd.uplo,
     ),
-    (res, v, α, β) -> opAstprod!(
+    (res, v, α, β) -> opAItprod!(
       res,
       id.nvar,
       id.ncon,
@@ -271,7 +269,7 @@ function PreallocatedData(
   rhs2 = similar(fd.c, id.ncon + id.nlow + id.nupp)
   kstring = string(sp.kmethod)
   if sp.kmethod == :gpmr
-    KS = eval(KSolver(sp.kmethod))(As', rhs1, sp.mem)
+    KS = eval(KSolver(sp.kmethod))(AI', rhs1, sp.mem)
     # operator to model the square root of the inverse of Q
     QregF.d .= sqrt.(QregF.d)
     Qregop = LinearOperator(
@@ -291,7 +289,7 @@ function PreallocatedData(
       true,
       true,
       (res, v, α, β) ->
-        opsqrtBRK3_5prod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+        opsqrtBRK3Sprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, δv, v, α, β),
     )
   else
     # operator to model the inverse of Q
@@ -303,17 +301,17 @@ function PreallocatedData(
       id.ncon + id.nlow + id.nupp,
       true,
       true,
-      (res, v, α, β) -> opBRK3_5prod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+      (res, v, α, β) -> opBRK3Sprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, δv, v, α, β),
     )
-    KS = eval(KSolver(sp.kmethod))(As', rhs1)
+    KS = eval(KSolver(sp.kmethod))(AI', rhs1)
   end
 
-  return PreallocatedDataK3_5Structured(
+  return PreallocatedDataK3SStructured(
     rhs1,
     rhs2,
     regu,
     δv,
-    As,
+    AI,
     Qreg,
     QregF,
     Qregop,
@@ -328,7 +326,7 @@ end
 
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedDataK3_5Structured{T},
+  pad::PreallocatedDataK3SStructured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -348,11 +346,11 @@ function solver!(
   pad.rhs2[1:(id.ncon)] .=
     @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
            dd[(id.nvar + 1):end]
-  pad.rhs2[(id.ncon + 1):(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ sqrt.(pt.s_l)
-  pad.rhs2[(id.ncon + id.nlow + 1):end] .= (step == :init) ? one(T) : Δs_u ./ sqrt.(pt.s_u)
+  pad.rhs2[(id.ncon + 1):(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ pt.s_l
+  pad.rhs2[(id.ncon + id.nlow + 1):end] .= (step == :init) ? one(T) : Δs_u ./ pt.s_u
   ksolve!(
     pad.KS,
-    pad.As',
+    pad.AI',
     pad.rhs1,
     pad.rhs2,
     pad.Qregop,
@@ -361,10 +359,10 @@ function solver!(
     atol = pad.atol,
     rtol = pad.rtol,
   )
-  update_kresiduals_history!(
+  update_kresiduals_historyK3S!(
     res,
     pad.Qreg,
-    pad.As,
+    pad.AI,
     pad.regu.δ,
     pad.KS.x,
     pad.KS.y,
@@ -383,8 +381,8 @@ function solver!(
 
   dd[1:(id.nvar)] .= @views pad.KS.x
   dd[(id.nvar + 1):end] .= @views pad.KS.y[1:(id.ncon)]
-  Δs_l .= @views pad.KS.y[(id.ncon + 1):(id.ncon + id.nlow)] .* sqrt.(pt.s_l)
-  Δs_u .= @views pad.KS.y[(id.ncon + id.nlow + 1):end] .* sqrt.(pt.s_u)
+  Δs_l .= @views pad.KS.y[(id.ncon + 1):(id.ncon + id.nlow)]
+  Δs_u .= @views pad.KS.y[(id.ncon + id.nlow + 1):end]
 
   return 0
 end
@@ -402,7 +400,7 @@ end
 # end
 
 function update_pad!(
-  pad::PreallocatedDataK3_5Structured{T},
+  pad::PreallocatedDataK3SStructured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},

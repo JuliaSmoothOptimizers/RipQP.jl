@@ -32,7 +32,7 @@ function dlt_div!(
   dlt_solve!(LDL.n, y, LDL.Lp, LDL.Li, LDL.Lx, LDL.d, LDL.P)
 end
 
-function opsqrtBRprod!(
+function opsqrtBRK3_5prod!(
   res::AbstractVector{T},
   ncon::Int,
   nlow::Int,
@@ -53,5 +53,31 @@ function opsqrtBRprod!(
            β .* res[(ncon + 1):(ncon + nlow)]
     res[(ncon + nlow + 1):end] .=
       @views α ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
+  end
+end
+
+function opsqrtBRK3Sprod!(
+  res::AbstractVector{T},
+  ncon::Int,
+  nlow::Int,
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  δv::AbstractVector{T},
+  v::AbstractVector{T},
+  α::T,
+  β::T,
+) where {T <: Real}
+  if β == zero(T)
+    res[1:ncon] .= @views (α / sqrt.(δv[1])) .* v[1:ncon]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .= @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end]
+  else
+    res[1:ncon] .= @views (α / sqrt.(δv[1])) .* v[1:ncon] .+ β .* res[1:ncon]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)] .+
+           β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .=
+      @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
   end
 end

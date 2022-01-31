@@ -23,6 +23,8 @@ K2_5KrylovParams
 K2StructuredParams
 K2_5StructuredParams
 K3KrylovParams
+K3SKrylovParams
+K3SStructuredParams
 K3_5KrylovParams
 K3_5StructuredParams
 K1KrylovParams

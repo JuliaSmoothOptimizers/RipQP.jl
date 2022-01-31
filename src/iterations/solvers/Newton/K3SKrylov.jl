@@ -1,28 +1,29 @@
-# [-Q - ρI   Aᵀ   I   -I ][ Δx ]   [    -rc        ]
-# [  A       δI   0    0 ][ Δy ]   [    -rb        ]
-# [  S_l     0   X-L   0 ][Δs_l] = [σμe - (X-L)S_le]
-# [ -S_u     0    0   U-X][Δs_u]   [σμe + (U-X)S_ue]
-export K3KrylovParams
+# K3S
+#
+# [-Q - ρI   Aᵀ      I           -I     ][ Δx  ]   [       -rc       ]
+# [   A      δI      0            0     ][ Δy  ]   [       -rb       ]
+# [   I      0   S_l⁻¹(X-L)       0     ][Δs_l2] = [-(x-l) + σμS_l⁻¹e]
+# [  -I      0       0       S_u⁻¹(U-X) ][Δs_u2]   [-(u-x) + σμS_u⁻¹e]
+export K3SKrylovParams
 
 """
-Type to use the K3 formulation with a Krylov method, using the package 
+Type to use the K3S formulation with a Krylov method, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3KrylovParams(; uplo = :L, kmethod = :qmr, preconditioner = :Identity,
-                   atol0 = 1.0e-4, rtol0 = 1.0e-4,
-                   atol_min = 1.0e-10, rtol_min = 1.0e-10,
-                   ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
-                   ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
+    K3SKrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+                     atol0 = 1.0e-4, rtol0 = 1.0e-4,
+                     atol_min = 1.0e-10, rtol_min = 1.0e-10,
+                     ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
+                     ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
-- `:qmr`
-- `:bicgstab`
-- `:usymqr`
+- `:minres`
+- `:minres_qlp`
 
 """
-mutable struct K3KrylovParams <: NewtonParams
+mutable struct K3SKrylovParams <: NewtonParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
@@ -36,9 +37,9 @@ mutable struct K3KrylovParams <: NewtonParams
   δ_min::Float64
 end
 
-function K3KrylovParams(;
+function K3SKrylovParams(;
   uplo::Symbol = :L,
-  kmethod::Symbol = :qmr,
+  kmethod::Symbol = :minres,
   preconditioner::Symbol = :Identity,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
@@ -46,10 +47,10 @@ function K3KrylovParams(;
   rtol_min::T = 1.0e-10,
   ρ0::T = sqrt(eps()) * 1e5,
   δ0::T = sqrt(eps()) * 1e5,
-  ρ_min::T = 1e3 * sqrt(eps()),
-  δ_min::T = 1e4 * sqrt(eps()),
+  ρ_min::T = 1e2 * sqrt(eps()),
+  δ_min::T = 1e2 * sqrt(eps()),
 ) where {T <: Real}
-  return K3KrylovParams(
+  return K3SKrylovParams(
     uplo,
     kmethod,
     preconditioner,
@@ -64,8 +65,12 @@ function K3KrylovParams(;
   )
 end
 
-mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
-               PreallocatedDataNewtonKrylov{T, S}
+mutable struct PreallocatedDataK3SKrylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Ksol <: KrylovSolver,
+} <: PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   regu::Regularization{T}
   ρv::Vector{T}
@@ -78,7 +83,7 @@ mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol 
   rtol_min::T
 end
 
-function opK3prod!(
+function opK3Sprod!(
   res::AbstractVector{T},
   nvar::Int,
   ncon::Int,
@@ -112,68 +117,21 @@ function opK3prod!(
   res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
     res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l)
     res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
+      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u)
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .= @views α .*
+           (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l) .+
+           β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
     res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
-             β .* res[(nvar + ncon + nlow + 1):end]
-  end
-end
-
-function opK3tprod!(
-  res::AbstractVector{T},
-  nvar::Int,
-  ncon::Int,
-  ilow::Vector{Int},
-  iupp::Vector{Int},
-  nlow::Int,
-  x_m_lvar::AbstractVector{T},
-  uvar_m_x::AbstractVector{T},
-  s_l::AbstractVector{T},
-  s_u::AbstractVector{T},
-  Q::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
-  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
-  ρv::AbstractVector{T},
-  δv::AbstractVector{T},
-  v::AbstractVector{T},
-  α::T,
-  β::T,
-  uplo::Symbol,
-) where {T}
-  @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= @views α .* s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= @views α .* s_u .* v[(nvar + ncon + nlow + 1):end]
-  if uplo == :U
-    @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
-  else
-    @views mul!(res[1:nvar], A', v[(nvar + 1):(nvar + ncon)], α, one(T))
-    @views mul!(res[(nvar + 1):(nvar + ncon)], A, v[1:nvar], α, β)
-  end
-  res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
-  if β == 0
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
-  else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
+      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u) .+
              β .* res[(nvar + ncon + nlow + 1):end]
   end
 end
 
 function PreallocatedData(
-  sp::K3KrylovParams,
+  sp::K3SKrylovParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},
@@ -194,29 +152,9 @@ function PreallocatedData(
     T,
     id.nvar + id.ncon + id.nlow + id.nupp,
     id.nvar + id.ncon + id.nlow + id.nupp,
-    false,
-    false,
-    (res, v, α, β) -> opK3prod!(
-      res,
-      id.nvar,
-      id.ncon,
-      id.ilow,
-      id.iupp,
-      id.nlow,
-      itd.x_m_lvar,
-      itd.uvar_m_x,
-      pt.s_l,
-      pt.s_u,
-      fd.Q,
-      fd.A,
-      ρv,
-      δv,
-      v,
-      α,
-      β,
-      fd.uplo,
-    ),
-    (res, v, α, β) -> opK3tprod!(
+    true,
+    true,
+    (res, v, α, β) -> opK3Sprod!(
       res,
       id.nvar,
       id.ncon,
@@ -239,10 +177,9 @@ function PreallocatedData(
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
-  kstring = string(sp.kmethod)
   KS = eval(KSolver(sp.kmethod))(K, rhs)
 
-  return PreallocatedDataK3Krylov(
+  return PreallocatedDataK3SKrylov(
     rhs,
     regu,
     ρv,
@@ -258,7 +195,7 @@ end
 
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedDataK3Krylov{T},
+  pad::PreallocatedDataK3SKrylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -277,8 +214,8 @@ function solver!(
     Δs_u = itd.Δs_u
   end
   pad.rhs[1:(id.nvar + id.ncon)] .= dd
-  pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l
-  pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u
+  pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l ./ pt.s_l
+  pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u ./ pt.s_u
   rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
   ksolve!(
@@ -301,7 +238,7 @@ function solver!(
 end
 
 function update_pad!(
-  pad::PreallocatedDataK3Krylov{T},
+  pad::PreallocatedDataK3SKrylov{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},

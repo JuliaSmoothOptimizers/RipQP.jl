@@ -22,7 +22,7 @@ The available methods are:
 - `:minres_qlp`
 
 """
-mutable struct K1KrylovParams <: SolverParams
+mutable struct K1KrylovParams <: NormalParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol

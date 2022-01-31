@@ -18,7 +18,7 @@ encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 """
-mutable struct K2_5LDLParams <: SolverParams
+mutable struct K2_5LDLParams <: AugmentedParams
   uplo::Symbol
   regul::Symbol
   ρ0::Float64
