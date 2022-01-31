@@ -303,7 +303,8 @@ function PreallocatedData(
       id.ncon + id.nlow + id.nupp,
       true,
       true,
-      (res, v, α, β) -> opBRK3_5prod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
+      (res, v, α, β) ->
+        opBRK3_5prod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
     )
     KS = eval(KSolver(sp.kmethod))(As', rhs1)
   end

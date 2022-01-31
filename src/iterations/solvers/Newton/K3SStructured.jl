@@ -111,10 +111,8 @@ function opAIprod!(
     res[(ncon + 1):(ncon + nlow)] .= @views α .* v[ilow]
     res[(ncon + nlow + 1):end] .= @views (-α) .* v[iupp]
   else
-    res[(ncon + 1):(ncon + nlow)] .=
-      @views α .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .=
-      @views (-α) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .= @views (-α) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
   end
   if uplo == :U
     @views mul!(res[1:ncon], A', v, α, β)
@@ -166,8 +164,8 @@ function opBRK3Sprod!(
     res[(ncon + nlow + 1):end] .= @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end]
   else
     res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon] .+ β .* res[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .=
-      @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+ β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + 1):(ncon + nlow)] .= @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+
+           β .* res[(ncon + 1):(ncon + nlow)]
     res[(ncon + nlow + 1):end] .=
       @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
   end
@@ -288,8 +286,19 @@ function PreallocatedData(
       id.ncon + id.nlow + id.nupp,
       true,
       true,
-      (res, v, α, β) ->
-        opsqrtBRK3Sprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, δv, v, α, β),
+      (res, v, α, β) -> opsqrtBRK3Sprod!(
+        res,
+        id.ncon,
+        id.nlow,
+        itd.x_m_lvar,
+        itd.uvar_m_x,
+        pt.s_l,
+        pt.s_u,
+        δv,
+        v,
+        α,
+        β,
+      ),
     )
   else
     # operator to model the inverse of Q
@@ -301,7 +310,19 @@ function PreallocatedData(
       id.ncon + id.nlow + id.nupp,
       true,
       true,
-      (res, v, α, β) -> opBRK3Sprod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, δv, v, α, β),
+      (res, v, α, β) -> opBRK3Sprod!(
+        res,
+        id.ncon,
+        id.nlow,
+        itd.x_m_lvar,
+        itd.uvar_m_x,
+        pt.s_l,
+        pt.s_u,
+        δv,
+        v,
+        α,
+        β,
+      ),
     )
     KS = eval(KSolver(sp.kmethod))(AI', rhs1)
   end
