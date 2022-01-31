@@ -65,12 +65,8 @@ function K3SKrylovParams(;
   )
 end
 
-mutable struct PreallocatedDataK3SKrylov{
-  T <: Real,
-  S,
-  L <: LinearOperator,
-  Ksol <: KrylovSolver,
-} <: PreallocatedDataNewtonKrylov{T, S}
+mutable struct PreallocatedDataK3SKrylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
+               PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   regu::Regularization{T}
   ρv::Vector{T}
@@ -121,9 +117,9 @@ function opK3Sprod!(
     res[(nvar + ncon + nlow + 1):end] .=
       @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u)
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .= @views α .*
-           (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l) .+
-           β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
+      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l) .+
+             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
     res[(nvar + ncon + nlow + 1):end] .=
       @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u) .+
              β .* res[(nvar + ncon + nlow + 1):end]

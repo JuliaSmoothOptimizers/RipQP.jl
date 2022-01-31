@@ -71,13 +71,17 @@ function opsqrtBRK3Sprod!(
 ) where {T <: Real}
   if β == zero(T)
     res[1:ncon] .= @views (α / sqrt.(δv[1])) .* v[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .= @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end]
+    res[(ncon + 1):(ncon + nlow)] .=
+      @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)]
+    res[(ncon + nlow + 1):end] .=
+      @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end]
   else
     res[1:ncon] .= @views (α / sqrt.(δv[1])) .* v[1:ncon] .+ β .* res[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)] .+
-           β .* res[(ncon + 1):(ncon + nlow)]
+    res[(ncon + 1):(ncon + nlow)] .=
+      @views α .* sqrt.(s_l) ./ sqrt.(x_m_lvar) .* v[(ncon + 1):(ncon + nlow)] .+
+             β .* res[(ncon + 1):(ncon + nlow)]
     res[(ncon + nlow + 1):end] .=
-      @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
+      @views α .* sqrt.(s_u) ./ sqrt.(uvar_m_x) .* v[(ncon + nlow + 1):end] .+
+             β .* res[(ncon + nlow + 1):end]
   end
 end
