@@ -112,6 +112,7 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
+  gsp::Bool = false,
 ) where {T, S} =
   tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
@@ -125,8 +126,21 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
+  gsp::Bool = false,
 ) where {T, S} =
-  trimr!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
+  trimr!(
+    KS,
+    A,
+    ξ1,
+    ξ2,
+    M = M,
+    N = (gsp == true ? I : N),
+    τ = -one(T),
+    ν = (gsp ? zero(T) : one(T)),
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+  )
 
 function ksolve!(
   KS::GpmrSolver{T, S},
@@ -138,6 +152,7 @@ function ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
+  gsp::Bool = false,
 ) where {T, S}
   sqrtδI = sqrt(N.λ) * I
   return gpmr!(
@@ -147,10 +162,11 @@ function ksolve!(
     ξ1,
     ξ2,
     C = sqrt.(M),
-    D = sqrtδI,
+    D = gsp ? I : sqrtδI,
     E = sqrt.(M),
-    F = sqrtδI,
+    F = gsp ? I : sqrtδI,
     λ = -one(T),
+    μ = gsp ? zero(T) : one(T),
     verbose = verbose,
     atol = atol,
     rtol = rtol,

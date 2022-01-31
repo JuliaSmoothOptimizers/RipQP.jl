@@ -113,25 +113,43 @@ end
 end
 
 @testset "K2 structured LP" begin
-  for kmethod in [:tricg, :trimr, :gpmr]
-    stats4 = ripqp(
-      QuadraticModel(qps4),
-      display = false,
-      iconf = InputConfig(sp = K2StructuredParams(kmethod = kmethod), solve_method = :IPF),
-    )
-    @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-    @test stats4.status == :acceptable
+  for kmethod in [:trimr, :gpmr]
+    for δ_min in [0.0, 1.0e-2]
+      stats4 = ripqp(
+        QuadraticModel(qps4),
+        display = false,
+        iconf = InputConfig(sp = K2StructuredParams(kmethod = kmethod, δ_min = δ_min), solve_method = :IPF),
+      )
+      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+      @test stats4.status == :acceptable
+    end
   end
+  stats4 = ripqp(
+    QuadraticModel(qps4),
+    display = false,
+    iconf = InputConfig(sp = K2StructuredParams(kmethod = :tricg), solve_method = :IPF),
+  )
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
 end
 
 @testset "K2.5 structured LP" begin
-  for kmethod in [:tricg, :trimr, :gpmr]
-    stats4 = ripqp(
-      QuadraticModel(qps4),
-      display = false,
-      iconf = InputConfig(sp = K2_5StructuredParams(kmethod = kmethod), solve_method = :IPF),
-    )
-    @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-    @test stats4.status == :acceptable
+  for kmethod in [:trimr, :gpmr]
+    for δ_min in [0.0, 1.0e-2]
+      stats4 = ripqp(
+        QuadraticModel(qps4),
+        display = false,
+        iconf = InputConfig(sp = K2_5StructuredParams(kmethod = kmethod, δ_min = δ_min), solve_method = :IPF),
+      )
+      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+      @test stats4.status == :acceptable
+    end
   end
+  stats4 = ripqp(
+    QuadraticModel(qps4),
+    display = false,
+    iconf = InputConfig(sp = K2_5StructuredParams(kmethod = :tricg), solve_method = :IPF),
+  )
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
 end
