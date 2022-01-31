@@ -127,20 +127,19 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   gsp::Bool = false,
-) where {T, S} =
-  trimr!(
-    KS,
-    A,
-    ξ1,
-    ξ2,
-    M = M,
-    N = (gsp == true ? I : N),
-    τ = -one(T),
-    ν = (gsp ? zero(T) : one(T)),
-    verbose = verbose,
-    atol = atol,
-    rtol = rtol,
-  )
+) where {T, S} = trimr!(
+  KS,
+  A,
+  ξ1,
+  ξ2,
+  M = M,
+  N = (gsp == true ? I : N),
+  τ = -one(T),
+  ν = (gsp ? zero(T) : one(T)),
+  verbose = verbose,
+  atol = atol,
+  rtol = rtol,
+)
 
 function ksolve!(
   KS::GpmrSolver{T, S},
