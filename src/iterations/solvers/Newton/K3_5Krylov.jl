@@ -227,7 +227,7 @@ function solver!(
     pad.KS,
     pad.K,
     pad.rhs,
-    I(id.nvar + id.ncon + id.nlow + id.nupp),
+    I,
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,

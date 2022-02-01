@@ -69,6 +69,7 @@ mutable struct PreallocatedDataK2_5Structured{
   L <: AbstractLinearOperator{T},
 } <: PreallocatedDataAugmentedStructured{T, S}
   E::S                                  # temporary top-left diagonal
+  invE::S
   sqrtX1X2::S # vector to scale K2 to K2.5
   AsqrtX1X2::L
   ξ1::S
@@ -105,6 +106,8 @@ function PreallocatedData(
   if regu.δ_min == zero(T) # gsp for gpmr
     regu.δ = zero(T)
   end
+  invE = similar(E)
+  invE .= one(T) ./ E
 
   sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
@@ -118,6 +121,7 @@ function PreallocatedData(
 
   return PreallocatedDataK2_5Structured(
     E,
+    invE,
     sqrtX1X2,
     AsqrtX1X2,
     ξ1,
@@ -154,7 +158,7 @@ function solver!(
     pad.AsqrtX1X2',
     pad.ξ1,
     pad.ξ2,
-    inv(Diagonal(pad.E)),
+    Diagonal(pad.invE),
     (one(T) / pad.regu.δ) .* I,
     verbose = 0,
     atol = pad.atol,
@@ -209,6 +213,7 @@ function update_pad!(
   pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
   pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
   pad.E .*= pad.sqrtX1X2 .^ 2
+  pad.invE .= one(T) ./ pad.E
 
   return 0
 end
