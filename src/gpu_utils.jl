@@ -1,5 +1,7 @@
 using .CUDA
 
+change_vector_eltype(S0::Type{<:CUDA.CuVector}, T) = S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
+
 function sparse_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
   CPUvals = Vector(vals)
   M = sparse(rows, cols, CPUvals, ncols, nrows)

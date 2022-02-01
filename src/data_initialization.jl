@@ -14,7 +14,7 @@ function convert_QM(
   # (TODO: write scaling and presolve for other types)
   M12, M22 = typeof(QM.data.H), typeof(QM.data.A)
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
-    display &&
+    display && iconf.presolve &&
       @warn "No presolve and scaling operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     iconf.presolve = false
     iconf.scaling = false
@@ -184,7 +184,7 @@ function allocate_workspace(
   if iconf.mode == :multi
     T = Float32
   end
-  S = S0.name.wrapper{T, 1}
+  S = change_vector_eltype(S0, T)
 
   res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf, id)
 

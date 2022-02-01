@@ -48,7 +48,8 @@ end
 
 mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
                PreallocatedDataAugmentedStructured{T, S}
-  E::S                                  # temporary top-left diagonal
+  E::S  # temporary top-left diagonal
+  invE::S
   ξ1::S
   ξ2::S
   regu::Regularization{T}
@@ -89,6 +90,8 @@ function PreallocatedData(
   if regu.δ_min == zero(T) # gsp for gpmr
     regu.δ = zero(T)
   end
+  invE = similar(E)
+  invE .= one(T) ./ E
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
@@ -100,6 +103,7 @@ function PreallocatedData(
 
   return PreallocatedDataK2Structured(
     E,
+    invE,
     ξ1,
     ξ2,
     regu,
@@ -153,7 +157,7 @@ function solver!(
     fd.A',
     pad.ξ1,
     pad.ξ2,
-    inv(Diagonal(pad.E)),
+    Diagonal(pad.invE),
     (one(T) / pad.regu.δ) .* I,
     verbose = 0,
     atol = pad.atol,
@@ -204,6 +208,7 @@ function update_pad!(
   pad.E .= pad.regu.ρ
   pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
   pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
+  pad.invE .= one(T) ./ pad.E
 
   return 0
 end
