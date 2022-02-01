@@ -14,7 +14,8 @@ function convert_QM(
   # (TODO: write scaling and presolve for other types)
   M12, M22 = typeof(QM.data.H), typeof(QM.data.A)
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
-    display && iconf.presolve &&
+    display &&
+      iconf.presolve &&
       @warn "No presolve and scaling operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     iconf.presolve = false
     iconf.scaling = false
