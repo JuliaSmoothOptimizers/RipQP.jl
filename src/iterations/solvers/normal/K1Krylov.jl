@@ -169,7 +169,7 @@ function solver!(
   end
   rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, I(id.ncon), verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   kunscale!(pad.KS.x, rhsNorm)
 
