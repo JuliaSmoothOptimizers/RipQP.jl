@@ -214,15 +214,7 @@ function solver!(
   pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u ./ pt.s_u
   rhsNorm = kscale!(pad.rhs)
   pad.K.nprod = 0
-  ksolve!(
-    pad.KS,
-    pad.K,
-    pad.rhs,
-    I,
-    verbose = 0,
-    atol = pad.atol,
-    rtol = pad.rtol,
-  )
+  ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   kunscale!(pad.KS.x, rhsNorm)
 
