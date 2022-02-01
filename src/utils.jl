@@ -1,3 +1,5 @@
+change_vector_eltype(S0::Type{<:Vector}, T) = S0.name.wrapper{T, 1}
+
 function push_history_residuals!(
   res::ResidualsHistory{T},
   itd::IterData{T},
