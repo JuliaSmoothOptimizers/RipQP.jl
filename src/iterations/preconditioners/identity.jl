@@ -1,4 +1,4 @@
-mutable struct IdentityData{T <: Real, S, SI <: AbstractMatrix} <: PreconditionerDataK2{T, S}
+mutable struct IdentityData{T <: Real, S, SI <: UniformScaling} <: PreconditionerDataK2{T, S}
   P::SI
 end
 
@@ -9,7 +9,7 @@ function Identity(
   D::AbstractVector{T},
   K::LinearOperator{T},
 ) where {T <: Real}
-  P = I(id.nvar + id.ncon)
+  P = I
   return IdentityData{T, typeof(fd.c), typeof(P)}(P)
 end
 
