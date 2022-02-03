@@ -320,10 +320,10 @@ function PreallocatedData(
     Qregop,
     opBR,
     KS,
-    sp.atol0,
-    sp.rtol0,
-    sp.atol_min,
-    sp.rtol_min,
+    T(sp.atol0),
+    T(sp.rtol0),
+    T(sp.atol_min),
+    T(sp.rtol_min),
   )
 end
 

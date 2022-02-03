@@ -168,10 +168,10 @@ function PreallocatedData(
     δv,
     K, #K
     KS, #K_fact
-    sp.atol0,
-    sp.rtol0,
-    sp.atol_min,
-    sp.rtol_min,
+    T(sp.atol0),
+    T(sp.rtol0),
+    T(sp.atol_min),
+    T(sp.rtol_min),
   )
 end
 
