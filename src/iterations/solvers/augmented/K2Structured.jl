@@ -60,8 +60,6 @@ mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} 
   rtol_min::T
 end
 
-get_nprod!(pad::PreallocatedDataK2Structured) = 0
-
 function PreallocatedData(
   sp::K2StructuredParams,
   fd::QM_FloatData{T},

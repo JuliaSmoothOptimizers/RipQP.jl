@@ -82,7 +82,10 @@ mutable struct PreallocatedDataK2_5Structured{
   rtol_min::T
 end
 
-get_nprod!(pad::PreallocatedDataK2_5Structured) = 0
+function opAsqrtX1X2tprod!(res, A, v, α, β, sqrtX1X2)
+  mul!(res, transpose(A), v, α, β)
+  res .*= sqrtX1X2
+end
 
 function PreallocatedData(
   sp::K2_5StructuredParams,
@@ -117,7 +120,16 @@ function PreallocatedData(
   else
     KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
   end
-  AsqrtX1X2 = LinearOperator(fd.A) * Diagonal(sqrtX1X2)
+
+  AsqrtX1X2 = LinearOperator(
+    T,
+    id.ncon,
+    id.nvar,
+    false,
+    false,
+    (res, v, α, β) -> mul!(res, fd.A, v .* sqrtX1X2, α, β),
+    (res, v, α, β) -> opAsqrtX1X2tprod!(res, fd.A, v, α, β, sqrtX1X2),
+  )
 
   return PreallocatedDataK2_5Structured(
     E,
