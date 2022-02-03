@@ -330,7 +330,7 @@ mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
   rbNormH::Vector{T} # list of rb values
   rcNormH::Vector{T} # list of rc values
   pddH::Vector{T} # list of pdd values
-  nprodH::Vector{Int} # number of matrix vector product if using a Krylov method
+  kiterH::Vector{Int} # number of matrix vector product if using a Krylov method
   μH::Vector{T} # list of μ values
   min_bound_distH::Vector{T} # list of minimum values of x - lvar and uvar - x
   KΔxy::S # K * Δxy
@@ -349,7 +349,7 @@ convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real
     convert(Array{T, 1}, res.rbNormH),
     convert(Array{T, 1}, res.rcNormH),
     convert(Array{T, 1}, res.pddH),
-    res.nprodH,
+    res.kiterH,
     convert(Array{T, 1}, res.μH),
     convert(Array{T, 1}, res.min_bound_distH),
     convert(S.name.wrapper{T, 1}, res.KΔxy),

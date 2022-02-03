@@ -22,28 +22,28 @@ function push_history_residuals!(
   (id.nlow > 0 || id.nupp > 0) && push!(res.min_bound_distH, bound_dist)
 
   pad_type = typeof(pad)
-  if pad_type <: PreallocatedDataAugmentedKrylov || pad_type <: PreallocatedDataNewtonKrylov
-    (
-      !(pad_type <: PreallocatedDataAugmentedStructured) ||
-      !(pad_type <: PreallocatedDataNewtonStructured)
-    ) && push!(res.nprodH, pad.K.nprod)
+  if pad_type <: PreallocatedDataAugmentedKrylov || pad_type <: PreallocatedDataNewtonKrylov ||
+    pad_type <: PreallocatedDataAugmentedStructured || pad_type <: PreallocatedDataNewtonStructured
+    push!(res.kiterH, niterations(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
   elseif pad_type <: PreallocatedDataNormalKrylov
-    push!(res.nprodH, pad.K.nprod)
+    push!(res.kiterH, niterations(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
   end
 end
 
-function get_nprod!(pad::PreallocatedData)
+function get_kiter(pad::PreallocatedData)
   padT = typeof(pad)
   nprod =
     (
-      typeof(pad) <: PreallocatedDataNewtonKrylov ||
-      typeof(pad) <: PreallocatedDataAugmentedKrylov ||
-      typeof(pad) <: PreallocatedDataNormalKrylov
-    ) ? pad.K.nprod : zero(Int)
+      padT <: PreallocatedDataNewtonKrylov ||
+      padT <: PreallocatedDataNewtonStructured ||
+      padT <: PreallocatedDataAugmentedKrylov ||
+      padT <: PreallocatedDataAugmentedStructured ||
+      padT <: PreallocatedDataNormalKrylov
+    ) ? niterations(pad.KS) : zero(Int)
   return nprod
 end
 
