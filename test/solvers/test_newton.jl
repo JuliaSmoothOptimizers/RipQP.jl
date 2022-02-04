@@ -1,5 +1,5 @@
 @testset "Krylov K3" begin
-  for kmethod in [:bicgstab, :usymqr, :qmr]
+  for kmethod in [:bilq, :bicgstab, :usymlq, :usymqr, :qmr, :diom, :fom, :gmres, :dqgmres]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
@@ -56,7 +56,7 @@ end
 end
 
 @testset "KrylovK3S" begin
-  for kmethod in [:minres, :minres_qlp]
+  for kmethod in [:minres, :minres_qlp, :symmlq]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = true,

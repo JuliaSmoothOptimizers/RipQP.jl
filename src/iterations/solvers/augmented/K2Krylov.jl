@@ -10,12 +10,13 @@ The outer constructor
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
                    ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
-                   memory = 5)
+                   memory = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
 - `:minres`
 - `:minres_qlp`
+- `:symmlq`
 
 The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
 """
@@ -31,7 +32,7 @@ mutable struct K2KrylovParams <: AugmentedParams
   δ0::Float64
   ρ_min::Float64
   δ_min::Float64
-  memory::Int
+  mem::Int
 end
 
 function K2KrylovParams(;
@@ -46,7 +47,7 @@ function K2KrylovParams(;
   δ0::T = sqrt(eps()) * 1e5,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
-  memory::Int = 5,
+  mem::Int = 20,
 ) where {T <: Real}
   return K2KrylovParams(
     uplo,
@@ -60,7 +61,7 @@ function K2KrylovParams(;
     δ0,
     ρ_min,
     δ_min,
-    memory,
+    mem,
   )
 end
 
@@ -138,13 +139,7 @@ function PreallocatedData(
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon)
-  kstring = string(sp.kmethod)
-  if sp.kmethod == :dqgmres
-    KS = eval(KSolver(sp.kmethod))(K, rhs, sp.memory)
-  else
-    KS = eval(KSolver(sp.kmethod))(K, rhs)
-  end
-
+  KS = init_Ksolver(K, rhs, sp)
   pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
 
   return PreallocatedDataK2Krylov(

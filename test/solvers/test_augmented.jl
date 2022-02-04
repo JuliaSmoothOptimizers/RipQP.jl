@@ -36,7 +36,7 @@ end
 
 @testset "KrylovK2" begin
   for precond in [:Identity, :Jacobi]
-    for kmethod in [:minres, :minres_qlp, :dqgmres]
+    for kmethod in [:minres, :minres_qlp, :symmlq, :dqgmres, :diom]
       stats2 = ripqp(
         QuadraticModel(qps2),
         display = false,
@@ -76,7 +76,7 @@ end
 end
 
 @testset "KrylovK2_5" begin
-  for kmethod in [:minres, :minres_qlp]
+  for kmethod in [:minres, :minres_qlp, :symmlq]
     stats1 = ripqp(
       QuadraticModel(qps1),
       display = true,

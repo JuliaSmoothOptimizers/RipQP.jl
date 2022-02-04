@@ -267,7 +267,6 @@ function PreallocatedData(
   rhs2 = similar(fd.c, id.ncon + id.nlow + id.nupp)
   kstring = string(sp.kmethod)
   if sp.kmethod == :gpmr
-    KS = eval(KSolver(sp.kmethod))(AI', rhs1, sp.mem)
     # operator to model the square root of the inverse of Q
     QregF.d .= sqrt.(QregF.d)
     Qregop = LinearOperator(
@@ -324,8 +323,9 @@ function PreallocatedData(
         β,
       ),
     )
-    KS = eval(KSolver(sp.kmethod))(AI', rhs1)
   end
+
+  KS = init_Ksolver(AI', rhs1, sp)
 
   return PreallocatedDataK3SStructured(
     rhs1,

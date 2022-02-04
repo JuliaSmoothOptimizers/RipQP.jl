@@ -93,11 +93,8 @@ function PreallocatedData(
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  if sp.kmethod == :gpmr
-    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b, sp.mem)
-  else
-    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
-  end
+  
+  KS = init_Ksolver(fd.A', fd.b, sp)
 
   return PreallocatedDataK2Structured(
     E,
