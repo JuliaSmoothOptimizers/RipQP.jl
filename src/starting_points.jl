@@ -8,8 +8,8 @@ function starting_points!(
   mul!(itd.Qx, fd.Q, pt0.x)
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt0.y) : mul!(itd.ATy, fd.A', pt0.y)
   spd.dual_val .= itd.Qx .- itd.ATy .+ fd.c
-  pt0.s_l .= spd.dual_val[id.ilow]
-  pt0.s_u .= .-spd.dual_val[id.iupp]
+  pt0.s_l = spd.dual_val[id.ilow]
+  pt0.s_u = -spd.dual_val[id.iupp]
 
   # check distance to bounds δ for x, s_l and s_u
   itd.x_m_lvar .= @views pt0.x[id.ilow] .- fd.lvar[id.ilow]
