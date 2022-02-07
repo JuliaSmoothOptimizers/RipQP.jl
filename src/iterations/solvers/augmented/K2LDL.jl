@@ -263,11 +263,10 @@ function fill_K2!(
   end
 end
 
-function create_K2(id, D, Q, A, diag_Q, regu)
+function create_K2(id, D, Q, A, diag_Q, regu; T = eltype(D))
   # for classic regul only
   n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
-  T = eltype(D)
-  if regu.regul == :classic && regu.δ > zero(T)
+  if regu.regul == :classic && regu.δ > 0
     n_nz += id.ncon
   end
   K_colptr = Vector{Int}(undef, id.ncon + id.nvar + 1)
@@ -295,7 +294,7 @@ function create_K2(id, D, Q, A, diag_Q, regu)
     regu.regul,
   )
 
-  return SparseMatrixCSC(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
+  return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
 end
 
 # iteration functions for the K2 system
