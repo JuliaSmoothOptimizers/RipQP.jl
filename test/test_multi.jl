@@ -35,7 +35,7 @@ end
   qm128_1 = createQuadraticModelT(qps1, T = Float128)
   stats1 = ripqp(
     qm128_1,
-    itol = InputTol(ϵ_rb32 = 0.1, ϵ_rb64 = 0.01),
+    itol = InputTol(Float128, ϵ_rb32 = Float128(0.1), ϵ_rb64 = Float128(0.01)),
     iconf = InputConfig(mode = :multi, normalize_rtol = false),
     display = false,
   )
@@ -61,7 +61,11 @@ end
     x0 = zeros(Float16, 3),
     name = "QM16",
   )
-  stats_dense = ripqp(qm16, itol = InputTol(ϵ_pdd = 1.0e-1, ϵ_rb = 1.0e-1, ϵ_rc = 1.0e-1))
+  stats_dense = ripqp(
+    qm16,
+    itol = InputTol(Float16, ϵ_pdd = Float16(1.0e-1), ϵ_rb = Float16(1.0e-1), ϵ_rc = Float16(1.0e-1)),
+    display = false,
+  )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :acceptable
 end

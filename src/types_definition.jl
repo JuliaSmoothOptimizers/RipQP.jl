@@ -188,11 +188,14 @@ Type to specify the tolerances used by RipQP.
 
 The constructor
 
-    itol = InputTol(;max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
-                     ϵ_pdd :: T = 1e-8, ϵ_pdd32 :: T = 1e-2, ϵ_pdd64 :: T = 1e-4, 
-                     ϵ_rb :: T = 1e-6, ϵ_rb32 :: T = 1e-4, ϵ_rb64 :: T = 1e-5, ϵ_rbz :: T = 1e-3,
-                     ϵ_rc :: T = 1e-6, ϵ_rc32 :: T = 1e-4, ϵ_rc64 :: T = 1e-5,
-                     ϵ_Δx :: T = 1e-16, ϵ_μ :: T = 1e-9) where {T<:Real, I<:Integer}
+    itol = InputTol(::Type{T};
+                    max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
+                    ϵ_pdd :: T = 1e-8, ϵ_pdd32 :: T = 1e-2, ϵ_pdd64 :: T = 1e-4, 
+                    ϵ_rb :: T = 1e-6, ϵ_rb32 :: T = 1e-4, ϵ_rb64 :: T = 1e-5, ϵ_rbz :: T = 1e-3,
+                    ϵ_rc :: T = 1e-6, ϵ_rc32 :: T = 1e-4, ϵ_rc64 :: T = 1e-5,
+                    ϵ_Δx :: T = 1e-16, ϵ_μ :: T = 1e-9) where {T<:Real, I<:Integer}
+
+    InputTol(; kwargs...) = InputTol(Float64; kwargs...) 
 
 returns a `InputTol` struct that initializes the stopping criteria for RipQP. 
 The 32 and 64 characters refer to the stopping criteria in `:multi` mode for the transitions from `Float32` to `Float64` 
@@ -225,26 +228,27 @@ struct InputTol{T <: Real, I <: Integer}
   ϵ_Δx::T
 
   # maximum time for resolution
-  max_time::T
+  max_time::Float64
 end
 
-function InputTol(;
+function InputTol(
+  ::Type{T};
   max_iter::I = 200,
   max_iter32::I = 40,
   max_iter64::I = 180,
-  ϵ_pdd::T = 1e-8,
-  ϵ_pdd32::T = 1e-2,
-  ϵ_pdd64::T = 1e-4,
-  ϵ_rb::T = 1e-6,
-  ϵ_rb32::T = 1e-4,
-  ϵ_rb64::T = 1e-5,
-  ϵ_rbz::T = 1e-5,
-  ϵ_rc::T = 1e-6,
-  ϵ_rc32::T = 1e-4,
-  ϵ_rc64::T = 1e-5,
-  ϵ_Δx::T = 1e-16,
-  ϵ_μ::T = 1e-9,
-  max_time::T = 1200.0,
+  ϵ_pdd::T = (T == Float64) ? 1e-8 : sqrt(eps(T)),
+  ϵ_pdd32::T = T(1e-2),
+  ϵ_pdd64::T = T(1e-4),
+  ϵ_rb::T = (T == Float64) ? 1e-6 : sqrt(eps(T)),
+  ϵ_rb32::T = T(1e-4),
+  ϵ_rb64::T = T(1e-5),
+  ϵ_rbz::T = T(1e-5),
+  ϵ_rc::T = (T == Float64) ? 1e-6 : sqrt(eps(T)),
+  ϵ_rc32::T = T(1e-4),
+  ϵ_rc64::T = T(1e-5),
+  ϵ_Δx::T = eps(T),
+  ϵ_μ::T = sqrt(eps(T)),
+  max_time::Float64 = 1200.0,
 ) where {T <: Real, I <: Integer}
   return InputTol{T, I}(
     max_iter,
@@ -265,6 +269,8 @@ function InputTol(;
     max_time,
   )
 end
+
+InputTol(; kwargs...) = InputTol(Float64; kwargs...) 
 
 mutable struct Tolerances{T <: Real}
   pdd::T  # primal-dual difference (relative)
