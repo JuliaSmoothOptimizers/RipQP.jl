@@ -241,11 +241,11 @@ function ripqp(
   end
 
   if iconf.presolve
-    postsolve!(QM0, QM, pt.x, QM0.meta.x0)
-    x = QM0.meta.x0
+    x = similar(QM0.meta.x0)
+    postsolve!(QM0, QM, pt.x, x)
     nrm = length(QM.xrm)
   else
-    x = pt.x
+    x = pt.x[1:(idi.nvar)]
     nrm = 0
   end
 
@@ -275,7 +275,7 @@ function ripqp(
   stats = GenericExecutionStats(
     status,
     QM,
-    solution = x[1:(idi.nvar)],
+    solution = x,
     objective = itd.minimize ? itd.pri_obj : -itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,
