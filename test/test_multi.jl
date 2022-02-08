@@ -63,7 +63,12 @@ end
   )
   stats_dense = ripqp(
     qm16,
-    itol = InputTol(Float16, ϵ_pdd = Float16(1.0e-1), ϵ_rb = Float16(1.0e-1), ϵ_rc = Float16(1.0e-1)),
+    itol = InputTol(
+      Float16,
+      ϵ_pdd = Float16(1.0e-1),
+      ϵ_rb = Float16(1.0e-1),
+      ϵ_rc = Float16(1.0e-1),
+    ),
     display = false,
   )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
