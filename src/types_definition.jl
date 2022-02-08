@@ -270,7 +270,7 @@ function InputTol(
   )
 end
 
-InputTol(; kwargs...) = InputTol(Float64; kwargs...) 
+InputTol(; kwargs...) = InputTol(Float64; kwargs...)
 
 mutable struct Tolerances{T <: Real}
   pdd::T  # primal-dual difference (relative)
