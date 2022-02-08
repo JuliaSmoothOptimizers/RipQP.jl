@@ -80,19 +80,6 @@ end
   @test stats5.status == :acceptable
 end
 
-Q = [
-  6.0 2.0 1.0
-  2.0 5.0 2.0
-  1.0 2.0 4.0
-]
-c = [-8.0; -3; -3]
-A = [
-  1.0 0.0 1.0
-  0.0 2.0 1.0
-]
-b = [0.0; 3]
-l = [0.0; 0; 0]
-u = [Inf; Inf; Inf]
 qp_linop = QuadraticModel(
   c,
   LinearOperator(Q),

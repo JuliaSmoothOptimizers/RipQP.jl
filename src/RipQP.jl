@@ -28,9 +28,9 @@ include("multi_precision.jl")
 include("utils.jl")
 
 """
-    stats = ripqp(QM :: QuadraticModel; iconf :: InputConfig{Int} = InputConfig(),
-                  itol :: InputTol{Tu, Int} = InputTol(),
-                  display :: Bool = true) where {Tu<:Real}
+    stats = ripqp(QM :: QuadraticModel{T0}; iconf :: InputConfig{Int} = InputConfig(),
+                  itol :: InputTol{T0, Int} = InputTol(T0),
+                  display :: Bool = true) where {T0<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats) 
@@ -43,19 +43,18 @@ containing information about the solved problem.
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
 
-    stats = ripqp(LLS :: LLSModel; iconf :: InputConfig{Int} = InputConfig(),
-                  itol :: InputTol{Tu, Int} = InputTol(),
-                  display :: Bool = true) where {Tu<:Real}
+    stats = ripqp(LLS :: LLSModel{T0}; iconf :: InputConfig{Int} = InputConfig(),
+                  itol :: InputTol{T0, Int} = InputTol(T0),
+                  display :: Bool = true) where {T0<:Real}
 """
 function ripqp(
-  QM0::QuadraticModel;
+  QM0::QuadraticModel{T0};
   iconf::InputConfig{Int} = InputConfig(),
-  itol::InputTol{Tu, Int} = InputTol(),
+  itol::InputTol{T0, Int} = InputTol(T0),
   display::Bool = true,
-) where {Tu <: Real}
+) where {T0 <: Real}
   start_time = time()
   elapsed_time = 0.0
-  T0 = eltype(QM0.data.c)
   # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
   QM0 = convert_QM(QM0, iconf, display)
 

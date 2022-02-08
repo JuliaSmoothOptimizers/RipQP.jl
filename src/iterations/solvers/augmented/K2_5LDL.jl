@@ -60,7 +60,7 @@ function PreallocatedData(
 
   # init Regularization values
   D = similar(fd.c, id.nvar)
-  if iconf.mode == :mono
+  if iconf.mode == :mono && T == Float64
     regu = Regularization(T(sp.ρ0), T(sp.δ0), 1e-5 * sqrt(eps(T)), 1e0 * sqrt(eps(T)), sp.regul)
     D .= -T(1.0e0) / 2
   else
