@@ -241,11 +241,11 @@ function ripqp(
   end
 
   if iconf.presolve
-    postsolve!(QM0, QM, pt.x, QM0.meta.x0)
-    x = QM0.meta.x0
+    x = similar(QM0.meta.x0)
+    postsolve!(QM0, QM, pt.x, x)
     nrm = length(QM.xrm)
   else
-    x = pt.x
+    x = pt.x[1:(idi.nvar)]
     nrm = 0
   end
 
@@ -275,7 +275,7 @@ function ripqp(
   stats = GenericExecutionStats(
     status,
     QM,
-    solution = x[1:(idi.nvar)],
+    solution = x,
     objective = itd.minimize ? itd.pri_obj : -itd.pri_obj,
     dual_feas = res.rcNorm,
     primal_feas = res.rbNorm,
@@ -292,7 +292,25 @@ end
 function ripqp(LLS::LLSModel; iconf::InputConfig{Int} = InputConfig(), kwargs...)
   iconf.sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
   FLLS = FeasibilityFormNLS(LLS)
-  return ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); iconf = iconf, kwargs...)
+  stats = ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); iconf = iconf, kwargs...)
+  n = LLS.meta.nvar
+  x, r = stats.solution[1:n], stats.solution[(n + 1):end]
+  solver_sp = stats.solver_specific
+  solver_sp[:r] = r
+  return GenericExecutionStats(
+    stats.status,
+    LLS,
+    solution = x,
+    objective = stats.objective,
+    dual_feas = stats.dual_feas,
+    primal_feas = stats.primal_feas,
+    multipliers = stats.multipliers,
+    multipliers_L = stats.multipliers_L,
+    multipliers_U = stats.multipliers_U,
+    iter = stats.iter,
+    elapsed_time = stats.elapsed_time,
+    solver_specific = solver_sp,
+  )
 end
 
 end

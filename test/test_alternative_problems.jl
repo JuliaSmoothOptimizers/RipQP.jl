@@ -5,7 +5,7 @@
   b = rand(m)
   nls = LLSModel(A, b)
   statsnls = ripqp(nls, itol = InputTol(ϵ_rb = sqrt(eps()), ϵ_rc = sqrt(eps())), display = false)
-  x, r = statsnls.solution[1:n], statsnls.solution[(n + 1):end]
+  x, r = statsnls.solution, statsnls.solver_specific[:r]
   @test norm(x - A \ b) ≤ norm(b) * sqrt(eps())
   @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps())
 
@@ -17,7 +17,7 @@
   lvar, uvar = fill(-10.0, n), fill(200.0, n)
   nls = LLSModel(A, b, lvar = lvar, uvar = uvar, C = C, lcon = lcon, ucon = ucon)
   statsnls = ripqp(nls, display = false)
-  x, r = statsnls.solution[1:n], statsnls.solution[(n + 1):end]
+  x, r = statsnls.solution, statsnls.solver_specific[:r]
   @test length(r) == m
   @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps())
 end
