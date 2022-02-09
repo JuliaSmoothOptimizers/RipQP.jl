@@ -30,7 +30,7 @@ QM = QuadraticModel(c, SparseMatrixCOO(tril(Q)), A=SparseMatrixCOO(A), lcon=b, u
            hprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                jhess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jhprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
 </pre><p>Once your <code>QuadraticModel</code> is loaded, you can simply solve it RipQP:</p><pre><code class="language-julia">using RipQP
 stats = ripqp(QM)
-println(stats)</code></pre><pre class="documenter-example-output">[ Info:   iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ     nprod
+println(stats)</code></pre><pre class="documenter-example-output">[ Info:   iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ     kiter
 [ Info:      0   1.7e+01   2.3e+00   4.1e+00   5.5e+00   0.0e+00   0.0e+00   2.2e+01       0
 [ Info:      1   1.2e+00   1.7e+00   1.8e-01   2.9e-01   9.6e-01   1.0e+00   1.5e+00       0
 [ Info:      2   1.1e+00   1.4e-03   2.8e-04   2.7e-04   1.0e+00   1.0e+00   1.7e-03       0
@@ -46,7 +46,7 @@ Generic Execution stats
   multipliers_L: [8.771719091339614  2.0632315350708096e-9  11.52171909256757]
   multipliers_U: [0.0  0.0  0.0]
   iterations: 16
-  elapsed time: 10.861341953277588
+  elapsed time: 10.812469005584717
   solver specific:
     pdd: 1.361976675694038e-9
     absolute_iter_cnt: 4</pre><p>The <code>stats</code> output is a <a href="https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats">GenericExecutionStats</a>.</p><p>It is also possible to use the package <a href="https://github.com/JuliaSmoothOptimizers/QPSReader.jl">QPSReader.jl</a> in order to read convex quadratic problems in MPS or SIF formats:</p><pre><code class="language-julia">using QPSReader, QuadraticModels
@@ -118,4 +118,4 @@ end</code></pre><p>Finally, you need to write a <code>RipQP.solver!</code> funct
     return 0
 end</code></pre><p>Then, you can use your solver:</p><pre><code class="language-julia">using QuadraticModels, QPSReader
 qm = QuadraticModel(readqps(&quot;QAFIRO.SIF&quot;))
-stats1 = ripqp(qm, iconf = RipQP.InputConfig(sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6)))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 8 February 2022 15:24">Tuesday 8 February 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+stats1 = ripqp(qm, iconf = RipQP.InputConfig(sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6)))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 9 February 2022 20:57">Wednesday 9 February 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
