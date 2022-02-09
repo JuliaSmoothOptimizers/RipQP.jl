@@ -26,7 +26,6 @@ function starting_points!(
     δx_u1 = max(-T(1.5) * minimum(itd.uvar_m_x), T(1.e-2))
     δs_u1 = max(-T(1.5) * minimum(pt0.s_u), T(1.e-4))
   end
-
   # correct components that to not respect the bounds 
   itd.x_m_lvar .+= δx_l1
   itd.uvar_m_x .+= δx_u1
@@ -57,7 +56,8 @@ function starting_points!(
 
   # verify bounds 
   @assert all(pt0.x .> fd.lvar) && all(pt0.x .< fd.uvar)
-  @assert all(pt0.s_l .> zero(T)) && all(pt0.s_u .> zero(T))
+  id.nlow > 0 && @assert all(pt0.s_l .> zero(T))
+  id.nupp > 0 && @assert all(pt0.s_u .> zero(T))
 
   # update itd
   update_IterData!(itd, pt0, fd, id, false)

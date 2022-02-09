@@ -13,13 +13,17 @@ The outer constructor
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
-                   ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()))
+                   ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
+                   mem = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
 - `:cg`
+- `:cg_lanczos`
+- `:cr`
 - `:minres`
 - `:minres_qlp`
+- `:symmlq`
 
 """
 mutable struct K1KrylovParams <: NormalParams
@@ -34,6 +38,7 @@ mutable struct K1KrylovParams <: NormalParams
   δ0::Float64
   ρ_min::Float64
   δ_min::Float64
+  mem::Int
 end
 
 function K1KrylovParams(;
@@ -48,6 +53,7 @@ function K1KrylovParams(;
   δ0::T = sqrt(eps()) * 1e5,
   ρ_min::T = 1e3 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
+  mem::Int = 20,
 ) where {T <: Real}
   return K1KrylovParams(
     uplo,
@@ -61,6 +67,7 @@ function K1KrylovParams(;
     δ0,
     ρ_min,
     δ_min,
+    mem,
   )
 end
 
@@ -131,8 +138,7 @@ function PreallocatedData(
   )
 
   rhs = similar(fd.c, id.ncon)
-  kstring = string(sp.kmethod)
-  KS = eval(KSolver(sp.kmethod))(K, rhs)
+  KS = init_Ksolver(K, rhs, sp)
 
   return PreallocatedDataK1Krylov(
     D,
@@ -141,10 +147,10 @@ function PreallocatedData(
     δv,
     K, #K
     KS,
-    sp.atol0,
-    sp.rtol0,
-    sp.atol_min,
-    sp.rtol_min,
+    T(sp.atol0),
+    T(sp.rtol0),
+    T(sp.atol_min),
+    T(sp.rtol_min),
   )
 end
 

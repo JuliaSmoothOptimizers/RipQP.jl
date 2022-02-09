@@ -98,7 +98,7 @@ function ripqp(
   # display
   if display == true
     @info log_header(
-      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :nprod],
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :kiter],
       [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
       hdr_override = Dict(
         :k => "iter",
@@ -118,7 +118,7 @@ function ripqp(
         zero(T),
         zero(T),
         itd.μ,
-        get_nprod!(pad),
+        get_kiter(pad),
       ],
     )
   end
@@ -259,7 +259,7 @@ function ripqp(
       :rbNormH => res.rbNormH,
       :rcNormH => res.rcNormH,
       :pddH => res.pddH,
-      :nprodH => res.nprodH,
+      :nprodH => res.kiterH,
       :μH => res.μH,
       :min_bound_distH => res.min_bound_distH,
       :KresNormH => res.KresNormH,

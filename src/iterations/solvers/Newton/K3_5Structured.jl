@@ -269,9 +269,7 @@ function PreallocatedData(
 
   rhs1 = similar(fd.c, id.nvar)
   rhs2 = similar(fd.c, id.ncon + id.nlow + id.nupp)
-  kstring = string(sp.kmethod)
   if sp.kmethod == :gpmr
-    KS = eval(KSolver(sp.kmethod))(As', rhs1, sp.mem)
     # operator to model the square root of the inverse of Q
     QregF.d .= sqrt.(QregF.d)
     Qregop = LinearOperator(
@@ -306,8 +304,9 @@ function PreallocatedData(
       (res, v, α, β) ->
         opBRK3_5prod!(res, id.ncon, id.nlow, itd.x_m_lvar, itd.uvar_m_x, δv, v, α, β),
     )
-    KS = eval(KSolver(sp.kmethod))(As', rhs1)
   end
+
+  KS = init_Ksolver(As', rhs1, sp)
 
   return PreallocatedDataK3_5Structured(
     rhs1,
@@ -320,10 +319,10 @@ function PreallocatedData(
     Qregop,
     opBR,
     KS,
-    sp.atol0,
-    sp.rtol0,
-    sp.atol_min,
-    sp.rtol_min,
+    T(sp.atol0),
+    T(sp.rtol0),
+    T(sp.atol_min),
+    T(sp.rtol_min),
   )
 end
 

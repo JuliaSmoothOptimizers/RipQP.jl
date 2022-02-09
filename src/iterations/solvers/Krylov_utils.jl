@@ -3,16 +3,32 @@ function KSolver(s::Symbol)
     return :MinresSolver
   elseif s == :minres_qlp
     return :MinresQlpSolver
+  elseif s == :symmlq
+    return :SymmlqSolver
   elseif s == :cg
     return :CgSolver
+  elseif s == :cg_lanczos
+    return :CgLanczosSolver
+  elseif s == :cr
+    return :CrSolver
+  elseif s == :bilq
+    return :BilqSolver
   elseif s == :qmr
     return :QmrSolver
+  elseif s == :usymlq
+    return :UsymlqSolver
   elseif s == :usymqr
     return :UsymqrSolver
   elseif s == :bicgstab
     return :BicgstabSolver
+  elseif s == :diom
+    return :DiomSolver
+  elseif s == :fom
+    return :FomSolver
   elseif s == :dqgmres
     return :DqgmresSolver
+  elseif s == :gmres
+    return :GmresSolver
   elseif s == :tricg
     return :TricgSolver
   elseif s == :trimr
@@ -20,6 +36,14 @@ function KSolver(s::Symbol)
   elseif s == :gpmr
     return :GpmrSolver
   end
+end
+
+function init_Ksolver(M, v, sp::SolverParams)
+  kmethod = sp.kmethod
+  if kmethod ∈ [:gpmr, :diom, :fom, :gmres, :dqgmres]
+    return eval(KSolver(kmethod))(M, v, sp.mem)
+  end
+  return eval(KSolver(kmethod))(M, v)
 end
 
 ksolve!(
@@ -53,6 +77,16 @@ ksolve!(
 ) where {T, S} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
+  KS::SymmlqSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = symmlq!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
   KS::CgSolver{T, S},
   K,
   rhs::AbstractVector{T},
@@ -63,6 +97,36 @@ ksolve!(
 ) where {T, S} = cg!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
+  KS::CgLanczosSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::CrSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = cr!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::BilqSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = bilq!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
   KS::QmrSolver{T, S},
   K,
   rhs::AbstractVector{T},
@@ -71,6 +135,16 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} = qmr!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::UsymlqSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = usymlq!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
   KS::UsymqrSolver{T, S},
@@ -93,6 +167,26 @@ ksolve!(
 ) where {T, S} = bicgstab!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
+  KS::DiomSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = diom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::FomSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = fom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
   KS::DqgmresSolver{T, S},
   K,
   rhs::AbstractVector{T},
@@ -101,6 +195,16 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
 ) where {T, S} = dqgmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
+  KS::GmresSolver{T, S},
+  K,
+  rhs::AbstractVector{T},
+  M;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S} = gmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
   KS::TricgSolver{T, S},

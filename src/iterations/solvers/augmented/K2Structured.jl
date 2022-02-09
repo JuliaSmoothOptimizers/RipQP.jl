@@ -60,8 +60,6 @@ mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} 
   rtol_min::T
 end
 
-get_nprod!(pad::PreallocatedDataK2Structured) = 0
-
 function PreallocatedData(
   sp::K2StructuredParams,
   fd::QM_FloatData{T},
@@ -95,11 +93,8 @@ function PreallocatedData(
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  if sp.kmethod == :gpmr
-    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b, sp.mem)
-  else
-    KS = eval(KSolver(sp.kmethod))(fd.A', fd.b)
-  end
+  
+  KS = init_Ksolver(fd.A', fd.b, sp)
 
   return PreallocatedDataK2Structured(
     E,
@@ -108,10 +103,10 @@ function PreallocatedData(
     ξ2,
     regu,
     KS,
-    sp.atol0,
-    sp.rtol0,
-    sp.atol_min,
-    sp.rtol_min,
+    T(sp.atol0),
+    T(sp.rtol0),
+    T(sp.atol_min),
+    T(sp.rtol_min),
   )
 end
 

@@ -237,7 +237,7 @@ function iter!(
           α_pri,
           α_dual,
           itd.μ,
-          get_nprod!(pad),
+          get_kiter(pad),
         ],
       )
     end
