@@ -115,7 +115,7 @@ function PreallocatedData(
   sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  
+
   KS = init_Ksolver(fd.A', fd.b, sp)
 
   AsqrtX1X2 = LinearOperator(
