@@ -93,7 +93,7 @@ function PreallocatedData(
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  
+
   KS = init_Ksolver(fd.A', fd.b, sp)
 
   return PreallocatedDataK2Structured(

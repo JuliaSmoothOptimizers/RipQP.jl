@@ -186,7 +186,7 @@ function PreallocatedData(
   )
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
-  
+
   KS = init_Ksolver(K, rhs, sp)
 
   return PreallocatedDataK3_5Krylov(
