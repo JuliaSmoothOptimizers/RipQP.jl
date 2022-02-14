@@ -35,6 +35,10 @@ function KSolver(s::Symbol)
     return :TrimrSolver
   elseif s == :gpmr
     return :GpmrSolver
+  elseif s == :lsqr
+    return :LsqrSolver
+  elseif s == :lsmr
+    return :LsmrSolver
   end
 end
 
@@ -302,6 +306,54 @@ function ksolve!(
     verbose = verbose,
     atol = atol,
     rtol = rtol,
+  )
+end
+
+function ksolve!(
+  KS::LsqrSolver{T, S},
+  A,
+  ξ1::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lsqr!(
+    KS,
+    A,
+    ξ1,
+    M = M,
+    N = one(T)/δ * I,
+    # λ = sqrt(δ),
+    verbose = verbose,
+    axtol = atol,
+    btol = rtol,
+    sqd = true,
+  )
+end
+
+function ksolve!(
+  KS::LsmrSolver{T, S},
+  A,
+  ξ1::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lsmr!(
+    KS,
+    A,
+    ξ1,
+    M = M,
+    # N = one(T)/δ * I,
+    λ = sqrt(δ),
+    verbose = verbose,
+    axtol = atol,
+    btol = rtol,
+    sqd = false,
   )
 end
 
