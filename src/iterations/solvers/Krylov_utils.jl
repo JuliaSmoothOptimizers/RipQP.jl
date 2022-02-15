@@ -386,8 +386,8 @@ function ksolve!(
     A,
     ξ1,
     M = M,
-    # N = one(T)/δ * I,
-    λ = sqrt(δ),
+    N = one(T)/δ * I,
+    # λ = sqrt(δ),
     verbose = verbose,
     axtol = zero(T), # atol,
     btol = zero(T), # rtol,
@@ -395,7 +395,7 @@ function ksolve!(
     rtol = rtol,
     etol = zero(T),
     conlim = T(Inf),
-    sqd = false,
+    sqd = true,
   )
 end
 
