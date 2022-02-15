@@ -1,24 +1,24 @@
-export K1_1StructuredParams
+export K1_2StructuredParams
 
 """
-Type to use the K1.1 formulation with a structured Krylov method, using the package 
+Type to use the K1.2 formulation with a structured Krylov method, using the package 
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl).
 This only works for solving Linear Problems.
 The outer constructor 
 
-    K1_1StructuredParams(; uplo = :L, kmethod = :lsqr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+    K1_2StructuredParams(; uplo = :L, kmethod = :craig, atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10, 
                          ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
                          mem = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
-- `:cgls`
-- `:lsqr`
-- `:lsmr`
+- `:lnlq`
+- `:craig`
+- `:craigmr`
 
 """
-mutable struct K1_1StructuredParams <: NormalParams
+mutable struct K1_2StructuredParams <: NormalParams
   uplo::Symbol
   kmethod::Symbol
   atol0::Float64
@@ -30,9 +30,9 @@ mutable struct K1_1StructuredParams <: NormalParams
   mem::Int
 end
 
-function K1_1StructuredParams(;
+function K1_2StructuredParams(;
   uplo::Symbol = :L,
-  kmethod::Symbol = :lsqr,
+  kmethod::Symbol = :craig,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -41,17 +41,17 @@ function K1_1StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K1_1StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K1_2StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
 end
 
-mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK1_2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
                PreallocatedDataNormalStructured{T, S}
   E::S  # temporary top-left diagonal
   invE::S
   ξ1::S
   ξ2::S # todel
-  Δy0::S 
-  ξ12::S # todel
+  Δx0::S 
+  ξ22::S # todel
   regu::Regularization{T}
   KS::Ksol
   atol::T
@@ -61,7 +61,7 @@ mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver
 end
 
 function PreallocatedData(
-  sp::K1_1StructuredParams,
+  sp::K1_2StructuredParams,
   fd::QM_FloatData{T},
   id::QM_IntData,
   itd::IterData{T},
@@ -95,18 +95,18 @@ function PreallocatedData(
 
   ξ1 = similar(fd.c, id.nvar)
   ξ2 = similar(fd.c, id.ncon)
-  Δy0 = similar(fd.c, id.ncon)
-  ξ12 = similar(fd.c, id.nvar)
+  Δx0 = similar(fd.c, id.nvar)
+  ξ22 = similar(fd.c, id.ncon)
 
-  KS = init_Ksolver(fd.uplo == :U ? fd.A : fd.A', ξ12, sp)
+  KS = init_Ksolver(fd.uplo == :U ? fd.A' : fd.A, ξ22, sp)
 
-  return PreallocatedDataK1_1Structured(
+  return PreallocatedDataK1_2Structured(
     E,
     invE,
     ξ1,
     ξ2,
-    Δy0,
-    ξ12,
+    Δx0,
+    ξ22,
     regu,
     KS,
     T(sp.atol0),
@@ -118,7 +118,7 @@ end
 
 function solver!(
   dd::AbstractVector{T},
-  pad::PreallocatedDataK1_1Structured{T},
+  pad::PreallocatedDataK1_2Structured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},
@@ -129,50 +129,42 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
+
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)]
   pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
          dd[(id.nvar + 1):end]
 
-  if pad.regu.δ == zero(T)
-    pad.Δy0 .= zero(T)
-  else
-    pad.Δy0 .= .- pad.ξ2 ./ pad.regu.δ
-  end
+  pad.Δx0 .= pad.ξ1 ./ pad.E
   if fd.uplo == :U
-    mul!(pad.ξ12, fd.A, pad.Δy0)
+    mul!(pad.ξ22, fd.A', pad.Δx0)
   else
-    mul!(pad.ξ12, fd.A', pad.Δy0)
+    mul!(pad.ξ22, fd.A, pad.Δx0)
   end
-  pad.ξ12 .+= pad.ξ1
+  pad.ξ22 .+= pad.ξ2
 
   # rhsNorm = kscale!(pad.rhs)
   # pad.K.nprod = 0
   ksolve!(
     pad.KS,
-    fd.uplo == :U ? fd.A : fd.A',
-    pad.ξ12,
+    fd.uplo == :U ? fd.A' : fd.A,
+    pad.ξ22,
     Diagonal(pad.invE),
     pad.regu.δ,
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
   )
-  dd[(id.nvar + 1):end] .= pad.KS.x .- pad.Δy0
-  if fd.uplo == :U
-    @views mul!(pad.ξ1, fd.A, dd[(id.nvar + 1):end], one(T), -one(T))
-  else
-    @views mul!(pad.ξ1, fd.A', dd[(id.nvar + 1):end], one(T), -one(T))
-  end
-  dd[1:(id.nvar)] .= pad.ξ1 ./ pad.E
+  dd[(id.nvar + 1):end] .= pad.KS.y
+  dd[1:(id.nvar)] .= pad.KS.x .- pad.Δx0
   update_kresiduals_history_K1struct!(
     res,
     fd.uplo == :U ? fd.A' : fd.A,
     pad.E,
     pad.invE, # tmp storage vector
     pad.regu.δ,
-    pad.KS.x,
-    pad.ξ12,
-    :K1_1,
+    pad.KS.y,
+    pad.ξ22,
+    :K1_2,
   )
   # kunscale!(pad.KS.x, rhsNorm)
 
@@ -180,7 +172,7 @@ function solver!(
 end
 
 function update_pad!(
-  pad::PreallocatedDataK1_1Structured{T},
+  pad::PreallocatedDataK1_2Structured{T},
   dda::DescentDirectionAllocs{T},
   pt::Point{T},
   itd::IterData{T},

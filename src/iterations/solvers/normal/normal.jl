@@ -9,3 +9,4 @@ include("K1Krylov.jl")
 abstract type PreallocatedDataNormalStructured{T <: Real, S} <: PreallocatedDataNormal{T, S} end
 
 include("K1_1Structured.jl")
+include("K1_2Structured.jl")

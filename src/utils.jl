@@ -30,7 +30,7 @@ function push_history_residuals!(
     push!(res.KresNormH, norm(res.Kres))
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
-  elseif pad_type <: PreallocatedDataNormalKrylov
+  elseif pad_type <: PreallocatedDataNormalKrylov || pad_type <: PreallocatedDataNormalStructured
     push!(res.kiterH, niterations(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
   end
@@ -44,7 +44,8 @@ function get_kiter(pad::PreallocatedData)
       padT <: PreallocatedDataNewtonStructured ||
       padT <: PreallocatedDataAugmentedKrylov ||
       padT <: PreallocatedDataAugmentedStructured ||
-      padT <: PreallocatedDataNormalKrylov
+      padT <: PreallocatedDataNormalKrylov ||
+      padT <: PreallocatedDataNormalStructured
     ) ? niterations(pad.KS) : zero(Int)
   return nprod
 end
