@@ -35,7 +35,7 @@ function KSolver(s::Symbol)
     return :TrimrSolver
   elseif s == :gpmr
     return :GpmrSolver
-  elseif s == :cgls
+  elseif s == :lslq
     return :LslqSolver
   elseif s == :lsqr
     return :LsqrSolver
