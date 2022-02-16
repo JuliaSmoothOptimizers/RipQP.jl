@@ -332,14 +332,14 @@ function ksolve!(
     A,
     ξ1,
     M = M,
-    N = (one(T) / δ) * I,
-    # λ = sqrt(δ),
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
     verbose = verbose,
     atol = atol,
     btol = rtol,
     etol = zero(T),
+    utol = zero(T),
     conlim = T(Inf),
-    sqd = true,
+    sqd = δ > zero(T),
   )
 end
 
@@ -358,16 +358,15 @@ function ksolve!(
     A,
     ξ1,
     M = M,
-    N = one(T)/δ * I,
-    # λ = sqrt(δ),
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
     verbose = verbose,
     axtol = atol,
     btol = rtol,
     # atol = atol,
     # rtol = rtol,
-    # etol = zero(T),
+    etol = zero(T),
     conlim = T(Inf),
-    sqd = true,
+    sqd = δ > zero(T),
   )
 end
 
@@ -386,8 +385,7 @@ function ksolve!(
     A,
     ξ1,
     M = M,
-    N = one(T)/δ * I,
-    # λ = sqrt(δ),
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
     verbose = verbose,
     axtol = zero(T), # atol,
     btol = zero(T), # rtol,
@@ -395,7 +393,7 @@ function ksolve!(
     rtol = rtol,
     etol = zero(T),
     conlim = T(Inf),
-    sqd = true,
+    sqd = δ > zero(T),
   )
 end
 
@@ -414,12 +412,11 @@ function ksolve!(
     A,
     ξ2,
     N = M,
-    M = one(T)/δ * I,
-    # λ = sqrt(δ),
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
     verbose = verbose,
     atol = atol,
     rtol = rtol,
-    sqd = true,
+    sqd = δ > zero(T),
   )
 end
 
@@ -438,14 +435,14 @@ function ksolve!(
     A,
     ξ2,
     N = M,
-    M = one(T)/δ * I,
-    # λ = sqrt(δ),
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
+    λ = δ > zero(T) ? one(T) : zero(T),
     verbose = verbose,
     atol = atol,
     rtol = rtol,
     btol = zero(T),
     conlim = T(Inf),
-    sqd = true,
+    sqd = δ > zero(T),
   )
 end
 
@@ -464,8 +461,7 @@ function ksolve!(
     A,
     ξ2,
     N = M,
-    M = one(T)/δ * I,
-    # λ = sqrt(δ),
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
     verbose = verbose,
     atol = atol,
     rtol = rtol,
