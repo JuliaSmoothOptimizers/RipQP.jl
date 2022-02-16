@@ -50,7 +50,7 @@ mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver
   invE::S
   ξ1::S
   ξ2::S # todel
-  Δy0::S 
+  Δy0::S
   ξ12::S # todel
   regu::Regularization{T}
   KS::Ksol
@@ -68,9 +68,8 @@ function PreallocatedData(
   pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
-
   @assert iconf.solve_method == :IPF
-  
+
   # init Regularization values
   E = similar(fd.c, id.nvar)
   if iconf.mode == :mono
@@ -136,7 +135,7 @@ function solver!(
   if pad.regu.δ == zero(T)
     pad.Δy0 .= zero(T)
   else
-    pad.Δy0 .= .- pad.ξ2 ./ pad.regu.δ
+    pad.Δy0 .= .-pad.ξ2 ./ pad.regu.δ
   end
   if fd.uplo == :U
     mul!(pad.ξ12, fd.A, pad.Δy0)

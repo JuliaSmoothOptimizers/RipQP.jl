@@ -512,7 +512,7 @@ function update_kresiduals_history_K1struct!(
     if formul == :K1_1
       mul!(res.Kres, A, rhs ./ E, -one(T), zero(T))
     elseif formul == :K1_2
-      res.Kres .= .- rhs
+      res.Kres .= .-rhs
     end
     res.Kres .+= res.KΔxy .+ δ .* sol # residual computation
   end
