@@ -35,6 +35,18 @@ function KSolver(s::Symbol)
     return :TrimrSolver
   elseif s == :gpmr
     return :GpmrSolver
+  elseif s == :lslq
+    return :LslqSolver
+  elseif s == :lsqr
+    return :LsqrSolver
+  elseif s == :lsmr
+    return :LsmrSolver
+  elseif s == :lnlq
+    return :LnlqSolver
+  elseif s == :craig
+    return :CraigSolver
+  elseif s == :craigmr
+    return :CraigmrSolver
   end
 end
 
@@ -305,6 +317,158 @@ function ksolve!(
   )
 end
 
+function ksolve!(
+  KS::LslqSolver{T, S},
+  A,
+  ξ1::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lslq!(
+    KS,
+    A,
+    ξ1,
+    M = M,
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
+    verbose = verbose,
+    atol = atol,
+    btol = rtol,
+    etol = zero(T),
+    utol = zero(T),
+    conlim = T(Inf),
+    sqd = δ > zero(T),
+  )
+end
+
+function ksolve!(
+  KS::LsqrSolver{T, S},
+  A,
+  ξ1::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lsqr!(
+    KS,
+    A,
+    ξ1,
+    M = M,
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
+    verbose = verbose,
+    axtol = atol,
+    btol = rtol,
+    # atol = atol,
+    # rtol = rtol,
+    etol = zero(T),
+    conlim = T(Inf),
+    sqd = δ > zero(T),
+  )
+end
+
+function ksolve!(
+  KS::LsmrSolver{T, S},
+  A,
+  ξ1::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lsmr!(
+    KS,
+    A,
+    ξ1,
+    M = M,
+    N = δ > zero(T) ? (one(T) / δ) * I : I,
+    verbose = verbose,
+    axtol = zero(T), # atol,
+    btol = zero(T), # rtol,
+    atol = atol,
+    rtol = rtol,
+    etol = zero(T),
+    conlim = T(Inf),
+    sqd = δ > zero(T),
+  )
+end
+
+function ksolve!(
+  KS::LnlqSolver{T, S},
+  A,
+  ξ2::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return lnlq!(
+    KS,
+    A,
+    ξ2,
+    N = M,
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+    sqd = δ > zero(T),
+  )
+end
+
+function ksolve!(
+  KS::CraigSolver{T, S},
+  A,
+  ξ2::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return craig!(
+    KS,
+    A,
+    ξ2,
+    N = M,
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
+    λ = δ > zero(T) ? one(T) : zero(T),
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+    btol = zero(T),
+    conlim = T(Inf),
+    sqd = δ > zero(T),
+  )
+end
+
+function ksolve!(
+  KS::CraigmrSolver{T, S},
+  A,
+  ξ2::S,
+  M,
+  δ::T;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T, S}
+  return craigmr!(
+    KS,
+    A,
+    ξ2,
+    N = M,
+    M = δ > zero(T) ? (one(T) / δ) * I : I,
+    verbose = verbose,
+    atol = atol,
+    rtol = rtol,
+    sqd = true,
+  )
+end
+
 function kscale!(rhs::AbstractVector{T}) where {T <: Real}
   rhsNorm = norm(rhs)
   if rhsNorm != zero(T)
@@ -327,6 +491,29 @@ function update_kresiduals_history!(
 ) where {T <: Real}
   if typeof(res) <: ResidualsHistory
     mul!(res.KΔxy, K, sol) # krylov residuals
-    res.Kres = res.KΔxy .- rhs
+    res.Kres .= res.KΔxy .- rhs
+  end
+end
+
+function update_kresiduals_history_K1struct!(
+  res::AbstractResiduals{T},
+  A,
+  E,
+  tmp,
+  δ,
+  sol::AbstractVector{T},
+  rhs::AbstractVector{T},
+  formul::Symbol,
+) where {T <: Real}
+  if typeof(res) <: ResidualsHistory
+    mul!(tmp, A', sol)
+    tmp ./= E
+    @views mul!(res.KΔxy, A, tmp)
+    if formul == :K1_1
+      mul!(res.Kres, A, rhs ./ E, -one(T), zero(T))
+    elseif formul == :K1_2
+      res.Kres .= .- rhs
+    end
+    res.Kres .+= res.KΔxy .+ δ .* sol # residual computation
   end
 end
