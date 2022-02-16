@@ -25,7 +25,7 @@
 end
 
 @testset "Krylov K1.1 Structured" begin
-  for kmethod in [:cgls, :lsqr, :lsmr]
+  for kmethod in [:cgls, :lsqr]
     stats4 = ripqp(
       QuadraticModel(qps4),
       display = false,
