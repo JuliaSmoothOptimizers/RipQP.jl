@@ -19,10 +19,7 @@ mutable struct K1CholDenseParams <: NormalParams
   δ0::Float64
 end
 
-function K1CholDenseParams(;
-  ρ0::Float64 = sqrt(eps()) * 1e5,
-  δ0::Float64 = sqrt(eps()) * 1e5,
-)
+function K1CholDenseParams(; ρ0::Float64 = sqrt(eps()) * 1e5, δ0::Float64 = sqrt(eps()) * 1e5)
   uplo = :L # mandatory for LDL fact
   return K1CholDenseParams(uplo, ρ0, δ0)
 end

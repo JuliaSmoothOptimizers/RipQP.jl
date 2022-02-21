@@ -90,7 +90,13 @@ end
   stats4 = ripqp(
     qm_dense4,
     display = false,
-    iconf = InputConfig(sp = K1CholDenseParams(), solve_method = :PC, presolve = false, scaling = false, history = false),
+    iconf = InputConfig(
+      sp = K1CholDenseParams(),
+      solve_method = :PC,
+      presolve = false,
+      scaling = false,
+      history = false,
+    ),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
 
