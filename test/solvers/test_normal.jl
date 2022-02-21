@@ -75,3 +75,25 @@ end
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :acceptable
 end
+
+@testset "Krylov K1 Dense" begin
+  sm_dense4 = SlackModel(QuadraticModel(qps4))
+  qm_dense4 = QuadraticModel(
+    sm_dense4.data.c,
+    Matrix(sm_dense4.data.H),
+    A = Matrix(sm_dense4.data.A),
+    lcon = sm_dense4.meta.lcon,
+    ucon = sm_dense4.meta.ucon,
+    lvar = sm_dense4.meta.lvar,
+    uvar = sm_dense4.meta.uvar,
+  )
+  stats4 = ripqp(
+    qm_dense4,
+    display = false,
+    iconf = InputConfig(sp = K1CholDenseParams(), solve_method = :PC, presolve = false, scaling = false, history = false),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+  )
+
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
+  @test stats4.status == :acceptable
+end
