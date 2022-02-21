@@ -1,4 +1,4 @@
-using RipQP, LinearOperators, LLSModels, QPSReader, QuadraticModels, Quadmath
+using RipQP, LinearOperators, LLSModels, NLPModelsModifiers, QPSReader, QuadraticModels, Quadmath
 using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, Test
 
 qps1 = readqps("QAFIRO.SIF") #lower bounds

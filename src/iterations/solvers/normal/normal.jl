@@ -2,6 +2,10 @@ abstract type NormalParams <: SolverParams end
 
 abstract type PreallocatedDataNormal{T <: Real, S} <: PreallocatedData{T, S} end
 
+abstract type PreallocatedDataNormalChol{T <: Real, S} <: PreallocatedDataNormal{T, S} end
+
+include("K1CholDense.jl")
+
 abstract type PreallocatedDataNormalKrylov{T <: Real, S} <: PreallocatedDataNormal{T, S} end
 
 include("K1Krylov.jl")
