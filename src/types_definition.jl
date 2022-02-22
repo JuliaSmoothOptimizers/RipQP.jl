@@ -300,10 +300,10 @@ mutable struct Point{T <: Real, S}
 end
 
 convert(::Type{Point{T, S}}, pt) where {T <: Real, S} = Point(
-  convert(S.name.wrapper{T, 1}, pt.x),
-  convert(S.name.wrapper{T, 1}, pt.y),
-  convert(S.name.wrapper{T, 1}, pt.s_l),
-  convert(S.name.wrapper{T, 1}, pt.s_u),
+  convert(S, pt.x),
+  convert(S, pt.y),
+  convert(S, pt.s_l),
+  convert(S, pt.s_u),
 )
 
 abstract type AbstractResiduals{T <: Real, S} end
@@ -315,9 +315,9 @@ mutable struct Residuals{T <: Real, S} <: AbstractResiduals{T, S}
   rcNorm::T # ||rc||
 end
 
-convert(::Type{AbstractResiduals{T, S}}, res::Residuals) where {T <: Real, S} = Residuals(
-  convert(S.name.wrapper{T, 1}, res.rb),
-  convert(S.name.wrapper{T, 1}, res.rc),
+convert(::Type{AbstractResiduals{T, S}}, res::Residuals) where {T <: Real, S <: AbstractVector{T}} = Residuals(
+  convert(S, res.rb),
+  convert(S, res.rc),
   convert(T, res.rbNorm),
   convert(T, res.rcNorm),
 )
@@ -340,10 +340,10 @@ mutable struct ResidualsHistory{T <: Real, S} <: AbstractResiduals{T, S}
   KresDNormH::Vector{T}
 end
 
-convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S} =
+convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real, S <: AbstractVector{T}} =
   ResidualsHistory(
-    convert(S.name.wrapper{T, 1}, res.rb),
-    convert(S.name.wrapper{T, 1}, res.rc),
+    convert(S, res.rb),
+    convert(S, res.rc),
     convert(T, res.rbNorm),
     convert(T, res.rcNorm),
     convert(Array{T, 1}, res.rbNormH),
@@ -352,8 +352,8 @@ convert(::Type{AbstractResiduals{T, S}}, res::ResidualsHistory) where {T <: Real
     res.kiterH,
     convert(Array{T, 1}, res.μH),
     convert(Array{T, 1}, res.min_bound_distH),
-    convert(S.name.wrapper{T, 1}, res.KΔxy),
-    convert(S.name.wrapper{T, 1}, res.Kres),
+    convert(S, res.KΔxy),
+    convert(S, res.Kres),
     convert(Array{T, 1}, res.KresNormH),
     convert(Array{T, 1}, res.KresPNormH),
     convert(Array{T, 1}, res.KresDNormH),
@@ -591,16 +591,16 @@ function IterData(
   end
 end
 
-convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S, T0 <: Real, S0} =
+convert(::Type{IterData{T, S}}, itd::IterData{T0, S0}) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} =
   IterData(
-    convert(S.name.wrapper{T, 1}, itd.Δxy),
-    convert(S.name.wrapper{T, 1}, itd.Δs_l),
-    convert(S.name.wrapper{T, 1}, itd.Δs_u),
-    convert(S.name.wrapper{T, 1}, itd.x_m_lvar),
-    convert(S.name.wrapper{T, 1}, itd.uvar_m_x),
-    convert(S.name.wrapper{T, 1}, itd.Qx),
-    convert(S.name.wrapper{T, 1}, itd.ATy),
-    convert(S.name.wrapper{T, 1}, itd.Ax),
+    convert(S, itd.Δxy),
+    convert(S, itd.Δs_l),
+    convert(S, itd.Δs_u),
+    convert(S, itd.x_m_lvar),
+    convert(S, itd.uvar_m_x),
+    convert(S, itd.Qx),
+    convert(S, itd.ATy),
+    convert(S, itd.Ax),
     convert(T, itd.xTQx_2),
     convert(T, itd.cTx),
     convert(T, itd.pri_obj),
@@ -627,11 +627,11 @@ mutable struct StartingPointData{T <: Real, S}
   s0_u1::S
 end
 
-convert(::Type{StartingPointData{T, S}}, spd::StartingPointData{T0, S0}) where {T, S, T0, S0} =
+convert(::Type{StartingPointData{T, S}}, spd::StartingPointData{T0, S0}) where {T, S <: AbstractVector{T}, T0, S0} =
   StartingPointData{T, S}(
-    convert(S.name.wrapper{T, 1}, spd.dual_val),
-    convert(S.name.wrapper{T, 1}, spd.s0_l1),
-    convert(S.name.wrapper{T, 1}, spd.s0_u1),
+    convert(S, spd.dual_val),
+    convert(S, spd.s0_l1),
+    convert(S, spd.s0_u1),
   )
 
 abstract type PreallocatedData{T <: Real, S} end
