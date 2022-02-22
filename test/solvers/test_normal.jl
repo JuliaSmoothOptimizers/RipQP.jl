@@ -100,6 +100,23 @@ end
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
 
-  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
+
+  stats4 = ripqp(
+    qm_dense4,
+    display = true,
+    iconf = InputConfig(
+      sp = K1CholDenseParams(),
+      solve_method = :PC,
+      mode = :multi,
+      presolve = false,
+      scaling = false,
+      history = false,
+    ),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+  )
+
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :acceptable
 end

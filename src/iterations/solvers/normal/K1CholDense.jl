@@ -36,6 +36,33 @@ mutable struct PreallocatedDataK1CholDense{T <: Real, S, M <: AbstractMatrix{T}}
   tmpldiv::S
 end
 
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK1CholDense{T0, S0, M0},
+  T02::DataType,
+) where {T <: Real, T0 <: Real, S0, M0} 
+ 
+  S = change_vector_eltype(S0, T)
+  pad = PreallocatedDataK1CholDense(
+    convert(S, pad.D),
+    Diagonal(convert(S, pad.invD.diag)),
+    convert_mat(pad.AinvD, T),
+    convert(S, pad.rhs),
+    convert(Regularization{T}, pad.regu),
+    convert_mat(pad.K, T),
+    pad.diagindK,
+    convert(S, pad.tmpldiv),
+  )
+
+  if T == Float64 && T0 == Float64
+    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e0), T(sqrt(eps()) * 1e0)
+  else
+    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
+  end
+
+  return pad
+end
+
 # outer constructor
 function PreallocatedData(
   sp::K1CholDenseParams,

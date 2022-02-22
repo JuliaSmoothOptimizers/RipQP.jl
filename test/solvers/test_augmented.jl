@@ -46,7 +46,7 @@ end
         ),
         itol = InputTol(
           max_iter = 50,
-          max_time = 20.0,
+          max_time = 40.0,
           ϵ_rc = 1.0e-2,
           ϵ_rb = 1.0e-2,
           ϵ_pdd = 1.0e-2,
@@ -63,7 +63,7 @@ end
         ),
         itol = InputTol(
           max_iter = 50,
-          max_time = 20.0,
+          max_time = 40.0,
           ϵ_rc = 1.0e-2,
           ϵ_rb = 1.0e-2,
           ϵ_pdd = 1.0e-2,

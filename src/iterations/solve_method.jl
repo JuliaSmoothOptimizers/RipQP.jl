@@ -51,16 +51,16 @@ DescentDirectionAllocsPC(id::QM_IntData, S::DataType) where {T <: Real} = Descen
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsPC{T0, S0},
-) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsPC(
-  convert(S.name.wrapper{T, 1}, dda.Δxy_aff),
-  convert(S.name.wrapper{T, 1}, dda.Δs_l_aff),
-  convert(S.name.wrapper{T, 1}, dda.Δs_u_aff),
-  convert(S.name.wrapper{T, 1}, dda.x_m_l_αΔ_aff),
-  convert(S.name.wrapper{T, 1}, dda.u_m_x_αΔ_aff),
-  convert(S.name.wrapper{T, 1}, dda.s_l_αΔ_aff),
-  convert(S.name.wrapper{T, 1}, dda.s_u_αΔ_aff),
-  convert(S.name.wrapper{T, 1}, dda.rxs_l),
-  convert(S.name.wrapper{T, 1}, dda.rxs_u),
+) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} = DescentDirectionAllocsPC(
+  convert(S, dda.Δxy_aff),
+  convert(S, dda.Δs_l_aff),
+  convert(S, dda.Δs_u_aff),
+  convert(S, dda.x_m_l_αΔ_aff),
+  convert(S, dda.u_m_x_αΔ_aff),
+  convert(S, dda.s_l_αΔ_aff),
+  convert(S, dda.s_u_αΔ_aff),
+  convert(S, dda.rxs_l),
+  convert(S, dda.rxs_u),
 )
 
 function update_pt_aff!(
@@ -217,9 +217,9 @@ DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) =
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
-) where {T <: Real, S, T0 <: Real, S0} = DescentDirectionAllocsIPF(
-  convert(S.name.wrapper{T, 1}, dda.compl_l),
-  convert(S.name.wrapper{T, 1}, dda.compl_u),
+) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} = DescentDirectionAllocsIPF(
+  convert(S, dda.compl_l),
+  convert(S, dda.compl_u),
 )
 
 function update_dd!(
