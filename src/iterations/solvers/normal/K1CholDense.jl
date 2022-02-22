@@ -40,8 +40,7 @@ function convertpad(
   ::Type{<:PreallocatedData{T}},
   pad::PreallocatedDataK1CholDense{T0, S0, M0},
   T02::DataType,
-) where {T <: Real, T0 <: Real, S0, M0} 
- 
+) where {T <: Real, T0 <: Real, S0, M0}
   S = change_vector_eltype(S0, T)
   pad = PreallocatedDataK1CholDense(
     convert(S, pad.D),

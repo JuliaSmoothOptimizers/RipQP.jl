@@ -217,10 +217,8 @@ DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) =
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
-) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} = DescentDirectionAllocsIPF(
-  convert(S, dda.compl_l),
-  convert(S, dda.compl_u),
-)
+) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} =
+  DescentDirectionAllocsIPF(convert(S, dda.compl_l), convert(S, dda.compl_u))
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},

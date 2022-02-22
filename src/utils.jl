@@ -1,6 +1,7 @@
 change_vector_eltype(S0::Type{<:Vector}, T) = S0.name.wrapper{T, 1}
 
-convert_mat(M::Union{SparseMatrixCOO, SparseMatrixCSC}, T) = convert(typeof(M).name.wrapper{T, Int}, M)
+convert_mat(M::Union{SparseMatrixCOO, SparseMatrixCSC}, T) =
+  convert(typeof(M).name.wrapper{T, Int}, M)
 convert_mat(M::Matrix, T) = convert(Matrix{T}, M)
 
 function push_history_residuals!(
