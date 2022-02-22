@@ -3,17 +3,17 @@ using .CUDA
 change_vector_eltype(S0::Type{<:CUDA.CuVector}, T) = S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
 
 convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSC, T) = CUDA.CUSPARSE.CuSparseMatrixCSC(
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colPtr),
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowVal),
-    convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
-    M.dims,
-  )
+  convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colPtr),
+  convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowVal),
+  convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
+  M.dims,
+)
 convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSR, T) = CUDA.CUSPARSE.CuSparseMatrixCSR(
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowPtr),
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colVal),
-    convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
-    M.dims,
-  )
+  convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowPtr),
+  convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colVal),
+  convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
+  M.dims,
+)
 convert_mat(M::CUDA.CuMatrix, T) = convert(typeof(M).name.wrapper{T, 2, CUDA.Mem.DeviceBuffer}, M)
 
 function sparse_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
