@@ -26,11 +26,11 @@ function get_norm_rc!(v, A, ax)
   v .= zero(T)
   if ax == :row
     # v .= return_one_if_zero.(sqrt.(maximum(abs, A, dims=1)))
-    maximum!(v, abs.(A))
+    maximum!(abs, v, A)
     v .= return_one_if_zero.(sqrt.(v))
   elseif ax == :col
     # v .= return_one_if_zero.(sqrt.(maximum(abs, A, dims=2)))
-    maximum!(v', abs.(A))
+    maximum!(abs, v', A)
     v .= return_one_if_zero.(sqrt.(v))
   end
 end
@@ -50,7 +50,6 @@ function mul_A_D1_D2_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, r, c, uplo)
     d2 ./= c
   end
 end
-
 mul_A_D1_D2!(A::SparseMatrixCSC, d1, d2, R, C, uplo) = mul_A_D1_D2_CSC!(A.colptr, A.rowval, A.nzval, d1, d2, R.diag, C.diag, uplo)
 
 function mul_A_D1_D2!(A, d1, d2, R, C, uplo)
@@ -111,6 +110,31 @@ mul_Q_D2!(Q::SparseMatrixCSC, D2) = mul_Q_D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D
 function mul_Q_D2!(Q, D2)
   lmul!(D2, Q)
   rmul!(Q, D2)
+end
+
+function equilibrate!(
+  A::AbstractMatrix{T},
+  D1::Diagonal{T, S},
+  D2::Diagonal{T, S},
+  R_k::Diagonal{T, S},
+  C_k::Diagonal{T, S};
+  ϵ::T = T(1.0e-2),
+  max_iter::Int = 100,
+  uplo::Symbol = :L,
+) where {T <: Real, S <: AbstractVector{T}}
+
+  get_norm_rc!(R_k.diag, A, :row)
+  get_norm_rc!(C_k.diag, A, :col)
+  convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+  mul_A_D1_D2!(A, D1.diag, D2.diag, R_k, C_k, uplo)
+  k = 1
+  while !convergence && k < max_iter
+    get_norm_rc!(R_k.diag, A, :row)
+    get_norm_rc!(C_k.diag, A, :col)
+    convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+    mul_A_D1_D2!(A, D1.diag, D2.diag, R_k, C_k, uplo)
+    k += 1
+  end
 end
 
 function scaling_Ruiz!(
@@ -208,27 +232,41 @@ function scaling_Ruiz!(
   fd_T0.uvar ./= d2
 end
 
-function div_D2D3_Q_D3D2!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
+function div_D2D3_Q_D3D2_CSC!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
   for j = 1:n
     @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       Q_nzval[i] /= d2[Q_rowval[i]] * d2[j] * d3[Q_rowval[i]] * d3[j]
     end
   end
 end
+div_D2D3_Q_D3D2!(Q::SparseMatrixCSC, D2, D3) = div_D2D3_Q_D3D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D2.diag, D3.diag, size(Q, 1))
 
 function div_D2D3_Q_D3D2!(Q, D2, D3)
   ldiv!(D2, Q)
   ldiv!(D3, Q)
-  rdiv!(D2, Q)
-  rdiv!(D3, Q)
+  rdiv!(Q, D2)
+  rdiv!(Q, D3)
 end
 
-function div_D1_A_D2D3!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
+function div_D1_A_D2D3_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
   for j = 1:n
     @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
       A_nzval[i] /=
         (uplo == :U) ? d1[j] * d2[A_rowval[i]] * d3[A_rowval[i]] : d1[A_rowval[i]] * d2[j] * d3[j]
     end
+  end
+end
+div_D1_A_D2D3!(A, D1, D2, D3, uplo) = div_D1_A_D2D3_CSC!(A.colptr, A.rowval, A.nzval, D1.Diag, D2.diag, D3.diag, size(A, 2), uplo)
+
+function div_D1_A_D2D3!(A, D1, D2, D3, uplo)
+  if uplo == :U
+    rdiv!(A, D1)
+    ldiv!(D2, A)
+    ldiv!(D3, A)
+  else
+    ldiv!(D1, A)
+    rdiv!(A, D2)
+    rdiv!(A, D3)
   end
 end
 
@@ -242,11 +280,13 @@ function post_scale!(
   id::QM_IntData,
   itd::IterData{T},
 ) where {T <: Real}
+  D1, D2, D3 = Diagonal(d1), Diagonal(d2), Diagonal(d3)
   pt.x .*= d2 .* d3
-  div_D2D3_Q_D3D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2, d3, id.nvar)
+  div_D2D3_Q_D3D2!(fd_T0.Q.data, D2, D3)
   mul!(itd.Qx, fd_T0.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
-  div_D1_A_D2D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, d3, fd_T0.A.n, fd_T0.uplo)
+  # div_D1_A_D2D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, d3, fd_T0.A.n, fd_T0.uplo)
+  div_D1_A_D2D3!(fd_T0.A, D1, D2, D3, fd_T0.uplo)
   pt.y .*= d1
   fd_T0.uplo == :U ? mul!(itd.ATy, fd_T0.A, pt.y) : mul!(itd.ATy, fd_T0.A', pt.y)
   fd_T0.uplo == :U ? mul!(itd.Ax, fd_T0.A', pt.x) : mul!(itd.Ax, fd_T0.A, pt.x)
