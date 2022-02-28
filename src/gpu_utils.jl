@@ -158,3 +158,19 @@ function dual_obj_gpu(
   dual_obj = dot(b, y) - xTQx_2 + dot(s_l, store_vdual_l) - dot(s_u, store_vdual_u) + c0
   return dual_obj
 end
+
+import LinearAlgebra.rdiv!, LinearAlgebra.ldiv!
+
+function LinearAlgebra.rdiv!(M::CUDA.AbstractGPUArray{T}, D::Diagonal) where {T}
+  D.diag .= one(T) ./ D.diag
+  rmul!(M, D)
+  D.diag .= one(T) ./ D.diag
+  return M
+end
+
+function LinearAlgebra.ldiv!(D::Diagonal, M::CUDA.AbstractGPUArray{T}) where {T}
+  D.diag .= one(T) ./ D.diag
+  lmul!(D, M)
+  D.diag .= one(T) ./ D.diag
+  return M
+end
