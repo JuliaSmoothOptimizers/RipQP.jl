@@ -112,7 +112,7 @@ qp_dense = QuadraticModel(
   @test isapprox(stats_linop.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_linop.status == :acceptable
 
-  stats_dense = ripqp(qp_dense, iconf = InputConfig(sp = K2KrylovParams()))
+  stats_dense = ripqp(qp_dense, iconf = InputConfig(sp = K2KrylovParams(uplo=:U)))
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :acceptable
 
