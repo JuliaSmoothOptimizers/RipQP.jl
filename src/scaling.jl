@@ -1,4 +1,5 @@
 return_one_if_zero(val::T) where {T <: Real} = (val == zero(T)) ? one(T) : val
+nnz(M::DenseMatrix) = *(size(M)...)
 
 function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   T = eltype(v)
@@ -177,7 +178,7 @@ function scaling_Ruiz!(
   R_k = Diagonal(r_k)
   C_k = Diagonal(c_k)
   # scaling Q (symmetric)
-  if length(fd_T0.Q.data.rowval) > 0
+  if nnz(fd_T0.Q.data) > 0
     if fd_T0.uplo == :U
       equilibrate!(fd_T0.Q, D3, R_k; ϵ = ϵ, max_iter = max_iter)
     else
@@ -193,7 +194,7 @@ function scaling_Ruiz!(
   # scaling: D2 * AT * D1
   equilibrate!(fd_T0.A, D1, D2, R_k, C_k; ϵ = ϵ, max_iter = max_iter, uplo = fd_T0.uplo)
 
-  length(fd_T0.Q.data.rowval) > 0 && mul_Q_D2!(fd_T0.Q.data, D2)
+  nnz(fd_T0.Q.data) > 0 && mul_Q_D2!(fd_T0.Q.data, D2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
