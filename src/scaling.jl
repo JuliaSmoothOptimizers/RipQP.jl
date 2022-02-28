@@ -19,7 +19,8 @@ function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
     end
   end
 end
-get_norm_rc!(v, A::SparseMatrixCSC, ax) = get_norm_rc_CSC!(v, A.colptr, A.rowval, A.nzval, size(A, 2), ax)
+get_norm_rc!(v, A::SparseMatrixCSC, ax) =
+  get_norm_rc_CSC!(v, A.colptr, A.rowval, A.nzval, size(A, 2), ax)
 
 function get_norm_rc!(v, A, ax)
   T = eltype(v)
@@ -47,7 +48,8 @@ function mul_A_D1_D2_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, r, c, uplo)
     d2 ./= c
   end
 end
-mul_A_D1_D2!(A::SparseMatrixCSC, d1, d2, R, C, uplo) = mul_A_D1_D2_CSC!(A.colptr, A.rowval, A.nzval, d1, d2, R.diag, C.diag, uplo)
+mul_A_D1_D2!(A::SparseMatrixCSC, d1, d2, R, C, uplo) =
+  mul_A_D1_D2_CSC!(A.colptr, A.rowval, A.nzval, d1, d2, R.diag, C.diag, uplo)
 
 function mul_A_D1_D2!(A, d1, d2, R, C, uplo)
   ldiv!(R, A)
@@ -68,7 +70,8 @@ function mul_A_D3_CSC!(A_colptr, A_rowval, A_nzval, n, d3, uplo)
     end
   end
 end
-mul_A_D3!(A::SparseMatrixCSC, D3, uplo) = mul_A_D3_CSC!(A.colptr, A.rowval, A.nzval, size(A, 2), D3.diag, uplo) 
+mul_A_D3!(A::SparseMatrixCSC, D3, uplo) =
+  mul_A_D3_CSC!(A.colptr, A.rowval, A.nzval, size(A, 2), D3.diag, uplo)
 
 function mul_A_D3!(A, D3, uplo)
   if uplo == :U
@@ -93,7 +96,6 @@ function mul_Q_D!(Q, d, C)
   rdiv!(Q, C)
   d ./= C.diag
 end
-
 
 function mul_Q_D2_CSC!(Q_colptr, Q_rowval, Q_nzval, d2)
   for j = 1:length(d2)
@@ -124,7 +126,6 @@ function equilibrate!(
   max_iter::Int = 100,
   uplo::Symbol = :L,
 ) where {T <: Real, S <: AbstractVector{T}}
-
   get_norm_rc!(R_k.diag, A, :row)
   get_norm_rc!(C_k.diag, A, :col)
   convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
@@ -150,7 +151,6 @@ function equilibrate!(
   ϵ::T = T(1.0e-2),
   max_iter::Int = 100,
 ) where {T <: Real, S <: AbstractVector{T}}
-
   get_norm_rc!(C_k.diag, Q.data, :col)
   convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   mul_Q_D!(Q.data, D3.diag, C_k)
@@ -207,7 +207,8 @@ function div_D2D3_Q_D3D2_CSC!(Q_colptr, Q_rowval, Q_nzval, d2, d3, n)
     end
   end
 end
-div_D2D3_Q_D3D2!(Q::SparseMatrixCSC, D2, D3) = div_D2D3_Q_D3D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D2.diag, D3.diag, size(Q, 1))
+div_D2D3_Q_D3D2!(Q::SparseMatrixCSC, D2, D3) =
+  div_D2D3_Q_D3D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D2.diag, D3.diag, size(Q, 1))
 
 function div_D2D3_Q_D3D2!(Q, D2, D3)
   ldiv!(D2, Q)
@@ -224,7 +225,8 @@ function div_D1_A_D2D3_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
     end
   end
 end
-div_D1_A_D2D3!(A::SparseMatrixCSC, D1, D2, D3, uplo) = div_D1_A_D2D3_CSC!(A.colptr, A.rowval, A.nzval, D1.diag, D2.diag, D3.diag, size(A, 2), uplo)
+div_D1_A_D2D3!(A::SparseMatrixCSC, D1, D2, D3, uplo) =
+  div_D1_A_D2D3_CSC!(A.colptr, A.rowval, A.nzval, D1.diag, D2.diag, D3.diag, size(A, 2), uplo)
 
 function div_D1_A_D2D3!(A, D1, D2, D3, uplo)
   if uplo == :U
