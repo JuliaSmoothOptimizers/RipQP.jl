@@ -241,9 +241,9 @@ function div_D1_A_D2D3!(A, D1, D2, D3, uplo)
 end
 
 function post_scale!(
-  d1::Vector{T},
-  d2::Vector{T},
-  d3::Vector{T},
+  d1::AbstractVector{T},
+  d2::AbstractVector{T},
+  d3::AbstractVector{T},
   pt::Point{T},
   res::AbstractResiduals{T},
   fd_T0::QM_FloatData{T},
