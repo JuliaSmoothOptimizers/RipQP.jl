@@ -252,7 +252,7 @@ function post_scale!(
 ) where {T <: Real}
   D1, D2, D3 = Diagonal(d1), Diagonal(d2), Diagonal(d3)
   pt.x .*= d2 .* d3
-  nnz(fd_T0.Q.data) && div_D2D3_Q_D3D2!(fd_T0.Q.data, D2, D3)
+  nnz(fd_T0.Q.data) > 0 && div_D2D3_Q_D3D2!(fd_T0.Q.data, D2, D3)
   mul!(itd.Qx, fd_T0.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   # div_D1_A_D2D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, d3, fd_T0.A.n, fd_T0.uplo)
