@@ -16,9 +16,8 @@ function convert_QM(
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
     display &&
       iconf.presolve &&
-      @warn "No presolve and scaling operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
+      @warn "No presolve operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     iconf.presolve = false
-    iconf.scaling = false
   end
   return QM
 end

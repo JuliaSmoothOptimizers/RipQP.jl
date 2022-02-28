@@ -25,14 +25,11 @@ function get_norm_rc!(v, A, ax)
   T = eltype(v)
   v .= zero(T)
   if ax == :row
-    # v .= return_one_if_zero.(sqrt.(maximum(abs, A, dims=1)))
     maximum!(abs, v, A)
-    v .= return_one_if_zero.(sqrt.(v))
   elseif ax == :col
-    # v .= return_one_if_zero.(sqrt.(maximum(abs, A, dims=2)))
     maximum!(abs, v', A)
-    v .= return_one_if_zero.(sqrt.(v))
   end
+  v .= return_one_if_zero.(sqrt.(v))
 end
 
 function mul_A_D1_D2_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, r, c, uplo)
