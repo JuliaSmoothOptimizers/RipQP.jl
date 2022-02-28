@@ -1,6 +1,4 @@
 return_one_if_zero(val::T) where {T <: Real} = (val == zero(T)) ? one(T) : val
-import SparseArrays.nnz
-SparseArrays.nnz(M::DenseMatrix) = *(size(M)...)
 
 function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   T = eltype(v)
@@ -226,7 +224,7 @@ function div_D1_A_D2D3_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, d3, n, uplo)
     end
   end
 end
-div_D1_A_D2D3!(A, D1, D2, D3, uplo) = div_D1_A_D2D3_CSC!(A.colptr, A.rowval, A.nzval, D1.Diag, D2.diag, D3.diag, size(A, 2), uplo)
+div_D1_A_D2D3!(A::SparseMatrixCSC, D1, D2, D3, uplo) = div_D1_A_D2D3_CSC!(A.colptr, A.rowval, A.nzval, D1.diag, D2.diag, D3.diag, size(A, 2), uplo)
 
 function div_D1_A_D2D3!(A, D1, D2, D3, uplo)
   if uplo == :U
