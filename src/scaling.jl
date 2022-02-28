@@ -112,6 +112,11 @@ function mul_Q_D2!(Q, D2)
   rmul!(Q, D2)
 end
 
+# equilibration scaling (transform A so that its rows and cols have an infinite norm close to 1): 
+# A ← D2 * A * D1 (uplo = :L), R_k, C_k are storage Diagonal Arrays that have the same size as D1, D2
+# or A ← D2 * Aᵀ * D1 (uplo = :U), R_k, C_k are storage Diagonal Arrays that have the same size as D2, D1
+# ϵ is the norm tolerance on the row and cols infinite norm of A
+# max_iter is the maximum number of iterations
 function equilibrate!(
   A::AbstractMatrix{T},
   D1::Diagonal{T, S},
@@ -137,6 +142,30 @@ function equilibrate!(
   end
 end
 
+# Symmetric equilibration scaling (transform Q so that its rows and cols have an infinite norm close to 1): 
+# Q ← D3 * Q * D3, C_k is a storage Diagonal Array that has the same size as D3
+# ϵ is the norm tolerance on the row and cols infinite norm of A
+# max_iter is the maximum number of iterations
+function equilibrate!(
+  Q::Symmetric{T},
+  D3::Diagonal{T, S},
+  C_k::Diagonal{T, S};
+  ϵ::T = T(1.0e-2),
+  max_iter::Int = 100,
+) where {T <: Real, S <: AbstractVector{T}}
+
+  get_norm_rc!(C_k.diag, Q.data, :col)
+  convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+  mul_Q_D!(Q.data, D3.diag, C_k)
+  k = 1
+  while !convergence && k < max_iter
+    get_norm_rc!(C_k.diag, Q, :col)
+    convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+    mul_Q_D!(Q.data, D3.diag, C_k)
+    k += 1
+  end
+end
+
 function scaling_Ruiz!(
   fd_T0::QM_FloatData{T},
   id::QM_IntData,
@@ -153,50 +182,10 @@ function scaling_Ruiz!(
   # scaling Q (symmetric)
   if length(fd_T0.Q.data.rowval) > 0
     if fd_T0.uplo == :U
-      # get_norm_rc!(r_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :row)
-      get_norm_rc!(r_k, fd_T0.Q, :row)
-      convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-      # mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, r_k)
-      mul_Q_D!(fd_T0.Q.data, d3, R_k)
+      equilibrate!(fd_T0.Q, D3, R_k; ϵ = ϵ, max_iter = max_iter)
     else
-      # get_norm_rc!(c_k, fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, id.nvar, :col)
-      get_norm_rc!(c_k, fd_T0.Q.data, :col)
-      convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
-      # mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, c_k)
-      mul_Q_D!(fd_T0.Q.data, d3, C_k)
+      equilibrate!(fd_T0.Q, D3, C_k; ϵ = ϵ, max_iter = max_iter)
     end
-    k = 1
-    while !convergence && k < max_iter
-      if fd_T0.uplo == :U
-        # get_norm_rc!(
-        #   r_k,
-        #   fd_T0.Q.data.colptr,
-        #   fd_T0.Q.data.rowval,
-        #   fd_T0.Q.data.nzval,
-        #   id.nvar,
-        #   :row,
-        # )
-        get_norm_rc!(r_k, fd_T0.Q, :row)
-        convergence = maximum(abs.(one(T) .- r_k)) <= ϵ
-        # mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, r_k)
-        mul_Q_D!(fd_T0.Q.data, d3, R_k)
-      else
-        # get_norm_rc!(
-        #   c_k,
-        #   fd_T0.Q.data.colptr,
-        #   fd_T0.Q.data.rowval,
-        #   fd_T0.Q.data.nzval,
-        #   id.nvar,
-        #   :col,
-        # )
-        get_norm_rc!(c_k, fd_T0.Q, :col)
-        convergence = maximum(abs.(one(T) .- c_k)) <= ϵ
-        # mul_Q_D!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d3, c_k)
-        mul_Q_D!(fd_T0.Q.data, d3, C_k)
-      end
-      k += 1
-    end
-    # mul_A_D3!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, d3, fd_T0.uplo)
     mul_A_D3!(fd_T0.A, D3, fd_T0.uplo)
     fd_T0.c .*= d3
     fd_T0.lvar ./= d3
@@ -205,27 +194,9 @@ function scaling_Ruiz!(
 
   # r (resp. c) norm of rows of AT (resp. cols) 
   # scaling: D2 * AT * D1
-  # get_norm_rc!(r_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :row)
-  get_norm_rc!(r_k, fd_T0.A, :row)
-  # get_norm_rc!(c_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :col)
-  get_norm_rc!(c_k, fd_T0.A, :col)
-  convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
-  # mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
-  mul_A_D1_D2!(fd_T0.A, d1, d2, R_k, C_k, fd_T0.uplo)
-  k = 1
-  while !convergence && k < max_iter
-    # get_norm_rc!(r_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :row)
-    get_norm_rc!(r_k, fd_T0.A, :row)
-    # get_norm_rc!(c_k, fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, fd_T0.A.n, :col)
-    get_norm_rc!(c_k, fd_T0.A, :col)
-    convergence = maximum(abs.(one(T) .- r_k)) <= ϵ && maximum(abs.(one(T) .- c_k)) <= ϵ
-    # mul_A_D1_D2!(fd_T0.A.colptr, fd_T0.A.rowval, fd_T0.A.nzval, d1, d2, r_k, c_k, fd_T0.uplo)
-    mul_A_D1_D2!(fd_T0.A, d1, d2, R_k, C_k, fd_T0.uplo)
-    k += 1
-  end
-  length(fd_T0.Q.data.rowval) > 0 &&
-    # mul_Q_D2!(fd_T0.Q.data.colptr, fd_T0.Q.data.rowval, fd_T0.Q.data.nzval, d2)
-    mul_Q_D2!(fd_T0.Q.data, D2)
+  equilibrate!(fd_T0.A, D1, D2, R_k, C_k; ϵ = ϵ, max_iter = max_iter, uplo = fd_T0.uplo)
+
+  length(fd_T0.Q.data.rowval) > 0 && mul_Q_D2!(fd_T0.Q.data, D2)
   fd_T0.b .*= d1
   fd_T0.c .*= d2
   fd_T0.lvar ./= d2
