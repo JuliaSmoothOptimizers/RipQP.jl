@@ -1,5 +1,6 @@
 return_one_if_zero(val::T) where {T <: Real} = (val == zero(T)) ? one(T) : val
-nnz(M::DenseMatrix) = *(size(M)...)
+import SparseArrays.nnz
+SparseArrays.nnz(M::DenseMatrix) = *(size(M)...)
 
 function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   T = eltype(v)
