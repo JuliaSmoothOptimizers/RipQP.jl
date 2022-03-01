@@ -442,7 +442,6 @@ function ksolve!(
     rtol = rtol,
     btol = zero(T),
     conlim = T(Inf),
-    sqd = δ > zero(T),
   )
 end
 
