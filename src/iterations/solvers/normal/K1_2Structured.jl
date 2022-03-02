@@ -6,7 +6,8 @@ Type to use the K1.2 formulation with a structured Krylov method, using the pack
 This only works for solving Linear Problems.
 The outer constructor 
 
-    K1_2StructuredParams(; uplo = :L, kmethod = :craig, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+    K1_2StructuredParams(; uplo = :L, kmethod = :craig, rhs_scale = true,
+                         atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10, 
                          ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
                          mem = 20)
@@ -21,6 +22,7 @@ The available methods are:
 mutable struct K1_2StructuredParams <: NormalParams
   uplo::Symbol
   kmethod::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -33,6 +35,7 @@ end
 function K1_2StructuredParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :craig,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -41,7 +44,7 @@ function K1_2StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K1_2StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K1_2StructuredParams(uplo, kmethod, rhs_scale, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
 end
 
 mutable struct PreallocatedDataK1_2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
@@ -52,6 +55,7 @@ mutable struct PreallocatedDataK1_2Structured{T <: Real, S, Ksol <: KrylovSolver
   ξ2::S # todel
   Δx0::S
   ξ22::S # todel
+  rhs_scale::Bool
   regu::Regularization{T}
   KS::Ksol
   atol::T
@@ -106,6 +110,7 @@ function PreallocatedData(
     ξ2,
     Δx0,
     ξ22,
+    sp.rhs_scale,
     regu,
     KS,
     T(sp.atol0),
@@ -139,9 +144,9 @@ function solver!(
     mul!(pad.ξ22, fd.A, pad.Δx0)
   end
   pad.ξ22 .+= pad.ξ2
-
-  # rhsNorm = kscale!(pad.rhs)
-  # pad.K.nprod = 0
+  if pad.rhs_scale
+    ξ22Norm = kscale!(pad.ξ22)
+  end
   ksolve!(
     pad.KS,
     fd.uplo == :U ? fd.A' : fd.A,
@@ -152,6 +157,10 @@ function solver!(
     atol = pad.atol,
     rtol = pad.rtol,
   )
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, ξ22Norm)
+    kunscale!(pad.KS.y, ξ22Norm)
+  end
   dd[(id.nvar + 1):end] .= pad.KS.y
   dd[1:(id.nvar)] .= pad.KS.x .- pad.Δx0
   update_kresiduals_history_K1struct!(

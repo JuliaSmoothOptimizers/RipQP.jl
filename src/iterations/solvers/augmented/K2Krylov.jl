@@ -6,6 +6,7 @@ Type to use the K2 formulation with a Krylov method, using the package
 The outer constructor 
 
     K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+                   rhs_scale = true,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
@@ -24,6 +25,7 @@ mutable struct K2KrylovParams <: AugmentedParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -39,6 +41,7 @@ function K2KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Identity,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -53,6 +56,7 @@ function K2KrylovParams(;
     uplo,
     kmethod,
     preconditioner,
+    rhs_scale,
     atol0,
     rtol0,
     atol_min,
@@ -75,6 +79,7 @@ mutable struct PreallocatedDataK2Krylov{
   pdat::Pr
   D::S                                  # temporary top-left diagonal
   rhs::S
+  rhs_scale::Bool
   regu::Regularization{T}
   δv::Vector{T}
   K::L # augmented matrix (LinearOperator)         
@@ -146,6 +151,7 @@ function PreallocatedData(
     pdat,
     D,
     rhs,
+    sp.rhs_scale,
     regu,
     δv,
     K, #K
@@ -171,11 +177,15 @@ function solver!(
   step::Symbol,
 ) where {T <: Real}
   pad.rhs .= dd
-  rhsNorm = kscale!(pad.rhs)
+  if pad.rhs_scale
+    rhsNorm = kscale!(pad.rhs)
+  end
   pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  kunscale!(pad.KS.x, rhsNorm)
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, rhsNorm)
+  end
 
   dd .= pad.KS.x
 

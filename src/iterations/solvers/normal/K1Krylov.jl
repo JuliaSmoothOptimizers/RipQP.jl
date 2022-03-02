@@ -10,6 +10,7 @@ Type to use the K1 formulation with a Krylov method, using the package
 The outer constructor 
 
     K1KrylovParams(; uplo = :L, kmethod = :cg, preconditioner = :Identity,
+                   rhs_scale = true,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
@@ -30,6 +31,7 @@ mutable struct K1KrylovParams <: NormalParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -45,6 +47,7 @@ function K1KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :cg,
   preconditioner::Symbol = :Identity,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -59,6 +62,7 @@ function K1KrylovParams(;
     uplo,
     kmethod,
     preconditioner,
+    rhs_scale,
     atol0,
     rtol0,
     atol_min,
@@ -75,6 +79,7 @@ mutable struct PreallocatedDataK1Krylov{T <: Real, S, L <: LinearOperator, Ksol 
                PreallocatedDataNormalKrylov{T, S}
   D::S
   rhs::S
+  rhs_scale::Bool
   regu::Regularization{T}
   δv::Vector{T}
   K::L # augmented matrix (LinearOperator)         
@@ -143,6 +148,7 @@ function PreallocatedData(
   return PreallocatedDataK1Krylov(
     D,
     rhs,
+    sp.rhs_scale,
     regu,
     δv,
     K, #K
@@ -173,11 +179,15 @@ function solver!(
   else
     @views mul!(pad.rhs, fd.A, dd[1:(id.nvar)] ./ pad.D, one(T), one(T))
   end
-  rhsNorm = kscale!(pad.rhs)
+  if pad.rhs_scale
+    rhsNorm = kscale!(pad.rhs)
+  end
   pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  kunscale!(pad.KS.x, rhsNorm)
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, rhsNorm)
+  end
 
   if fd.uplo == :U
     @views mul!(dd[1:(id.nvar)], fd.A, pad.KS.x, one(T), -one(T))

@@ -15,7 +15,7 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3_5StructuredParams(; uplo = :U, kmethod = :trimr,
+    K3_5StructuredParams(; uplo = :U, kmethod = :trimr, rhs_scale = true,
                          atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
                          ρ0 =  sqrt(eps()) * 1e3, δ0 = sqrt(eps()) * 1e4,
@@ -33,6 +33,7 @@ The `mem` argument sould be used only with `gpmr`.
 mutable struct K3_5StructuredParams <: NewtonParams
   uplo::Symbol
   kmethod::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -47,6 +48,7 @@ end
 function K3_5StructuredParams(;
   uplo::Symbol = :U,
   kmethod::Symbol = :trimr,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -60,6 +62,7 @@ function K3_5StructuredParams(;
   return K3_5StructuredParams(
     uplo,
     kmethod,
+    rhs_scale,
     atol0,
     rtol0,
     atol_min,
@@ -82,6 +85,7 @@ mutable struct PreallocatedDataK3_5Structured{
 } <: PreallocatedDataNewtonStructured{T, S}
   rhs1::S
   rhs2::S
+  rhs_scale::Bool
   regu::Regularization{T}
   δv::Vector{T}
   As::L1
@@ -311,6 +315,7 @@ function PreallocatedData(
   return PreallocatedDataK3_5Structured(
     rhs1,
     rhs2,
+    sp.rhs_scale,
     regu,
     δv,
     As,
@@ -350,6 +355,11 @@ function solver!(
            dd[(id.nvar + 1):end]
   pad.rhs2[(id.ncon + 1):(id.ncon + id.nlow)] .= (step == :init) ? one(T) : Δs_l ./ sqrt.(pt.s_l)
   pad.rhs2[(id.ncon + id.nlow + 1):end] .= (step == :init) ? one(T) : Δs_u ./ sqrt.(pt.s_u)
+  if pad.rhs_scale
+    rhsNorm = sqrt(norm(pad.rhs1)^2 + norm(pad.rhs2)^2)
+    pad.rhs1 ./= rhsNorm
+    pad.rhs2 ./= rhsNorm
+  end
   ksolve!(
     pad.KS,
     pad.As',
@@ -381,6 +391,10 @@ function solver!(
     id.iupp,
   )
 
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, rhsNorm)
+    kunscale!(pad.KS.y, rhsNorm)
+  end
   dd[1:(id.nvar)] .= @views pad.KS.x
   dd[(id.nvar + 1):end] .= @views pad.KS.y[1:(id.ncon)]
   Δs_l .= @views pad.KS.y[(id.ncon + 1):(id.ncon + id.nlow)] .* sqrt.(pt.s_l)
