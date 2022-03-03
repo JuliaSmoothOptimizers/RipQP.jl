@@ -163,14 +163,15 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  if step != :init && pad.rhs_scale
-    rhsNorm = kscale!(dd)
-  end
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)] .* pad.sqrtX1X2
   pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
          dd[(id.nvar + 1):end]
-  # rhsNorm = kscale!(pad.rhs)
-  # pad.K.nprod = 0
+  if pad.rhs_scale
+    rhsNorm = sqrt(norm(pad.ξ1)^2 + norm(pad.ξ2)^2)
+    pad.ξ1 ./= rhsNorm
+    pad.ξ2 ./= rhsNorm
+    println(norm([pad.ξ1; pad.ξ2]))
+  end
   ksolve!(
     pad.KS,
     pad.AsqrtX1X2',
@@ -194,7 +195,7 @@ function solver!(
     pad.ξ2,
     id.nvar,
   )
-  if step != :init && pad.rhs_scale
+  if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
     kunscale!(pad.KS.y, rhsNorm)
   end
