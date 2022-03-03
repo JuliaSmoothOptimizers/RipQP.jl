@@ -170,7 +170,6 @@ function solver!(
     rhsNorm = sqrt(norm(pad.ξ1)^2 + norm(pad.ξ2)^2)
     pad.ξ1 ./= rhsNorm
     pad.ξ2 ./= rhsNorm
-    println(norm([pad.ξ1; pad.ξ2]))
   end
   ksolve!(
     pad.KS,
