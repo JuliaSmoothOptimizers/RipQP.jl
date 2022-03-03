@@ -298,7 +298,7 @@ function solver!(
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end
-  
+
   dd .= @views pad.KS.x[1:(id.nvar + id.ncon)]
   Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)]
   Δs_u .= @views pad.KS.x[(id.nvar + id.ncon + id.nlow + 1):end]

@@ -44,7 +44,18 @@ function K1_1StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K1_1StructuredParams(uplo, kmethod, rhs_scale, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K1_1StructuredParams(
+    uplo,
+    kmethod,
+    rhs_scale,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ_min,
+    δ_min,
+    mem,
+  )
 end
 
 mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver} <:

@@ -46,7 +46,18 @@ function K2StructuredParams(;
   δ_min::T = 1e2 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K2StructuredParams(uplo, kmethod, rhs_scale, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K2StructuredParams(
+    uplo,
+    kmethod,
+    rhs_scale,
+    atol0,
+    rtol0,
+    atol_min,
+    rtol_min,
+    ρ_min,
+    δ_min,
+    mem,
+  )
 end
 
 mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
