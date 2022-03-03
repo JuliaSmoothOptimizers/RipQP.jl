@@ -6,7 +6,8 @@ Type to use the K2.5 formulation with a structured Krylov method, using the pack
 This only works for solving Linear Problems.
 The outer constructor 
 
-    K2_5StructuredParams(; uplo = :L, kmethod = :trimr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+    K2_5StructuredParams(; uplo = :L, kmethod = :trimr, rhs_scale = true,
+                         atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
                          ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
                          ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()))
@@ -23,6 +24,7 @@ The `mem` argument sould be used only with `gpmr`.
 mutable struct K2_5StructuredParams <: AugmentedParams
   uplo::Symbol
   kmethod::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -37,6 +39,7 @@ end
 function K2_5StructuredParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :trimr,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -50,6 +53,7 @@ function K2_5StructuredParams(;
   return K2_5StructuredParams(
     uplo,
     kmethod,
+    rhs_scale,
     atol0,
     rtol0,
     atol_min,
@@ -74,6 +78,7 @@ mutable struct PreallocatedDataK2_5Structured{
   AsqrtX1X2::L
   ξ1::S
   ξ2::S
+  rhs_scale::Bool
   regu::Regularization{T}
   KS::Ksol
   atol::T
@@ -135,6 +140,7 @@ function PreallocatedData(
     AsqrtX1X2,
     ξ1,
     ξ2,
+    sp.rhs_scale,
     regu,
     KS,
     T(sp.atol0),
@@ -160,8 +166,11 @@ function solver!(
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)] .* pad.sqrtX1X2
   pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
          dd[(id.nvar + 1):end]
-  # rhsNorm = kscale!(pad.rhs)
-  # pad.K.nprod = 0
+  if pad.rhs_scale
+    rhsNorm = sqrt(norm(pad.ξ1)^2 + norm(pad.ξ2)^2)
+    pad.ξ1 ./= rhsNorm
+    pad.ξ2 ./= rhsNorm
+  end
   ksolve!(
     pad.KS,
     pad.AsqrtX1X2',
@@ -185,7 +194,10 @@ function solver!(
     pad.ξ2,
     id.nvar,
   )
-  # kunscale!(pad.KS.x, rhsNorm)
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, rhsNorm)
+    kunscale!(pad.KS.y, rhsNorm)
+  end
 
   dd[1:(id.nvar)] .= pad.KS.x .* pad.sqrtX1X2
   dd[(id.nvar + 1):end] .= pad.KS.y

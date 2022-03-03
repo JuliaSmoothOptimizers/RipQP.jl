@@ -6,7 +6,8 @@ Type to use the K1.1 formulation with a structured Krylov method, using the pack
 This only works for solving Linear Problems.
 The outer constructor 
 
-    K1_1StructuredParams(; uplo = :L, kmethod = :lsqr, atol0 = 1.0e-4, rtol0 = 1.0e-4,
+    K1_1StructuredParams(; uplo = :L, kmethod = :lsqr, rhs_scale = true,
+                         atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10, 
                          ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
                          mem = 20)
@@ -21,6 +22,7 @@ The available methods are:
 mutable struct K1_1StructuredParams <: NormalParams
   uplo::Symbol
   kmethod::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -33,6 +35,7 @@ end
 function K1_1StructuredParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :lsqr,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -41,7 +44,7 @@ function K1_1StructuredParams(;
   δ_min::T = 1e4 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
-  return K1_1StructuredParams(uplo, kmethod, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
+  return K1_1StructuredParams(uplo, kmethod, rhs_scale, atol0, rtol0, atol_min, rtol_min, ρ_min, δ_min, mem)
 end
 
 mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver} <:
@@ -52,6 +55,7 @@ mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver
   ξ2::S # todel
   Δy0::S
   ξ12::S # todel
+  rhs_scale::Bool
   regu::Regularization{T}
   KS::Ksol
   atol::T
@@ -106,6 +110,7 @@ function PreallocatedData(
     ξ2,
     Δy0,
     ξ12,
+    sp.rhs_scale,
     regu,
     KS,
     T(sp.atol0),
@@ -143,9 +148,9 @@ function solver!(
     mul!(pad.ξ12, fd.A', pad.Δy0)
   end
   pad.ξ12 .+= pad.ξ1
-
-  # rhsNorm = kscale!(pad.rhs)
-  # pad.K.nprod = 0
+  if pad.rhs_scale
+    ξ12Norm = kscale!(pad.ξ12)
+  end
   ksolve!(
     pad.KS,
     fd.uplo == :U ? fd.A : fd.A',
@@ -156,6 +161,9 @@ function solver!(
     atol = pad.atol,
     rtol = pad.rtol,
   )
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, ξ12Norm)
+  end
   dd[(id.nvar + 1):end] .= pad.KS.x .- pad.Δy0
   if fd.uplo == :U
     @views mul!(pad.ξ1, fd.A, dd[(id.nvar + 1):end], one(T), -one(T))
@@ -173,7 +181,6 @@ function solver!(
     pad.ξ12,
     :K1_1,
   )
-  # kunscale!(pad.KS.x, rhsNorm)
 
   return 0
 end

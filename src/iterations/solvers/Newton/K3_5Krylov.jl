@@ -16,6 +16,7 @@ Type to use the K3.5 formulation with a Krylov method, using the package
 The outer constructor 
 
     K3_5KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+                     rhs_scale = true,
                      atol0 = 1.0e-4, rtol0 = 1.0e-4,
                      atol_min = 1.0e-10, rtol_min = 1.0e-10,
                      ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
@@ -33,6 +34,7 @@ mutable struct K3_5KrylovParams <: NewtonParams
   uplo::Symbol
   kmethod::Symbol
   preconditioner::Symbol
+  rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -48,6 +50,7 @@ function K3_5KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Identity,
+  rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -62,6 +65,7 @@ function K3_5KrylovParams(;
     uplo,
     kmethod,
     preconditioner,
+    rhs_scale,
     atol0,
     rtol0,
     atol_min,
@@ -81,6 +85,7 @@ mutable struct PreallocatedDataK3_5Krylov{
   Ksol <: KrylovSolver,
 } <: PreallocatedDataNewtonKrylov{T, S}
   rhs::S
+  rhs_scale::Bool
   regu::Regularization{T}
   ρv::Vector{T}
   δv::Vector{T}
@@ -191,6 +196,7 @@ function PreallocatedData(
 
   return PreallocatedDataK3_5Krylov(
     rhs,
+    sp.rhs_scale,
     regu,
     ρv,
     δv,
@@ -226,11 +232,15 @@ function solver!(
   pad.rhs[1:(id.nvar + id.ncon)] .= dd
   pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l ./ sqrt.(pt.s_l)
   pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u ./ sqrt.(pt.s_u)
-  rhsNorm = kscale!(pad.rhs)
+  if pad.rhs_scale
+    rhsNorm = kscale!(pad.rhs)
+  end
   pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  kunscale!(pad.KS.x, rhsNorm)
+  if pad.rhs_scale
+    kunscale!(pad.KS.x, rhsNorm)
+  end
 
   dd .= @views pad.KS.x[1:(id.nvar + id.ncon)]
   Δs_l .= @views pad.KS.x[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .* sqrt.(pt.s_l)
