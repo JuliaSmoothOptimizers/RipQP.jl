@@ -1,61 +1,11 @@
-function KSolver(s::Symbol)
-  if s == :minres
-    return :MinresSolver
-  elseif s == :minres_qlp
-    return :MinresQlpSolver
-  elseif s == :symmlq
-    return :SymmlqSolver
-  elseif s == :cg
-    return :CgSolver
-  elseif s == :cg_lanczos
-    return :CgLanczosSolver
-  elseif s == :cr
-    return :CrSolver
-  elseif s == :bilq
-    return :BilqSolver
-  elseif s == :qmr
-    return :QmrSolver
-  elseif s == :usymlq
-    return :UsymlqSolver
-  elseif s == :usymqr
-    return :UsymqrSolver
-  elseif s == :bicgstab
-    return :BicgstabSolver
-  elseif s == :diom
-    return :DiomSolver
-  elseif s == :fom
-    return :FomSolver
-  elseif s == :dqgmres
-    return :DqgmresSolver
-  elseif s == :gmres
-    return :GmresSolver
-  elseif s == :tricg
-    return :TricgSolver
-  elseif s == :trimr
-    return :TrimrSolver
-  elseif s == :gpmr
-    return :GpmrSolver
-  elseif s == :lslq
-    return :LslqSolver
-  elseif s == :lsqr
-    return :LsqrSolver
-  elseif s == :lsmr
-    return :LsmrSolver
-  elseif s == :lnlq
-    return :LnlqSolver
-  elseif s == :craig
-    return :CraigSolver
-  elseif s == :craigmr
-    return :CraigmrSolver
-  end
-end
+import Krylov.KRYLOV_SOLVERS
 
 function init_Ksolver(M, v, sp::SolverParams)
   kmethod = sp.kmethod
-  if kmethod ∈ [:gpmr, :diom, :fom, :gmres, :dqgmres]
-    return eval(KSolver(kmethod))(M, v, sp.mem)
+  if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
+    return eval(KRYLOV_SOLVERS[kmethod])(M, v, sp.mem)
   end
-  return eval(KSolver(kmethod))(M, v)
+  return eval(KRYLOV_SOLVERS[kmethod])(M, v)
 end
 
 ksolve!(
