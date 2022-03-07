@@ -241,7 +241,7 @@ function update_pad!(
   pad.δv[1] = pad.regu.δ
   if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
     pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval
-    pad.K.data.nzval[view(pad.mt.diagind_K, 1:id.nvar)] = pad.D
+    pad.K.data.nzval[view(pad.mt.diagind_K, 1:(id.nvar))] = pad.D
     pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
   end
 
