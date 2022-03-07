@@ -9,7 +9,7 @@ function Jacobi(
   fd::QM_FloatData{T},
   regu::Regularization{T},
   D::AbstractVector{T},
-  K::LinearOperator{T},
+  K::Union{LinearOperator{T}, AbstractMatrix{T}},
 ) where {T <: Real}
   invDiagK = (one(T) / regu.δ) .* fill!(similar(fd.c, id.nvar + id.ncon), one(T))
   diagQ = get_diag_Q_dense(fd.Q, fd.uplo)

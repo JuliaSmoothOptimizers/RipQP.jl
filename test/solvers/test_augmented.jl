@@ -59,7 +59,7 @@ end
         QuadraticModel(qps3),
         display = false,
         iconf = InputConfig(
-          sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond),
+          sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond, form_mat = true),
         ),
         itol = InputTol(
           max_iter = 50,

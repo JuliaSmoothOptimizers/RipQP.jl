@@ -8,7 +8,7 @@ function Equilibration(
   fd::QM_FloatData{T},
   regu::Regularization{T},
   D::AbstractVector{T},
-  K::LinearOperator{T},
+  K::Union{LinearOperator{T}, AbstractMatrix{T}},
 ) where {T <: Real}
   P = Diagonal(similar(D, id.nvar + id.ncon))
   P.diag .= one(T)

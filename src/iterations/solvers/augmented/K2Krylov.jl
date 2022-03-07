@@ -6,7 +6,7 @@ Type to use the K2 formulation with a Krylov method, using the package
 The outer constructor 
 
     K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
-                   rhs_scale = true,
+                   rhs_scale = true, form_mat = false,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
@@ -26,6 +26,7 @@ mutable struct K2KrylovParams <: AugmentedParams
   kmethod::Symbol
   preconditioner::Symbol
   rhs_scale::Bool
+  form_mat::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -42,6 +43,7 @@ function K2KrylovParams(;
   kmethod::Symbol = :minres,
   preconditioner::Symbol = :Identity,
   rhs_scale::Bool = true,
+  form_mat::Bool = false,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -52,11 +54,15 @@ function K2KrylovParams(;
   δ_min::T = 1e2 * sqrt(eps()),
   mem::Int = 20,
 ) where {T <: Real}
+  if uplo == :L && form_mat
+    error("matrix can only be created if uplo == :U")
+  end
   return K2KrylovParams(
     uplo,
     kmethod,
     preconditioner,
     rhs_scale,
+    form_mat,
     atol0,
     rtol0,
     atol_min,
@@ -69,10 +75,16 @@ function K2KrylovParams(;
   )
 end
 
+mutable struct MatrixTools{T}
+  diag_Q::SparseVector{T, Int} # Q diag
+  diagind_K::Vector{Int}
+end
+
 mutable struct PreallocatedDataK2Krylov{
   T <: Real,
   S,
-  L <: LinearOperator,
+  M <: Union{LinearOperator{T}, AbstractMatrix{T}},
+  MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerDataK2,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataAugmentedKrylov{T, S}
@@ -82,7 +94,8 @@ mutable struct PreallocatedDataK2Krylov{
   rhs_scale::Bool
   regu::Regularization{T}
   δv::Vector{T}
-  K::L # augmented matrix (LinearOperator)         
+  K::M # augmented matrix
+  mt::MT
   KS::Ksol
   atol::T
   rtol::T
@@ -134,14 +147,22 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  K = LinearOperator(
-    T,
-    id.nvar + id.ncon,
-    id.nvar + id.ncon,
-    true,
-    true,
-    (res, v, α, β) -> opK2prod!(res, id.nvar, fd.Q, D, fd.A, δv, v, α, β, fd.uplo),
-  )
+  if sp.form_mat
+    diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
+    K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
+    diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
+    mt = MatrixTools(diag_Q, diagind_K)
+  else
+    K = LinearOperator(
+      T,
+      id.nvar + id.ncon,
+      id.nvar + id.ncon,
+      true,
+      true,
+      (res, v, α, β) -> opK2prod!(res, id.nvar, fd.Q, D, fd.A, δv, v, α, β, fd.uplo),
+    )
+    mt = 0
+  end
 
   rhs = similar(fd.c, id.nvar + id.ncon)
   KS = init_Ksolver(K, rhs, sp)
@@ -155,6 +176,7 @@ function PreallocatedData(
     regu,
     δv,
     K, #K
+    mt,
     KS,
     T(sp.atol0),
     T(sp.rtol0),
@@ -180,7 +202,6 @@ function solver!(
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
-  pad.K.nprod = 0
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
@@ -218,6 +239,11 @@ function update_pad!(
   pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
   pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
   pad.δv[1] = pad.regu.δ
+  if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
+    pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval
+    pad.K.data.nzval[view(pad.mt.diagind_K, 1:id.nvar)] = pad.D
+    pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
+  end
 
   update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
