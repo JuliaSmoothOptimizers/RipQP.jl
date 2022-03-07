@@ -36,7 +36,7 @@ end
 
 @testset "KrylovK2" begin
   for precond in [:Identity, :Jacobi, :Equilibration]
-    for kmethod in [:minres, :minres_qlp, :symmlq, :dqgmres, :diom]
+    for kmethod in [:minres, :minres_qlp, :symmlq]
       stats2 = ripqp(
         QuadraticModel(qps2),
         display = false,
@@ -71,12 +71,29 @@ end
       )
       @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
       @test stats3.status == :acceptable
+
+      stats3 = ripqp(
+        QuadraticModel(qps3),
+        display = false,
+        iconf = InputConfig(
+          sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond, form_mat = true),
+        ),
+        itol = InputTol(
+          max_iter = 50,
+          max_time = 40.0,
+          ϵ_rc = 1.0e-2,
+          ϵ_rb = 1.0e-2,
+          ϵ_pdd = 1.0e-2,
+        ),
+      )
+      @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+      @test stats3.status == :acceptable
     end
   end
 end
 
 @testset "KrylovK2_5" begin
-  for kmethod in [:minres, :minres_qlp, :symmlq]
+  for kmethod in [:minres, :minres_qlp, :symmlq, :dqgmres, :diom]
     stats1 = ripqp(
       QuadraticModel(qps1),
       display = true,

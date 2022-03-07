@@ -7,7 +7,7 @@ function Identity(
   fd::QM_FloatData{T},
   regu::Regularization{T},
   D::AbstractVector{T},
-  K::LinearOperator{T},
+  K::Union{LinearOperator{T}, AbstractMatrix{T}},
 ) where {T <: Real}
   P = I
   return IdentityData{T, typeof(fd.c), typeof(P)}(P)
