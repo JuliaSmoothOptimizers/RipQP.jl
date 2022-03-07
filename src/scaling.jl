@@ -283,7 +283,21 @@ function post_scale!(
 end
 
 # equilibrate K2
-function get_norm_rc_CSC_K2!(v, Q_colptr, Q_rowval, Q_nzval, A_colptr, A_rowval, A_nzval, D, Deq, δ, nvar, ncon, uplo)
+function get_norm_rc_CSC_K2!(
+  v,
+  Q_colptr,
+  Q_rowval,
+  Q_nzval,
+  A_colptr,
+  A_rowval,
+  A_nzval,
+  D,
+  Deq,
+  δ,
+  nvar,
+  ncon,
+  uplo,
+)
   T = eltype(v)
   v .= zero(T)
   for j = 1:nvar
@@ -331,7 +345,7 @@ function get_norm_rc_CSC_K2!(v, Q_colptr, Q_rowval, Q_nzval, A_colptr, A_rowval,
     end
   end
 
-  for j = (nvar+1):(nvar+ncon)
+  for j = (nvar + 1):(nvar + ncon)
     rdij = δ * Deq[j]^2
     if abs(rdij) > v[j]
       v[j] = abs(rdij)
@@ -361,13 +375,41 @@ function equilibrate_K2!(
 ) where {T <: Real, S <: AbstractVector{T}}
   Deq.diag .= one(T)
   # get_norm_rc!(C_k.diag, Q.data, :col)
-  get_norm_rc_CSC_K2!(C_k.diag, Q.colptr, Q.rowval, Q.nzval, A.colptr, A.rowval, A.nzval, D, Deq.diag, δ, nvar, ncon, uplo)
+  get_norm_rc_CSC_K2!(
+    C_k.diag,
+    Q.colptr,
+    Q.rowval,
+    Q.nzval,
+    A.colptr,
+    A.rowval,
+    A.nzval,
+    D,
+    Deq.diag,
+    δ,
+    nvar,
+    ncon,
+    uplo,
+  )
   convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   Deq.diag ./= C_k.diag
   k = 1
   while !convergence && k < max_iter
     # get_norm_rc!(C_k.diag, Q, :col)
-    get_norm_rc_CSC_K2!(C_k.diag, Q.colptr, Q.rowval, Q.nzval, A.colptr, A.rowval, A.nzval, D, Deq.diag, δ, nvar, ncon, uplo)
+    get_norm_rc_CSC_K2!(
+      C_k.diag,
+      Q.colptr,
+      Q.rowval,
+      Q.nzval,
+      A.colptr,
+      A.rowval,
+      A.nzval,
+      D,
+      Deq.diag,
+      δ,
+      nvar,
+      ncon,
+      uplo,
+    )
     convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
     Deq.diag ./= C_k.diag
     k += 1

@@ -25,7 +25,18 @@ function update_preconditioner!(
   fd::QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
-  equilibrate_K2!(fd.Q.data, fd.A, pad.D, pad.regu.δ, id.nvar, id.ncon, pad.pdat.P, pad.pdat.C_equi, fd.uplo;
-                  ϵ = T(1.0e-4), max_iter = 100)
-  pdat.P.diag .= pdat.P.diag .^2
+  equilibrate_K2!(
+    fd.Q.data,
+    fd.A,
+    pad.D,
+    pad.regu.δ,
+    id.nvar,
+    id.ncon,
+    pad.pdat.P,
+    pad.pdat.C_equi,
+    fd.uplo;
+    ϵ = T(1.0e-4),
+    max_iter = 100,
+  )
+  pdat.P.diag .= pdat.P.diag .^ 2
 end
