@@ -171,6 +171,9 @@ function scaling_Ruiz!(
   max_iter::Int = 100,
 ) where {T <: Real}
   d1, d2, d3, r_k, c_k = sd.d1, sd.d2, sd.d3, sd.r_k, sd.c_k
+  d1 .= one(T)
+  d2 .= one(T)
+  d3 .= one(T)
   D1 = Diagonal(d1)
   D2 = Diagonal(d2)
   D3 = Diagonal(d3)
@@ -277,4 +280,96 @@ function post_scale!(
   res.rc[id.iupp] .-= pt.s_u
   #         rcNorm, rbNorm = norm(rc), norm(rb)
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
+end
+
+# equilibrate K2
+function get_norm_rc_CSC_K2!(v, Q_colptr, Q_rowval, Q_nzval, A_colptr, A_rowval, A_nzval, D, Deq, δ, nvar, ncon, uplo)
+  T = eltype(v)
+  v .= zero(T)
+  for j = 1:nvar
+    passed_diagj = false
+    for k = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+      i = Q_rowval[k]
+      if i == j
+        nzvalij = Deq[i]^2 * (-Q_nzval[k] + D[j])
+        passed_diagj = true
+      else
+        nzvalij = -Deq[i] * Q_nzval[k] * Deq[j]
+      end
+      if abs(nzvalij) > v[i]
+        v[i] = abs(nzvalij)
+      end
+      if abs(nzvalij) > v[j]
+        v[j] = abs(nzvalij)
+      end
+    end
+    if !passed_diagj
+      nzvalij = Deq[j]^2 * D[j]
+      if abs(nzvalij) > v[j]
+        v[j] = abs(nzvalij)
+      end
+    end
+  end
+
+  ncolA = (uplo == :L) ? nvar : ncon
+  for j = 1:ncolA
+    for k = A_colptr[j]:(A_colptr[j + 1] - 1)
+      if uplo == :L
+        iup = A_rowval[k] + nvar
+        jup = j
+      else
+        iup = A_rowval[k]
+        jup = j + nvar
+      end
+      nzvalij = Deq[iup] * A_nzval[k] * Deq[jup]
+      if abs(nzvalij) > v[iup]
+        v[iup] = abs(nzvalij)
+      end
+      if abs(nzvalij) > v[jup]
+        v[jup] = abs(nzvalij)
+      end
+    end
+  end
+
+  for j = (nvar+1):(nvar+ncon)
+    rdij = δ * Deq[j]^2
+    if abs(rdij) > v[j]
+      v[j] = abs(rdij)
+    end
+  end
+
+  v .= sqrt.(v)
+  @inbounds @simd for i = 1:length(v)
+    if v[i] == zero(T)
+      v[i] = one(T)
+    end
+  end
+end
+
+function equilibrate_K2!(
+  Q::SparseMatrixCSC{T},
+  A::SparseMatrixCSC{T},
+  D::Vector{T},
+  δ::T,
+  nvar::Int,
+  ncon::Int,
+  Deq::Diagonal{T, S},
+  C_k::Diagonal{T, S},
+  uplo::Symbol;
+  ϵ::T = T(1.0e-2),
+  max_iter::Int = 100,
+) where {T <: Real, S <: AbstractVector{T}}
+  Deq.diag .= one(T)
+  # get_norm_rc!(C_k.diag, Q.data, :col)
+  get_norm_rc_CSC_K2!(C_k.diag, Q.colptr, Q.rowval, Q.nzval, A.colptr, A.rowval, A.nzval, D, Deq.diag, δ, nvar, ncon, uplo)
+  convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+  Deq.diag ./= C_k.diag
+  k = 1
+  while !convergence && k < max_iter
+    # get_norm_rc!(C_k.diag, Q, :col)
+    get_norm_rc_CSC_K2!(C_k.diag, Q.colptr, Q.rowval, Q.nzval, A.colptr, A.rowval, A.nzval, D, Deq.diag, δ, nvar, ncon, uplo)
+    convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
+    Deq.diag ./= C_k.diag
+    k += 1
+  end
 end
