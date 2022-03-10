@@ -56,7 +56,7 @@ end
 end
 
 @testset "KrylovK3S" begin
-  for kmethod in [:minres, :minres_qlp, :symmlq]
+  for kmethod in [:minres_qlp, :symmlq]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = true,
