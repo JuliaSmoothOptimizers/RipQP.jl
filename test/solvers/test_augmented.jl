@@ -10,6 +10,10 @@
   stats3 = ripqp(QuadraticModel(qps3))
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :acceptable
+
+  stats4 = ripqp(QuadraticModel(qps4))
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test stats4.status == :acceptable
 end
 
 @testset "K2_5" begin
@@ -47,9 +51,9 @@ end
         itol = InputTol(
           max_iter = 50,
           max_time = 40.0,
-          ϵ_rc = 1.0e-2,
-          ϵ_rb = 1.0e-2,
-          ϵ_pdd = 1.0e-2,
+          ϵ_rc = 1.0e-3,
+          ϵ_rb = 1.0e-3,
+          ϵ_pdd = 1.0e-3,
         ),
       )
       @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -64,9 +68,9 @@ end
         itol = InputTol(
           max_iter = 50,
           max_time = 40.0,
-          ϵ_rc = 1.0e-2,
-          ϵ_rb = 1.0e-2,
-          ϵ_pdd = 1.0e-2,
+          ϵ_rc = 1.0e-3,
+          ϵ_rb = 1.0e-3,
+          ϵ_pdd = 1.0e-3,
         ),
       )
       @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
@@ -86,9 +90,9 @@ end
         itol = InputTol(
           max_iter = 50,
           max_time = 40.0,
-          ϵ_rc = 1.0e-2,
-          ϵ_rb = 1.0e-2,
-          ϵ_pdd = 1.0e-2,
+          ϵ_rc = 1.0e-3,
+          ϵ_rb = 1.0e-3,
+          ϵ_pdd = 1.0e-3,
         ),
       )
       @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
@@ -106,7 +110,7 @@ end
         sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Identity),
         history = true,
       ),
-      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-3, ϵ_rb = 1.0e-3, ϵ_pdd = 1.0e-3),
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
     @test stats1.status == :acceptable
@@ -127,7 +131,7 @@ end
       QuadraticModel(qps3),
       display = false,
       iconf = InputConfig(sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Jacobi)),
-      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
+      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-3, ϵ_rb = 1.0e-3, ϵ_pdd = 1.0e-3),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
     @test stats3.status == :acceptable

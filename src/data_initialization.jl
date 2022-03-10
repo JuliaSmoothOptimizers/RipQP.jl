@@ -19,6 +19,12 @@ function convert_QM(
       @warn "No presolve operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     iconf.presolve = false
   end
+  if M12 <: AbstractLinearOperator || M22 <: AbstractLinearOperator
+    display &&
+      iconf.scaling &&
+      @warn "No scaling operations available if QM.data.H and QM.data.A are LinearOperators"
+    iconf.scaling = false
+  end
   return QM
 end
 
@@ -161,29 +167,13 @@ function allocate_workspace(
     iconf.normalize_rtol,
   )
 
-  S0 = typeof(fd_T0.c)
-  if iconf.scaling
-    if uplo == :U
-      m, n = id.nvar, id.ncon
-    else
-      m, n = id.ncon, id.nvar
-    end
-    sd = ScaleData{T0, S0}(
-      fill!(S0(undef, id.ncon), one(T0)),
-      fill!(S0(undef, id.nvar), one(T0)),
-      fill!(S0(undef, id.nvar), one(T0)),
-      S0(undef, m),
-      S0(undef, n),
-    )
-  else
-    empty_v = S0(undef, 0)
-    sd = ScaleData{T0, S0}(empty_v, empty_v, empty_v, empty_v, empty_v)
-  end
+  sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
   if iconf.mode == :multi
     T = Float32
   end
+  S0 = typeof(fd_T0.c)
   S = change_vector_eltype(S0, T)
 
   res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf, id)
