@@ -358,20 +358,35 @@ get_norm_rc_K2!(v, Q::SparseMatrixCSC, A::SparseMatrixCSC, D, deq, δ, nvar, nco
 get_norm_rc_K2!(v, Q::Symmetric{T, SparseMatrixCSC{T, Int}}, A::SparseMatrixCSC, D, deq, δ, nvar, ncon, uplo) where {T} = 
   get_norm_rc_K2!(v, Q.data, A, D, deq, δ, nvar, ncon, uplo)
 
-function get_norm_rc_K2!(v, Q::Symmetric, A, D, deq, δ, nvar, ncon, uplo)
+# not efficient but can be improved:
+function get_norm_rc_K2!(v, Q::Symmetric, A, D, deq, δ, nvar, ncon, uplo) 
   # D as storage vec
   @assert δ == 0  
   T = eltype(v)
   v .= zero(T)
   v1 = view(v, 1: nvar)
   v2 = view(v, nvar + 1: nvar + ncon)
+  Deq1 = Diagonal(view(deq, 1: nvar))
+  Deq2 = Diagonal(view(deq, nvar + 1: nvar + ncon))
+  rmul!(Q.data, Deq1)
+  lmul!(Deq1, Q.data)
   maximum!(abs, v1, Q)
+  rdiv!(Q.data, Deq1)
+  ldiv!(Deq1, Q.data)
   if uplo == :U
+    lmul!(Deq1, A)
+    rmul!(A, Deq2)
     maximum!(abs, D, A)
     maximum!(abs, v2', A)
+    ldiv!(Deq1, A)
+    rdiv!(A, Deq2)
   else
+    lmul!(Deq2, A)
+    rmul!(A, Deq1)
     maximum!(abs, v2, A)
     maximum!(abs, D', A)
+    ldiv!(Deq2, A)
+    rdiv!(A, Deq1)
   end
   v1 .= max.(v1, D)
   v .= return_one_if_zero.(sqrt.(v))
@@ -440,7 +455,6 @@ function scaling!(
     lmul!(D2, fd_T0.A)
     rmul!(fd_T0.A, D1)
   end
-  println(fd_T0.A)
   mul_Q_D2!(fd_T0.Q.data, D1)
   fd_T0.c .*= D1.diag
   fd_T0.lvar ./= D1.diag
