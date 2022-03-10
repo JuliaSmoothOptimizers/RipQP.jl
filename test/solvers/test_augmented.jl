@@ -108,6 +108,7 @@ end
       display = true,
       iconf = InputConfig(
         sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = :Identity),
+        solve_method = :IPF,
         history = true,
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
@@ -148,6 +149,7 @@ end
           sp = K2StructuredParams(kmethod = kmethod, δ_min = δ_min),
           solve_method = :IPF,
         ),
+        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
       )
       @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
       @test stats4.status == :acceptable
@@ -157,6 +159,7 @@ end
     QuadraticModel(qps4),
     display = false,
     iconf = InputConfig(sp = K2StructuredParams(kmethod = :tricg), solve_method = :IPF),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :acceptable
@@ -172,6 +175,7 @@ end
           sp = K2_5StructuredParams(kmethod = kmethod, δ_min = δ_min),
           solve_method = :IPF,
         ),
+        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
       )
       @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
       @test stats4.status == :acceptable
@@ -181,6 +185,7 @@ end
     QuadraticModel(qps4),
     display = false,
     iconf = InputConfig(sp = K2_5StructuredParams(kmethod = :tricg), solve_method = :IPF),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :acceptable
