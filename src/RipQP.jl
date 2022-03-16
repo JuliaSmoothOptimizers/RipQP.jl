@@ -69,7 +69,7 @@ function ripqp(
     allocate_workspace(QM, iconf, itol, start_time, T0)
 
   if iconf.scaling
-    scaling_Ruiz!(fd_T0, id, sd, T0(1.0e-3))
+    scaling!(fd_T0, id, sd, T0(1.0e-5))
   end
 
   # extra workspace for multi mode
@@ -227,7 +227,7 @@ function ripqp(
   end
 
   if iconf.scaling
-    post_scale!(sd.d1, sd.d2, sd.d3, pt, res, fd_T0, id, itd)
+    post_scale!(sd, pt, res, fd_T0, id, itd)
   end
 
   if cnts.k >= itol.max_iter

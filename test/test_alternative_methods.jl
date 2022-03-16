@@ -1,4 +1,3 @@
-
 @testset "dynamic_regularization" begin
   stats1 = ripqp(
     QuadraticModel(qps1),

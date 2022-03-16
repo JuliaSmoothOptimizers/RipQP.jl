@@ -54,7 +54,7 @@ function starting_points!(
   # deal with the compensation phaenomenon in x if irng != []
   update_rngbounds!(pt0.x, id.irng, fd.lvar, fd.uvar, T(1e-4))
 
-  # verify bounds 
+  # verify bounds
   @assert all(pt0.x .> fd.lvar) && all(pt0.x .< fd.uvar)
   id.nlow > 0 && @assert all(pt0.s_l .> zero(T))
   id.nupp > 0 && @assert all(pt0.s_u .> zero(T))

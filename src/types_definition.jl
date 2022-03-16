@@ -609,11 +609,17 @@ convert(
   itd.minimize,
 )
 
-mutable struct ScaleData{T <: Real, S}
+abstract type ScaleData{T <: Real, S} end
+
+mutable struct ScaleDataLP{T <: Real, S} <: ScaleData{T, S}
   d1::S
   d2::S
-  d3::S
   r_k::S
+  c_k::S
+end
+
+mutable struct ScaleDataQP{T <: Real, S} <: ScaleData{T, S}
+  deq::S
   c_k::S
 end
 
@@ -621,6 +627,32 @@ mutable struct StartingPointData{T <: Real, S}
   dual_val::S
   s0_l1::S
   s0_u1::S
+end
+
+function ScaleData(fd::QM_FloatData{T, S}, id::QM_IntData, scaling::Bool) where {T, S}
+  if scaling
+    if nnz(fd.Q) > 0
+      sd = ScaleDataQP{T, S}(
+        fill!(S(undef, id.nvar + id.ncon), one(T)),
+        S(undef, id.nvar + id.ncon),
+      )
+    else
+      if fd.uplo == :U
+        m, n = id.nvar, id.ncon
+      else
+        m, n = id.ncon, id.nvar
+      end
+      sd = ScaleDataLP{T, S}(
+        fill!(S(undef, id.nvar), one(T)),
+        fill!(S(undef, id.ncon), one(T)),
+        S(undef, n),
+        S(undef, m),
+      )
+    end  
+  else
+    empty_v = S(undef, 0)
+    sd = ScaleDataQP{T, S}(empty_v, empty_v)
+  end
 end
 
 convert(

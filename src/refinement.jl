@@ -62,12 +62,12 @@ function fd_refinement(
   end
 
   c_ref = fd.c .- itd.ATy .+ itd.Qx
+  αref = T(1.0e12)
   if refinement == :zoom || refinement == :multizoom
     # zoom parameter
     Δref = one(T) / res.rbNorm
   elseif refinement == :ref || refinement == :multiref
     Δref = one(T)
-    αref = T(1.0e12)
     δd = norm(c_ref, Inf)
     if id.nlow == 0 && id.nupp > 0
       δp = max(res.rbNorm, maximum(itd.uvar_m_x))
@@ -79,6 +79,9 @@ function fd_refinement(
       δp = max(res.rbNorm, maximum(itd.x_m_lvar), maximum(itd.uvar_m_x))
     end
     Δref = max(αref / Δref, one(T) / δp, one(T) / δd)
+  end
+  if Δref == T(Inf)
+    Δref = αref
   end
 
   c_ref .*= Δref
