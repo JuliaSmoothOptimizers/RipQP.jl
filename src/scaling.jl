@@ -4,7 +4,7 @@ function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   T = eltype(v)
   v .= zero(T)
   for j = 1:n
-    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+    @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
       k = ax == :row ? A_rowval[i] : j
       if abs(A_nzval[i]) > v[k]
         v[k] = abs(A_nzval[i])
@@ -278,7 +278,7 @@ function get_norm_rc_K2_CSC!(
   ignore_D = length(D) == 0 # ignore D if it is empty (in case we want to scale [Q Aᵀ; A δI])
   for j = 1:nvar
     passed_diagj = false
-    for k = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+    @inbounds for k = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       i = Q_rowval[k]
       if i == j
         nzvalij = ignore_D ? -deq[i]^2 * Q_nzval[k] : deq[i]^2 * (-Q_nzval[k] + D[j])
@@ -303,7 +303,7 @@ function get_norm_rc_K2_CSC!(
 
   ncolA = (uplo == :L) ? nvar : ncon
   for j = 1:ncolA
-    for k = A_colptr[j]:(A_colptr[j + 1] - 1)
+    @inbounds for k = A_colptr[j]:(A_colptr[j + 1] - 1)
       if uplo == :L
         iup = A_rowval[k] + nvar
         jup = j
@@ -322,7 +322,7 @@ function get_norm_rc_K2_CSC!(
   end
 
   if δ > 0
-    for j = (nvar + 1):(nvar + ncon)
+    @inbounds for j = (nvar + 1):(nvar + ncon)
       rdij = δ * deq[j]^2
       if abs(rdij) > v[j]
         v[j] = abs(rdij)
