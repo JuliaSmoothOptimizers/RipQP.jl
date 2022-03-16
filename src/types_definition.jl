@@ -632,10 +632,8 @@ end
 function ScaleData(fd::QM_FloatData{T, S}, id::QM_IntData, scaling::Bool) where {T, S}
   if scaling
     if nnz(fd.Q) > 0
-      sd = ScaleDataQP{T, S}(
-        fill!(S(undef, id.nvar + id.ncon), one(T)),
-        S(undef, id.nvar + id.ncon),
-      )
+      sd =
+        ScaleDataQP{T, S}(fill!(S(undef, id.nvar + id.ncon), one(T)), S(undef, id.nvar + id.ncon))
     else
       if fd.uplo == :U
         m, n = id.nvar, id.ncon
@@ -648,7 +646,7 @@ function ScaleData(fd::QM_FloatData{T, S}, id::QM_IntData, scaling::Bool) where 
         S(undef, n),
         S(undef, m),
       )
-    end  
+    end
   else
     empty_v = S(undef, 0)
     sd = ScaleDataQP{T, S}(empty_v, empty_v)
