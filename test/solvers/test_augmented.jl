@@ -149,7 +149,13 @@ end
           sp = K2StructuredParams(kmethod = kmethod, δ_min = δ_min),
           solve_method = :IPF,
         ),
-        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+        itol = InputTol(
+          max_iter = 50,
+          max_time = 20.0,
+          ϵ_rc = 1.0e-4,
+          ϵ_rb = 1.0e-4,
+          ϵ_pdd = 1.0e-4,
+        ),
       )
       @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
       @test stats4.status == :acceptable
@@ -175,7 +181,13 @@ end
           sp = K2_5StructuredParams(kmethod = kmethod, δ_min = δ_min),
           solve_method = :IPF,
         ),
-        itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+        itol = InputTol(
+          max_iter = 50,
+          max_time = 20.0,
+          ϵ_rc = 1.0e-4,
+          ϵ_rb = 1.0e-4,
+          ϵ_pdd = 1.0e-4,
+        ),
       )
       @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
       @test stats4.status == :acceptable

@@ -177,8 +177,7 @@ function div_D_Q_D_CSC!(Q_colptr, Q_rowval, Q_nzval, d, n)
     end
   end
 end
-div_D_Q_D!(Q::SparseMatrixCSC, D) =
-  div_D_Q_D_CSC!(Q.colptr, Q.rowval, Q.nzval, D.diag, size(Q, 1))
+div_D_Q_D!(Q::SparseMatrixCSC, D) = div_D_Q_D_CSC!(Q.colptr, Q.rowval, Q.nzval, D.diag, size(Q, 1))
 
 function div_D_Q_D!(Q, D)
   ldiv!(D, Q)
@@ -213,13 +212,12 @@ function post_scale!(
   id::QM_IntData,
   itd::IterData{T},
 ) where {T <: Real}
-
-  if typeof(sd) <: ScaleDataLP 
+  if typeof(sd) <: ScaleDataLP
     d1 = sd.d1
     d2 = sd.d2
   elseif typeof(sd) <: ScaleDataQP
-    d1 = view(sd.deq, 1: id.nvar)
-    d2 = view(sd.deq, id.nvar + 1: id.nvar + id.ncon)
+    d1 = view(sd.deq, 1:(id.nvar))
+    d2 = view(sd.deq, (id.nvar + 1):(id.nvar + id.ncon))
   end
   D1, D2 = Diagonal(d1), Diagonal(d2)
 
@@ -338,7 +336,7 @@ function get_norm_rc_K2_CSC!(
   end
 end
 
-get_norm_rc_K2!(v, Q::SparseMatrixCSC, A::SparseMatrixCSC, D, deq, δ, nvar, ncon, uplo) = 
+get_norm_rc_K2!(v, Q::SparseMatrixCSC, A::SparseMatrixCSC, D, deq, δ, nvar, ncon, uplo) =
   get_norm_rc_K2_CSC!(
     v,
     Q.colptr,
@@ -355,19 +353,28 @@ get_norm_rc_K2!(v, Q::SparseMatrixCSC, A::SparseMatrixCSC, D, deq, δ, nvar, nco
     uplo,
   )
 
-get_norm_rc_K2!(v, Q::Symmetric{T, SparseMatrixCSC{T, Int}}, A::SparseMatrixCSC, D, deq, δ, nvar, ncon, uplo) where {T} = 
-  get_norm_rc_K2!(v, Q.data, A, D, deq, δ, nvar, ncon, uplo)
+get_norm_rc_K2!(
+  v,
+  Q::Symmetric{T, SparseMatrixCSC{T, Int}},
+  A::SparseMatrixCSC,
+  D,
+  deq,
+  δ,
+  nvar,
+  ncon,
+  uplo,
+) where {T} = get_norm_rc_K2!(v, Q.data, A, D, deq, δ, nvar, ncon, uplo)
 
 # not efficient but can be improved:
-function get_norm_rc_K2!(v, Q::Symmetric, A, D, deq, δ, nvar, ncon, uplo) 
+function get_norm_rc_K2!(v, Q::Symmetric, A, D, deq, δ, nvar, ncon, uplo)
   # D as storage vec
-  @assert δ == 0  
+  @assert δ == 0
   T = eltype(v)
   v .= zero(T)
-  v1 = view(v, 1: nvar)
-  v2 = view(v, nvar + 1: nvar + ncon)
-  Deq1 = Diagonal(view(deq, 1: nvar))
-  Deq2 = Diagonal(view(deq, nvar + 1: nvar + ncon))
+  v1 = view(v, 1:nvar)
+  v2 = view(v, (nvar + 1):(nvar + ncon))
+  Deq1 = Diagonal(view(deq, 1:nvar))
+  Deq2 = Diagonal(view(deq, (nvar + 1):(nvar + ncon)))
   rmul!(Q.data, Deq1)
   lmul!(Deq1, Q.data)
   maximum!(abs, v1, Q)
@@ -446,8 +453,8 @@ function scaling!(
     k += 1
   end
 
-  D1 = Diagonal(view(deq, 1: id.nvar))
-  D2 = Diagonal(view(deq, id.nvar+1: id.nvar+id.ncon))
+  D1 = Diagonal(view(deq, 1:(id.nvar)))
+  D2 = Diagonal(view(deq, (id.nvar + 1):(id.nvar + id.ncon)))
   if fd_T0.uplo == :U
     lmul!(D1, fd_T0.A)
     rmul!(fd_T0.A, D2)
