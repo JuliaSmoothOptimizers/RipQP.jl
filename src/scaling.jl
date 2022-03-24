@@ -108,6 +108,7 @@ function equilibrate!(
   max_iter::Int = 100,
   uplo::Symbol = :L,
 ) where {T <: Real, S <: AbstractVector{T}}
+  min(size(A)...) == 0 && return
   get_norm_rc!(R_k.diag, A, :row)
   get_norm_rc!(C_k.diag, A, :col)
   convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
@@ -133,6 +134,7 @@ function equilibrate!(
   ϵ::T = T(1.0e-2),
   max_iter::Int = 100,
 ) where {T <: Real, S <: AbstractVector{T}}
+  size(Q, 1) == 0 && return
   get_norm_rc!(C_k.diag, Q.data, :col)
   convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   mul_Q_D!(Q.data, D3.diag, C_k)
@@ -434,6 +436,7 @@ function scaling!(
   ϵ::T;
   max_iter::Int = 100,
 ) where {T <: Real}
+  size(fd_T0.Q) == 0 && min(size(fd_T0.A)...) == 0 && return
   deq, c_k = sd.deq, sd.c_k
   deq .= one(T)
   Deq = Diagonal(deq)
