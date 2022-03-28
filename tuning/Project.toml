@@ -1,0 +1,11 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+NLPModels = "a4795742-8479-5a88-8948-cc11e1c8c1a6"
+QPSReader = "10f199a5-22af-520b-b891-7ce84a7b1bd0"
+QuadraticModels = "f468eda6-eac5-11e8-05a5-ff9e497bcd19"
+RipQP = "1e40b3f8-35eb-4cd8-8edd-3e515bb9de08"
+SolverCore = "ff4d7338-4cf1-434d-91df-b86cb86fb843"
+SolverParameters = "adf32eb0-fe7e-47bb-93e4-fe96e72f6839"
+SolverTuning = "82699957-41be-4f37-a62b-14550e0d6cd0"
