@@ -9,14 +9,14 @@ function init_Ksolver(M, v, sp::SolverParams)
 end
 
 ksolve!(
-  KS::MinresSolver{T, S},
+  KS::MinresSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = minres!(
+) where {T} = minres!(
   KS,
   K,
   rhs,
@@ -29,147 +29,147 @@ ksolve!(
 )
 
 ksolve!(
-  KS::MinresQlpSolver{T, S},
+  KS::MinresQlpSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::SymmlqSolver{T, S},
+  KS::SymmlqSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = symmlq!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = symmlq!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::CgSolver{T, S},
+  KS::CgSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = cg!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = cg!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::CgLanczosSolver{T, S},
+  KS::CgLanczosSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::CrSolver{T, S},
+  KS::CrSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = cr!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = cr!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::BilqSolver{T, S},
+  KS::BilqSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = bilq!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = bilq!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::QmrSolver{T, S},
+  KS::QmrSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = qmr!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = qmr!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::UsymlqSolver{T, S},
+  KS::UsymlqSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = usymlq!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = usymlq!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::UsymqrSolver{T, S},
+  KS::UsymqrSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = usymqr!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = usymqr!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::BicgstabSolver{T, S},
+  KS::BicgstabSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = bicgstab!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = bicgstab!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::DiomSolver{T, S},
+  KS::DiomSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = diom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = diom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::FomSolver{T, S},
+  KS::FomSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = fom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = fom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::DqgmresSolver{T, S},
+  KS::DqgmresSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = dqgmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = dqgmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::GmresSolver{T, S},
+  KS::GmresSolver{T},
   K,
   rhs::AbstractVector{T},
   M;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S} = gmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = gmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::TricgSolver{T, S},
+  KS::TricgSolver{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -179,11 +179,11 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   gsp::Bool = false,
-) where {T, S} =
+) where {T} =
   tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
-  KS::TrimrSolver{T, S},
+  KS::TrimrSolver{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -193,7 +193,7 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   gsp::Bool = false,
-) where {T, S} = trimr!(
+) where {T} = trimr!(
   KS,
   A,
   ξ1,
@@ -208,7 +208,7 @@ ksolve!(
 )
 
 function ksolve!(
-  KS::GpmrSolver{T, S},
+  KS::GpmrSolver{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -218,7 +218,7 @@ function ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   gsp::Bool = false,
-) where {T, S}
+) where {T}
   sqrtδI = sqrt(N.λ) * I
   return gpmr!(
     KS,
@@ -240,7 +240,7 @@ end
 
 # gpmr solver for K3.5
 function ksolve!(
-  KS::GpmrSolver{T, S},
+  KS::GpmrSolver{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -249,7 +249,7 @@ function ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return gpmr!(
     KS,
     A,
@@ -268,15 +268,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LslqSolver{T, S},
+  KS::LslqSolver{T},
   A,
-  ξ1::S,
+  ξ1::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return lslq!(
     KS,
     A,
@@ -294,15 +294,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LsqrSolver{T, S},
+  KS::LsqrSolver{T},
   A,
-  ξ1::S,
+  ξ1::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return lsqr!(
     KS,
     A,
@@ -321,15 +321,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LsmrSolver{T, S},
+  KS::LsmrSolver{T},
   A,
-  ξ1::S,
+  ξ1::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return lsmr!(
     KS,
     A,
@@ -348,15 +348,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LnlqSolver{T, S},
+  KS::LnlqSolver{T},
   A,
-  ξ2::S,
+  ξ2::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return lnlq!(
     KS,
     A,
@@ -371,15 +371,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::CraigSolver{T, S},
+  KS::CraigSolver{T},
   A,
-  ξ2::S,
+  ξ2::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return craig!(
     KS,
     A,
@@ -396,15 +396,15 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::CraigmrSolver{T, S},
+  KS::CraigmrSolver{T},
   A,
-  ξ2::S,
+  ξ2::AbstractVector{T},
   M,
   δ::T;
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T, S}
+) where {T}
   return craigmr!(
     KS,
     A,
