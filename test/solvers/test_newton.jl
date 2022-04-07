@@ -75,11 +75,11 @@ end
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
     @test stats3.status == :acceptable
   end
-  for (kmethod, precond) in [(:minres, :EquilibrationK3S), (:gmres, :EquilibrationK3Ssqrt)]
+  for kmethod in [:minres, :gmres]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond),
+      iconf = InputConfig(sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :EquilibrationK3S),
                           solve_method = :IPF),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -89,7 +89,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      iconf = InputConfig(sp = K3SKrylovParams(kmethod = kmethod, preconditioner = precond)),
+      iconf = InputConfig(sp = K3SKrylovParams(kmethod = kmethod, preconditioner = :EquilibrationK3S)),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)

@@ -68,38 +68,12 @@ function update_preconditioner!(
   fd::QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
-  pad.pdat.d_l .= one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l)
-  pad.pdat.d_u .= one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u)
+  TS = typeof(pad.KS)
+  if TS <: GmresSolver || TS <: DqgmresSolver
+    pad.pdat.d_l .= sqrt.(one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l))
+    pad.pdat.d_u .= sqrt.(one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u))
+  else
+    pad.pdat.d_l .= one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l)
+    pad.pdat.d_u .= one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u)
+  end
 end
-
-mutable struct EquilibrationK3SsqrtData{T <: Real, S, L <: LinearOperator{T}} <: PreconditionerData{T, S}
-  P::L
-  d_l::S
-  d_u::S
-end
-
-function EquilibrationK3Ssqrt(
-  id::QM_IntData,
-  fd::QM_FloatData{T, S},
-  regu::Regularization{T},
-  K::Union{LinearOperator{T}, AbstractMatrix{T}},
-) where {T <: Real, S}
-  d_l = fill!(S(undef, id.nlow), one(T))
-  d_u = fill!(S(undef, id.nupp), one(T))
-  P = BlockDiagonalOperator(opEye(T, id.nvar + id.ncon), opDiagonal(d_l), opDiagonal(d_u))
-  return EquilibrationK3SsqrtData(P, d_l, d_u)
-end
-
-function update_preconditioner!(
-  pdat::EquilibrationK3SsqrtData{T},
-  pad::PreallocatedData{T},
-  itd::IterData{T},
-  pt::Point{T},
-  id::QM_IntData,
-  fd::QM_FloatData{T},
-  cnts::Counters,
-) where {T <: Real}
-  pad.pdat.d_l .= sqrt.(one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l))
-  pad.pdat.d_u .= sqrt.(one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u))
-end
-
