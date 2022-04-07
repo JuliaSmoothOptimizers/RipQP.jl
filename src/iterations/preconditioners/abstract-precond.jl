@@ -1,12 +1,12 @@
-export PreconditionerDataK2
+export PreconditionerData
 """
-Abstract type that defines preconditioners for the K2 formulation.
+Abstract type that defines preconditioners.
 The available preconditioners are:
 - Identity
 - Jacobi
-- Equilibration (K2 only)
+- Equilibration
 """
-abstract type PreconditionerDataK2{T <: Real, S} end
+abstract type PreconditionerData{T <: Real, S} end
 
 include("identity.jl")
 include("jacobi.jl")

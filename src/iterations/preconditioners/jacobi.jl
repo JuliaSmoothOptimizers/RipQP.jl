@@ -1,4 +1,4 @@
-mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerDataK2{T, S}
+mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerData{T, S}
   P::L
   diagQ::S
   invDiagK::S

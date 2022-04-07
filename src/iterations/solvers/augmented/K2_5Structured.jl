@@ -18,7 +18,7 @@ The available methods are:
 - `:trimr`
 - `:gpmr`
 
-The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref).
+The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerData`](@ref).
 The `mem` argument sould be used only with `gpmr`.
 """
 mutable struct K2_5StructuredParams <: AugmentedParams
