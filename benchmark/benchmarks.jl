@@ -29,6 +29,6 @@ const SUITE = BenchmarkGroup()
 SUITE[:ripqp] = BenchmarkGroup()
 
 
-for (i,nlp) in problems
+for (i,nlp) in enumerate(problems)
   SUITE[:ripqp]["problem#$i"] = @benchmarkable ripqp($nlp;display=false)
 end
