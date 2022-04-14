@@ -74,13 +74,21 @@ function K3SKrylovParams(;
   )
 end
 
-mutable struct PreallocatedDataK3SKrylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
-               PreallocatedDataNewtonKrylov{T, S}
+mutable struct PreallocatedDataK3SKrylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Pr <: PreconditionerData,
+  Ksol <: KrylovSolver,
+} <: PreallocatedDataNewtonKrylov{T, S}
+  pdat::Pr
   rhs::S
   rhs_scale::Bool
   regu::Regularization{T}
   ρv::Vector{T}
   δv::Vector{T}
+  x_m_lvar_div_s_l::S
+  uvar_m_x_div_s_u::S
   K::L # augmented matrix (LinearOperator)         
   KS::Ksol
   atol::T
@@ -96,10 +104,8 @@ function opK3Sprod!(
   ilow::Vector{Int},
   iupp::Vector{Int},
   nlow::Int,
-  x_m_lvar::AbstractVector{T},
-  uvar_m_x::AbstractVector{T},
-  s_l::AbstractVector{T},
-  s_u::AbstractVector{T},
+  x_m_lvar_div_s_l::AbstractVector{T},
+  uvar_m_x_div_s_u::AbstractVector{T},
   Q::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
   ρv::AbstractVector{T},
@@ -123,15 +129,15 @@ function opK3Sprod!(
   res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
     res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l)
+      @views α .* (v[ilow] .+ x_m_lvar_div_s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
     res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u)
+      @views α .* (.-v[iupp] .+ uvar_m_x_div_s_u .* v[(nvar + ncon + nlow + 1):end])
   else
     res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)] ./ s_l) .+
+      @views α .* (v[ilow] .+ x_m_lvar_div_s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
              β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
     res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end] ./ s_u) .+
+      @views α .* (.-v[iupp] .+ uvar_m_x_div_s_u .* v[(nvar + ncon + nlow + 1):end]) .+
              β .* res[(nvar + ncon + nlow + 1):end]
   end
 end
@@ -154,6 +160,8 @@ function PreallocatedData(
   end
   ρv = [regu.ρ]
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
+  x_m_lvar_div_s_l = itd.x_m_lvar ./ pt.s_l
+  uvar_m_x_div_s_u = itd.uvar_m_x ./ pt.s_u
   K = LinearOperator(
     T,
     id.nvar + id.ncon + id.nlow + id.nupp,
@@ -167,10 +175,8 @@ function PreallocatedData(
       id.ilow,
       id.iupp,
       id.nlow,
-      itd.x_m_lvar,
-      itd.uvar_m_x,
-      pt.s_l,
-      pt.s_u,
+      x_m_lvar_div_s_l,
+      uvar_m_x_div_s_u,
       fd.Q,
       fd.A,
       ρv,
@@ -184,13 +190,17 @@ function PreallocatedData(
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
   KS = init_Ksolver(K, rhs, sp)
+  pdat = eval(sp.preconditioner)(id, fd, regu, K)
 
   return PreallocatedDataK3SKrylov(
+    pdat,
     rhs,
     sp.rhs_scale,
     regu,
     ρv,
     δv,
+    x_m_lvar_div_s_l,
+    uvar_m_x_div_s_u,
     K, #K
     KS,
     T(sp.atol0),
@@ -227,7 +237,7 @@ function solver!(
     rhsNorm = kscale!(pad.rhs)
   end
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -264,8 +274,10 @@ function update_pad!(
 
   pad.ρv[1] = pad.regu.ρ
   pad.δv[1] = pad.regu.δ
+  pad.x_m_lvar_div_s_l .= itd.x_m_lvar ./ pt.s_l
+  pad.uvar_m_x_div_s_u .= itd.uvar_m_x ./ pt.s_u
 
-  # update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
   return 0
 end

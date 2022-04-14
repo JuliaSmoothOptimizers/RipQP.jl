@@ -259,14 +259,12 @@ function initialize!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real, Tc <: Real, Tconf <: Real}
-  pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
-
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [b]
   itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
-  if typeof(pad) <: PreallocatedDataNewton
+  if typeof(iconf.sp) <: NewtonParams
     itd.Δs_l .= zero(T)
     itd.Δs_u .= zero(T)
     pt.s_l .= one(T)
@@ -274,6 +272,7 @@ function initialize!(
     itd.x_m_lvar .= one(T)
     itd.uvar_m_x .= one(T)
   end
+  pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
   out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]

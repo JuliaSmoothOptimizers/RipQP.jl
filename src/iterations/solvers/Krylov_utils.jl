@@ -166,7 +166,7 @@ ksolve!(
   verbose::Integer = 0,
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
-) where {T} = gmres!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol)
+) where {T} = gmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
   KS::TricgSolver{T},

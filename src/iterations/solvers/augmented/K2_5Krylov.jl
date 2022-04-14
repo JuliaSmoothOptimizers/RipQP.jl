@@ -19,7 +19,7 @@ The available methods are:
 - `:minres_qlp`
 - `:symmlq`
 
-The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerDataK2`](@ref)
+The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerData`](@ref)
 """
 mutable struct K2_5KrylovParams <: AugmentedParams
   uplo::Symbol
@@ -73,7 +73,7 @@ mutable struct PreallocatedDataK2_5Krylov{
   T <: Real,
   S,
   L <: LinearOperator,
-  Pr <: PreconditionerDataK2,
+  Pr <: PreconditionerData,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
