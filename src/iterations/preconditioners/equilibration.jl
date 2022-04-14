@@ -41,7 +41,8 @@ function update_preconditioner!(
   pdat.P.diag .= pdat.P.diag .^ 2
 end
 
-mutable struct EquilibrationK3SData{T <: Real, S, L <: LinearOperator{T}} <: PreconditionerData{T, S}
+mutable struct EquilibrationK3SData{T <: Real, S, L <: LinearOperator{T}} <:
+               PreconditionerData{T, S}
   P::L
   d_l::S
   d_u::S
