@@ -37,5 +37,5 @@ K1_2StructuredParams
 ## Preconditioners
 
 ```@docs
-PreconditionerDataK2
+PreconditionerData
 ```
