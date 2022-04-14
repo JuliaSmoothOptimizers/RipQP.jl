@@ -7,7 +7,3 @@ The available preconditioners are:
 - Equilibration
 """
 abstract type PreconditionerData{T <: Real, S} end
-
-include("identity.jl")
-include("jacobi.jl")
-include("equilibration.jl")

@@ -61,7 +61,7 @@ end
 
 function update_preconditioner!(
   pdat::EquilibrationK3SData{T},
-  pad::PreallocatedData{T},
+  pad::PreallocatedDataK3SKrylov{T},
   itd::IterData{T},
   pt::Point{T},
   id::QM_IntData,
@@ -75,5 +75,24 @@ function update_preconditioner!(
   else
     pad.pdat.d_l .= one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l)
     pad.pdat.d_u .= one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u)
+  end
+end
+
+function update_preconditioner!(
+  pdat::EquilibrationK3SData{T},
+  pad::PreallocatedDataK3_5Krylov{T},
+  itd::IterData{T},
+  pt::Point{T},
+  id::QM_IntData,
+  fd::QM_FloatData{T},
+  cnts::Counters,
+) where {T <: Real}
+  TS = typeof(pad.KS)
+  if TS <: GmresSolver || TS <: DqgmresSolver
+    pad.pdat.d_l .= sqrt.(one(T) ./ max.(pt.s_l, itd.x_m_lvar))
+    pad.pdat.d_u .= sqrt.(one(T) ./ max.(pt.s_u, itd.uvar_m_x))
+  else
+    pad.pdat.d_l .= one(T) ./ max.(pt.s_l, itd.x_m_lvar)
+    pad.pdat.d_u .= one(T) ./ max.(pt.s_u, itd.uvar_m_x)
   end
 end

@@ -82,8 +82,10 @@ mutable struct PreallocatedDataK3_5Krylov{
   T <: Real,
   S,
   L <: LinearOperator,
+  Pr <: PreconditionerData,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataNewtonKrylov{T, S}
+  pdat::Pr
   rhs::S
   rhs_scale::Bool
   regu::Regularization{T}
@@ -193,8 +195,10 @@ function PreallocatedData(
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
 
   KS = init_Ksolver(K, rhs, sp)
+  pdat = eval(sp.preconditioner)(id, fd, regu, K)
 
   return PreallocatedDataK3_5Krylov(
+    pdat,
     rhs,
     sp.rhs_scale,
     regu,
@@ -236,7 +240,7 @@ function solver!(
     rhsNorm = kscale!(pad.rhs)
   end
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, I, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -274,7 +278,7 @@ function update_pad!(
   pad.ρv[1] = pad.regu.ρ
   pad.δv[1] = pad.regu.δ
 
-  # update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
   return 0
 end
