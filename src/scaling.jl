@@ -6,8 +6,9 @@ function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   for j = 1:n
     @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
       k = ax == :row ? A_rowval[i] : j
-      if abs(A_nzval[i]) > v[k]
-        v[k] = abs(A_nzval[i])
+      A_nzi_abs = abs(A_nzval[i]) 
+      if A_nzi_abs > v[k]
+        v[k] = A_nzi_abs
       end
     end
   end
@@ -21,6 +22,32 @@ function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
 end
 get_norm_rc!(v, A::SparseMatrixCSC, ax) =
   get_norm_rc_CSC!(v, A.colptr, A.rowval, A.nzval, size(A, 2), ax)
+
+function get_norm_rc_CSC_sym!(v, A_colptr, A_rowval, A_nzval, n)
+  T = eltype(v)
+  v .= zero(T)
+  for j = 1:n
+    @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
+      k = A_rowval[i]
+      A_nzi_abs = abs(A_nzval[i])
+      if A_nzi_abs > v[k]
+        v[k] = A_nzi_abs
+      end
+      if A_nzi_abs > v[j]
+        v[j] = A_nzi_abs
+      end
+    end
+  end
+
+  v .= sqrt.(v)
+  @inbounds @simd for i = 1:length(v)
+    if v[i] == zero(T)
+      v[i] = one(T)
+    end
+  end
+end
+get_norm_rc!(v, A::Symmetric{T, SparseMatrixCSC{T, Int}}, ax) where {T} =
+  get_norm_rc_CSC_sym!(v, A.data.colptr, A.data.rowval, A.data.nzval, size(A, 2))
 
 function get_norm_rc!(v, A, ax)
   T = eltype(v)
@@ -135,7 +162,7 @@ function equilibrate!(
   max_iter::Int = 100,
 ) where {T <: Real, S <: AbstractVector{T}}
   size(Q, 1) == 0 && return
-  get_norm_rc!(C_k.diag, Q.data, :col)
+  get_norm_rc!(C_k.diag, Q, :col)
   convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   mul_Q_D!(Q.data, D3.diag, C_k)
   k = 1

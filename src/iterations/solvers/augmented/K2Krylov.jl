@@ -6,7 +6,7 @@ Type to use the K2 formulation with a Krylov method, using the package
 The outer constructor 
 
     K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
-                   rhs_scale = true, form_mat = false,
+                   rhs_scale = true, form_mat = false, equilibrate = false,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
@@ -27,6 +27,7 @@ mutable struct K2KrylovParams <: AugmentedParams
   preconditioner::Symbol
   rhs_scale::Bool
   form_mat::Bool
+  equilibrate::Bool
   atol0::Float64
   rtol0::Float64
   atol_min::Float64
@@ -44,6 +45,7 @@ function K2KrylovParams(;
   preconditioner::Symbol = :Identity,
   rhs_scale::Bool = true,
   form_mat::Bool = false,
+  equilibrate::Bool = false,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
   atol_min::T = 1.0e-10,
@@ -57,12 +59,16 @@ function K2KrylovParams(;
   if uplo == :L && form_mat
     error("matrix can only be created if uplo == :U")
   end
+  if equilibrate && !form_mat
+    error("use form_mat = true to use equilibration")
+  end
   return K2KrylovParams(
     uplo,
     kmethod,
     preconditioner,
     rhs_scale,
     form_mat,
+    equilibrate,
     atol0,
     rtol0,
     atol_min,
@@ -75,16 +81,18 @@ function K2KrylovParams(;
   )
 end
 
-mutable struct MatrixTools{T}
+mutable struct MatrixTools{T, S}
   diag_Q::SparseVector{T, Int} # Q diag
   diagind_K::Vector{Int}
+  Deq::Diagonal{T, S}
+  C_eq::Diagonal{T, S}
 end
 
 mutable struct PreallocatedDataK2Krylov{
   T <: Real,
   S,
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
-  MT <: Union{MatrixTools{T}, Int},
+  MT <: Union{MatrixTools{T, S}, Int},
   Pr <: PreconditionerData,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataAugmentedKrylov{T, S}
@@ -92,6 +100,7 @@ mutable struct PreallocatedDataK2Krylov{
   D::S                                  # temporary top-left diagonal
   rhs::S
   rhs_scale::Bool
+  equilibrate::Bool
   regu::Regularization{T}
   δv::Vector{T}
   K::M # augmented matrix
@@ -151,7 +160,15 @@ function PreallocatedData(
     diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
     K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
     diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
-    mt = MatrixTools(diag_Q, diagind_K)
+    if sp.equilibrate
+      Deq = Diagonal(similar(D, id.nvar + id.ncon))
+      Deq.diag .= one(T)
+      C_eq = Diagonal(similar(D, id.nvar + id.ncon))
+    else
+      Deq = Diagonal(similar(D, 0))
+      C_eq = Diagonal(similar(D, 0))
+    end
+    mt = MatrixTools(diag_Q, diagind_K, Deq, C_eq)
   else
     K = LinearOperator(
       T,
@@ -173,6 +190,7 @@ function PreallocatedData(
     D,
     rhs,
     sp.rhs_scale,
+    sp.equilibrate,
     regu,
     δv,
     K, #K
@@ -198,7 +216,7 @@ function solver!(
   T0::DataType,
   step::Symbol,
 ) where {T <: Real}
-  pad.rhs .= dd
+  pad.rhs .= pad.equilibrate ? dd .* pad.mt.Deq.diag : dd
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
@@ -207,7 +225,13 @@ function solver!(
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end
-
+  if pad.equilibrate
+    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
+      rdiv!(pad.K.data, pad.mt.Deq)
+      ldiv!(pad.mt.Deq, pad.K.data)
+    end
+    pad.KS.x .*= pad.mt.Deq.diag
+  end
   dd .= pad.KS.x
 
   return 0
@@ -243,6 +267,10 @@ function update_pad!(
     pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval
     pad.K.data.nzval[view(pad.mt.diagind_K, 1:(id.nvar))] = pad.D
     pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
+    if pad.equilibrate
+      pad.mt.Deq.diag .= one(T)
+      equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-4), max_iter = 100)
+    end
   end
 
   update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
