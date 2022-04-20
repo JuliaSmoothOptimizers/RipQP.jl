@@ -3,6 +3,7 @@ mutable struct IdentityData{T <: Real, S, SI <: UniformScaling} <: Preconditione
 end
 
 function Identity(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -14,6 +15,7 @@ function Identity(
 end
 
 function Identity(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

@@ -5,6 +5,7 @@ mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerDa
 end
 
 function Jacobi(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

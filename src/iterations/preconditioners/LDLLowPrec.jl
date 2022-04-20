@@ -1,4 +1,4 @@
-mutable struct LDLLowPrecData{T <: Real, S, Tlow, F, Ftu, Faw} <: PreconditionerData{T, S}
+mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <: PreconditionerData{T, S}
   K::SparseMatrixCSC{Tlow, Int}
   Dlp::S
   regu::Regularization{Tlow}
@@ -6,7 +6,7 @@ mutable struct LDLLowPrecData{T <: Real, S, Tlow, F, Ftu, Faw} <: Preconditioner
   diagind_K::Vector{Int} # diagonal indices of J
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
   fact_fail::Bool # true if factorization failed 
-  P::LinearOperator{Tlow, Int, F, Ftu, Faw}
+  P::Op
 end
 
 types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, S} =
@@ -14,10 +14,25 @@ types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, 
 
 lowtype(pdat::LDLLowPrecData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
-LDLLowPrec32(id::QM_IntData, fd::QM_FloatData{T}, regu::Regularization{T}, D::AbstractVector{T}, K) where {T} = 
-  LDLLowPrec(id, fd, regu, D, K, Float32)
+LDLLowPrec32(sp::SolverParams, id::QM_IntData, fd::QM_FloatData{T}, regu::Regularization{T}, D::AbstractVector{T}, K) where {T} = 
+  LDLLowPrec(sp, id, fd, regu, D, K, Float32)
+
+function ld_div!(y, b, n, Lp, Li, Lx, D, P)
+  y .= b
+  z = @views y[P]
+  LDLFactorizations.ldl_lsolve!(n, z, Lp, Li, Lx)
+  LDLFactorizations.ldl_dsolve!(n, z, D)
+end
+
+function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
+  y .= b
+  z = @views y[P]
+  LDLFactorizations.ldl_dsolve!(n, z, D)
+  LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
+end
 
 function LDLLowPrec(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -41,16 +56,34 @@ function LDLLowPrec(
     K_fact.n_d = id.nvar
   end
   ldl_factorize!(Symmetric(K, :U), K_fact)
-  K_fact.d .= abs.(K_fact.d)
-  P = LinearOperator(Tlow,
-    id.nvar + id.ncon,
-    id.nvar + id.ncon,
-    true,
-    true,
-    (res, v, α, β) -> ldiv!(res, K_fact, v),
-  )
-  Tlow2, I, F, Ftu, Faw, S = types_linop(P)
-  return LDLLowPrecData{T, typeof(fd.c), Tlow, F, Ftu, Faw}(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, P)
+  if sp.kmethod == :gmres
+    K_fact.d .= sqrt.(abs.(K_fact.d))
+    M = LinearOperator(Tlow,
+      id.nvar + id.ncon,
+      id.nvar + id.ncon,
+      false,
+      false,
+      (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+    )
+    N = LinearOperator(Tlow,
+      id.nvar + id.ncon,
+      id.nvar + id.ncon,
+      false,
+      false,
+      (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+    )
+    P = LRPrecond(M, N)
+  else
+    K_fact.d .= abs.(K_fact.d)
+    P = LinearOperator(Tlow,
+      id.nvar + id.ncon,
+      id.nvar + id.ncon,
+      true,
+      true,
+      (res, v, α, β) -> ldiv!(res, K_fact, v),
+    )
+  end
+  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, P)
 end
 
 function factorize_scale_K2!(
@@ -137,5 +170,9 @@ function update_preconditioner!(
     pad.pdat.fact_fail = true
     return out
   end
-  pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
+  if typeof(pad.KS) <: GmresSolver
+    pad.pdat.K_fact.d .= sqrt.(abs.(pad.pdat.K_fact.d))
+  else 
+    pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
+  end
 end

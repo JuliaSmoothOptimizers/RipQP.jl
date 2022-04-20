@@ -165,7 +165,7 @@ function PreallocatedData(
 
   KS = init_Ksolver(K, rhs, sp)
 
-  pdat = eval(sp.preconditioner)(id, fd, regu, D, K)
+  pdat = eval(sp.preconditioner)(sp, id, fd, regu, D, K)
 
   return PreallocatedDataK2_5Krylov(
     pdat,
