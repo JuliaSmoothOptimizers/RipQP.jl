@@ -5,6 +5,7 @@ The available preconditioners are:
 - Identity
 - Jacobi
 - Equilibration
+- LDLLowPrec32 (K2 only)
 """
 abstract type PreconditionerData{T <: Real, S} end
 
