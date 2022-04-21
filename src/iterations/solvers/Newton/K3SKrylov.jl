@@ -190,7 +190,7 @@ function PreallocatedData(
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
   KS = init_Ksolver(K, rhs, sp)
-  pdat = eval(sp.preconditioner)(id, fd, regu, K)
+  pdat = eval(sp.preconditioner)(sp, id, fd, regu, K)
 
   return PreallocatedDataK3SKrylov(
     pdat,

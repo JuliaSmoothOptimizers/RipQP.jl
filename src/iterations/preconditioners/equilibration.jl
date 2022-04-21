@@ -4,6 +4,7 @@ mutable struct EquilibrationData{T <: Real, S} <: PreconditionerData{T, S}
 end
 
 function Equilibration(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -49,6 +50,7 @@ mutable struct EquilibrationK3SData{T <: Real, S, L <: LinearOperator{T}} <:
 end
 
 function EquilibrationK3S(
+  sp::SolverParams,
   id::QM_IntData,
   fd::QM_FloatData{T, S},
   regu::Regularization{T},

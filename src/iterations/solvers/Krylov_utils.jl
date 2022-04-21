@@ -169,6 +169,16 @@ ksolve!(
 ) where {T} = gmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol)
 
 ksolve!(
+  KS::GmresSolver{T},
+  K,
+  rhs::AbstractVector{T},
+  P::LRPrecond;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+) where {T} = gmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol)
+
+ksolve!(
   KS::TricgSolver{T},
   A,
   ξ1::AbstractVector{T},

@@ -99,6 +99,23 @@ end
       @test stats3.status == :acceptable
     end
   end
+  stats2 = ripqp(
+    QuadraticModel(qps2),
+    display = false,
+    iconf = InputConfig(
+      sp = K2KrylovParams(uplo = :U, kmethod = :minres, preconditioner = :LDLLowPrec32, rhs_scale = true, form_mat = true, equilibrate = true),
+      solve_method = :IPF))
+  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+  @test stats2.status == :acceptable
+
+  stats3 = ripqp(
+    QuadraticModel(qps3),
+    display = false,
+    iconf = InputConfig(
+      sp = K2KrylovParams(uplo = :U, kmethod = :gmres, preconditioner = :LDLLowPrec32, rhs_scale = true, form_mat = true, equilibrate = true),
+      solve_method = :IPF))
+  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+  @test stats2.status == :acceptable
 end
 
 @testset "KrylovK2_5" begin

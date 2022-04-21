@@ -2,7 +2,7 @@
 
 # update regularization values in classic mode if there is a failure during factorization
 function update_regu_trycatch!(regu, cnts, T, T0)
-  T == Float32 && return 1
+  T == Float32 && T0 != Float32 && return 1
   T0 == Float128 && T == Float64 && return 1
   if cnts.c_pdd == 0 && cnts.c_catch == 0
     regu.δ *= T(1e2)

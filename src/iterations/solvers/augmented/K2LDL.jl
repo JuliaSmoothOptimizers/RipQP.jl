@@ -263,11 +263,10 @@ function fill_K2!(
   end
 end
 
-function create_K2(id, D, Q, A, diag_Q, regu)
+function create_K2(id, D, Q, A, diag_Q, regu; T = eltype(D))
   # for classic regul only
   n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
-  T = eltype(D)
-  if regu.regul == :classic && regu.δ > zero(T)
+  if regu.regul == :classic && regu.δ > 0
     n_nz += id.ncon
   end
   K_colptr = Vector{Int}(undef, id.ncon + id.nvar + 1)
@@ -295,7 +294,36 @@ function create_K2(id, D, Q, A, diag_Q, regu)
     regu.regul,
   )
 
-  return SparseMatrixCSC(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
+  return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
+end
+
+function update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
+  if regu.regul == :classic
+    D .= -regu.ρ
+    if regu.δ > zero(T)
+      K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+    end
+  else
+    D .= zero(T)
+  end
+  D[ilow] .-= s_l ./ x_m_lvar
+  D[iupp] .-= s_u ./ uvar_m_x
+  D[diag_Q.nzind] .-= diag_Q.nzval
+  K.nzval[view(diagind_K, 1:nvar)] = D
+end
+
+function update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
+  Amax = @views norm(K.nzval[diagind_K], Inf)
+  if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
+    if T == Float32
+      return one(Int) # update to Float64
+    elseif qp || cnts.c_pdd < 4
+      cnts.c_pdd += 1
+      regu.δ /= 10
+      K_fact.r2 = regu.δ
+    end
+  end
+  K_fact.tol = Amax * T(eps(T))
 end
 
 # iteration functions for the K2 system
@@ -319,33 +347,11 @@ function factorize_K2!(
   T,
   T0,
 )
-  if regu.regul == :classic
-    D .= -regu.ρ
-    if regu.δ > zero(T)
-      K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
-    end
-  else
-    D .= zero(T)
-  end
-  D[ilow] .-= s_l ./ x_m_lvar
-  D[iupp] .-= s_u ./ uvar_m_x
-  D[diag_Q.nzind] .-= diag_Q.nzval
-  K.nzval[view(diagind_K, 1:nvar)] = D
+  update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
 
   if regu.regul == :dynamic
-    Amax = @views norm(K.nzval[diagind_K], Inf)
-    if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
-      if T == Float32
-        return one(Int) # update to Float64
-      elseif qp || cnts.c_pdd < 4
-        cnts.c_pdd += 1
-        regu.δ /= 10
-        K_fact.r2 = regu.δ
-      end
-    end
-    K_fact.tol = Amax * T(eps(T))
+    update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
     ldl_factorize!(Symmetric(K, :U), K_fact)
-
   elseif regu.regul == :classic
     ldl_factorize!(Symmetric(K, :U), K_fact)
     while !factorized(K_fact)
@@ -353,14 +359,7 @@ function factorize_K2!(
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
-      D .= -regu.ρ
-      D[ilow] .-= s_l ./ x_m_lvar
-      D[iupp] .-= s_u ./ uvar_m_x
-      D[diag_Q.nzind] .-= diag_Q.nzval
-      K.nzval[view(diagind_K, 1:nvar)] = D
-      if regu.δ > zero(T)
-        K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
-      end
+      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
       ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
