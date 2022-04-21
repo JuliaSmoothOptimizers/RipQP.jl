@@ -6,7 +6,7 @@ function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
   for j = 1:n
     @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
       k = ax == :row ? A_rowval[i] : j
-      A_nzi_abs = abs(A_nzval[i]) 
+      A_nzi_abs = abs(A_nzval[i])
       if A_nzi_abs > v[k]
         v[k] = A_nzi_abs
       end

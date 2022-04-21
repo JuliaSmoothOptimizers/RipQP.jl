@@ -1,4 +1,5 @@
-mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <: PreconditionerData{T, S}
+mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
+               PreconditionerData{T, S}
   K::SparseMatrixCSC{Tlow, Int}
   Dlp::S
   regu::Regularization{Tlow}
@@ -14,8 +15,14 @@ types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, 
 
 lowtype(pdat::LDLLowPrecData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
-LDLLowPrec32(sp::SolverParams, id::QM_IntData, fd::QM_FloatData{T}, regu::Regularization{T}, D::AbstractVector{T}, K) where {T} = 
-  LDLLowPrec(sp, id, fd, regu, D, K, Float32)
+LDLLowPrec32(
+  sp::SolverParams,
+  id::QM_IntData,
+  fd::QM_FloatData{T},
+  regu::Regularization{T},
+  D::AbstractVector{T},
+  K,
+) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float32)
 
 function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
@@ -42,7 +49,13 @@ function LDLLowPrec(
 ) where {T <: Real}
   @assert fd.uplo == :U
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
-  regu_precond = Regularization(-Tlow(D[1]), Tlow(max(regu.δ, sqrt(eps(Tlow)))), sqrt(eps(Tlow)), sqrt(eps(Tlow)), :classic)
+  regu_precond = Regularization(
+    -Tlow(D[1]),
+    Tlow(max(regu.δ, sqrt(eps(Tlow)))),
+    sqrt(eps(Tlow)),
+    sqrt(eps(Tlow)),
+    :classic,
+  )
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow)
   Dlp = copy(D)
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
@@ -58,14 +71,16 @@ function LDLLowPrec(
   ldl_factorize!(Symmetric(K, :U), K_fact)
   if sp.kmethod == :gmres
     K_fact.d .= sqrt.(abs.(K_fact.d))
-    M = LinearOperator(Tlow,
+    M = LinearOperator(
+      Tlow,
       id.nvar + id.ncon,
       id.nvar + id.ncon,
       false,
       false,
       (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
     )
-    N = LinearOperator(Tlow,
+    N = LinearOperator(
+      Tlow,
       id.nvar + id.ncon,
       id.nvar + id.ncon,
       false,
@@ -75,7 +90,8 @@ function LDLLowPrec(
     P = LRPrecond(M, N)
   else
     K_fact.d .= abs.(K_fact.d)
-    P = LinearOperator(Tlow,
+    P = LinearOperator(
+      Tlow,
       id.nvar + id.ncon,
       id.nvar + id.ncon,
       true,
@@ -107,7 +123,6 @@ function factorize_scale_K2!(
   T,
   T0,
 )
-
   if regu.regul == :dynamic
     update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
     ldl_factorize!(Symmetric(K, :U), K_fact)
@@ -118,7 +133,22 @@ function factorize_scale_K2!(
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
-      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
+      update_K!(
+        K,
+        D,
+        regu,
+        s_l,
+        s_u,
+        x_m_lvar,
+        uvar_m_x,
+        ilow,
+        iupp,
+        diag_Q,
+        diagind_K,
+        nvar,
+        ncon,
+        T,
+      )
       ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
@@ -129,7 +159,6 @@ function factorize_scale_K2!(
   return 0 # factorization succeeded
 end
 
-
 function update_preconditioner!(
   pdat::LDLLowPrecData{T},
   pad::PreallocatedData{T},
@@ -139,9 +168,9 @@ function update_preconditioner!(
   fd::QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
-
   Tlow = lowtype(pad.pdat)
-  pad.pdat.regu.ρ, pad.pdat.regu.δ = max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
+  pad.pdat.regu.ρ, pad.pdat.regu.δ =
+    max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
   pad.pdat.K.nzval .= pad.K.data.nzval
 
   out = factorize_scale_K2!(
@@ -172,7 +201,7 @@ function update_preconditioner!(
   end
   if typeof(pad.KS) <: GmresSolver
     pad.pdat.K_fact.d .= sqrt.(abs.(pad.pdat.K_fact.d))
-  else 
+  else
     pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
   end
 end
