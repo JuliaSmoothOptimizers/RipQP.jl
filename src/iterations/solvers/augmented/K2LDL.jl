@@ -297,7 +297,22 @@ function create_K2(id, D, Q, A, diag_Q, regu; T = eltype(D))
   return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
 end
 
-function update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
+function update_K!(
+  K,
+  D,
+  regu,
+  s_l,
+  s_u,
+  x_m_lvar,
+  uvar_m_x,
+  ilow,
+  iupp,
+  diag_Q,
+  diagind_K,
+  nvar,
+  ncon,
+  T,
+)
   if regu.regul == :classic
     D .= -regu.ρ
     if regu.δ > zero(T)
@@ -359,7 +374,22 @@ function factorize_K2!(
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
-      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
+      update_K!(
+        K,
+        D,
+        regu,
+        s_l,
+        s_u,
+        x_m_lvar,
+        uvar_m_x,
+        ilow,
+        iupp,
+        diag_Q,
+        diagind_K,
+        nvar,
+        ncon,
+        T,
+      )
       ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
