@@ -220,13 +220,16 @@ function solver!(
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
+  if step !== :cc  
+    update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  end
   ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end
   if pad.equilibrate
-    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
+    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}} && step !== :aff
       rdiv!(pad.K.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.K.data)
     end
@@ -272,8 +275,6 @@ function update_pad!(
       equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-4), max_iter = 100)
     end
   end
-
-  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
   return 0
 end

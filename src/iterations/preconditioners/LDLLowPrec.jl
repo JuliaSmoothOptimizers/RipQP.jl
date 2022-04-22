@@ -23,12 +23,19 @@ LDLLowPrec32(
   D::AbstractVector{T},
   K,
 ) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float32)
+LDLLowPrec64(
+  sp::SolverParams,
+  id::QM_IntData,
+  fd::QM_FloatData{T},
+  regu::Regularization{T},
+  D::AbstractVector{T},
+  K,
+) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float64)
 
 function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
   z = @views y[P]
   LDLFactorizations.ldl_lsolve!(n, z, Lp, Li, Lx)
-  LDLFactorizations.ldl_dsolve!(n, z, D)
 end
 
 function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
@@ -199,9 +206,8 @@ function update_preconditioner!(
     pad.pdat.fact_fail = true
     return out
   end
-  if typeof(pad.KS) <: GmresSolver
-    pad.pdat.K_fact.d .= sqrt.(abs.(pad.pdat.K_fact.d))
-  else
+  ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+  if !(typeof(pad.KS) <: GmresSolver)
     pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
   end
 end
