@@ -11,7 +11,7 @@
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -20,7 +20,7 @@
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
 end
 
@@ -33,7 +33,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
-    @test stats1.status == :acceptable
+    @test stats1.status == :first_order
 
     stats2 = ripqp(
       QuadraticModel(qps2),
@@ -42,7 +42,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-3, ϵ_rb = 1.0e-3, ϵ_pdd = 1.0e-3),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -51,7 +51,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
 end
 
@@ -64,7 +64,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e0)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -73,7 +73,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
   for kmethod in [:minres, :gmres]
     stats2 = ripqp(
@@ -86,7 +86,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e0)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -97,7 +97,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
 end
 
@@ -120,7 +120,7 @@ end
       ),
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
-    @test stats1.status == :acceptable
+    @test stats1.status == :first_order
 
     stats2 = ripqp(
       QuadraticModel(qps2),
@@ -135,7 +135,7 @@ end
       ),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -150,7 +150,7 @@ end
       ),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
   for kmethod in [:minres, :gmres]
     stats2 = ripqp(
@@ -163,7 +163,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e0)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -174,7 +174,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
 end
 
@@ -197,7 +197,7 @@ end
       ),
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-1)
-    @test stats1.status == :acceptable
+    @test stats1.status == :first_order
 
     stats2 = ripqp(
       QuadraticModel(qps2),
@@ -212,7 +212,7 @@ end
       ),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
 
     stats3 = ripqp(
       QuadraticModel(qps3),
@@ -227,6 +227,6 @@ end
       ),
     )
     @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :acceptable
+    @test stats3.status == :first_order
   end
 end

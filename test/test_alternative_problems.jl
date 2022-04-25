@@ -29,7 +29,7 @@ end
     iconf = InputConfig(w = SystemWrite(write = true, name = "test_", kfirst = 4, kgap = 1000)),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
-  @test stats1.status == :acceptable
+  @test stats1.status == :first_order
 
   K = MatrixMarket.mmread("test_K_iter4.mtx")
   rhs_aff = readdlm("test_rhs_iter4_aff.rhs", Float64)[:]
@@ -59,25 +59,30 @@ end
 @testset "maximize" begin
   stats1 = ripqp(QuadraticModelMaximize(qps1), display = false)
   @test isapprox(stats1.objective, 1.59078179, atol = 1e-2)
-  @test stats1.status == :acceptable
+  @test stats1.status == :first_order
 
   stats2 = ripqp(QuadraticModelMaximize(qps2), display = false)
   @test isapprox(stats2.objective, 9.99599999e1, atol = 1e-2)
-  @test stats2.status == :acceptable
+  @test stats2.status == :first_order
 
   stats3 = ripqp(QuadraticModelMaximize(qps3), display = false)
   @test isapprox(stats3.objective, -5.32664756, atol = 1e-2)
-  @test stats3.status == :acceptable
+  @test stats3.status == :first_order
 end
 
 @testset "presolve" begin
+  qp = QuadraticModel(zeros(2), zeros(2,2), lvar = zeros(2), uvar = zeros(2))
+  stats_ps = ripqp(qp)
+  @test stats_ps.status == :first_order
+  @test stats_ps.solution == [0.0; 0.0]
+  
   stats5 = ripqp(QuadraticModel(qps5), display = false)
   @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
-  @test stats5.status == :acceptable
+  @test stats5.status == :first_order
 
   stats5 = ripqp(QuadraticModel(qps5), iconf = InputConfig(sp = K2KrylovParams()), display = false)
   @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
-  @test stats5.status == :acceptable
+  @test stats5.status == :first_order
 end
 
 qp_linop = QuadraticModel(
@@ -110,11 +115,11 @@ qp_dense = QuadraticModel(
     display = false,
   )
   @test isapprox(stats_linop.objective, 1.1249999990782493, atol = 1e-2)
-  @test stats_linop.status == :acceptable
+  @test stats_linop.status == :first_order
 
   stats_dense = ripqp(qp_dense, iconf = InputConfig(sp = K2KrylovParams(uplo = :U)))
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
-  @test stats_dense.status == :acceptable
+  @test stats_dense.status == :first_order
 
   for fact_alg in [:bunchkaufman, :ldl]
     stats_dense = ripqp(
@@ -127,11 +132,11 @@ qp_dense = QuadraticModel(
       display = false,
     )
     @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
-    @test stats_dense.status == :acceptable
+    @test stats_dense.status == :first_order
   end
 
   # test conversion
   stats_dense = ripqp(qp_dense)
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
-  @test stats_dense.status == :acceptable
+  @test stats_dense.status == :first_order
 end
