@@ -11,7 +11,7 @@
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-    @test stats4.status == :acceptable
+    @test stats4.status == :first_order
   end
 
   stats4 = ripqp(
@@ -21,7 +21,7 @@
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-  @test stats4.status == :acceptable
+  @test stats4.status == :first_order
 end
 
 @testset "Krylov K1.1 Structured" begin
@@ -37,7 +37,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
-    @test stats4.status == :acceptable
+    @test stats4.status == :first_order
   end
 
   stats4 = ripqp(
@@ -47,7 +47,7 @@ end
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-  @test stats4.status == :acceptable
+  @test stats4.status == :first_order
 end
 
 @testset "Krylov K1.2 Structured" begin
@@ -63,7 +63,7 @@ end
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
     )
     @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
-    @test stats4.status == :acceptable
+    @test stats4.status == :first_order
   end
 
   stats4 = ripqp(
@@ -73,7 +73,7 @@ end
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-  @test stats4.status == :acceptable
+  @test stats4.status == :first_order
 end
 
 @testset "Krylov K1 Dense" begin
@@ -101,7 +101,7 @@ end
   )
 
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-  @test stats4.status == :acceptable
+  @test stats4.status == :first_order
 
   stats4 = ripqp(
     qm_dense4,
@@ -118,5 +118,5 @@ end
   )
 
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
-  @test stats4.status == :acceptable
+  @test stats4.status == :first_order
 end

@@ -20,15 +20,15 @@ end
 @testset "multi_mode" begin
   stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
-  @test stats1.status == :acceptable
+  @test stats1.status == :first_order
 
   stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
-  @test stats2.status == :acceptable
+  @test stats2.status == :first_order
 
   stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(mode = :multi), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
-  @test stats3.status == :acceptable
+  @test stats3.status == :first_order
 end
 
 @testset "Float16, Float32, Float128" begin
@@ -40,13 +40,13 @@ end
     display = false,
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
-  @test stats1.status == :acceptable
+  @test stats1.status == :first_order
 
   for T ∈ [Float32, Float128]
     qmT_2 = createQuadraticModelT(qps2, T = T)
     stats2 = ripqp(qmT_2, display = false)
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
-    @test stats2.status == :acceptable
+    @test stats2.status == :first_order
   end
 
   qm16 = QuadraticModel(
@@ -72,5 +72,5 @@ end
     display = false,
   )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
-  @test stats_dense.status == :acceptable
+  @test stats_dense.status == :first_order
 end

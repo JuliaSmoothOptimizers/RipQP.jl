@@ -59,7 +59,12 @@ function ripqp(
   QM0 = convert_QM(QM0, iconf, display)
 
   if iconf.presolve
-    QM = presolve(QM0)
+    stats_ps = presolve(QM0)
+    if stats_ps.status == :unknown
+      QM = stats_ps.solver_specific[:presolvedQM]
+    else
+      return stats_ps
+    end
   else
     QM = QM0
   end
@@ -235,7 +240,7 @@ function ripqp(
   elseif sc.tired
     status = :max_time
   elseif sc.optimal
-    status = :acceptable
+    status = :first_order
   else
     status = :unknown
   end
