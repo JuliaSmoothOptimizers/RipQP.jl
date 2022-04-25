@@ -71,11 +71,11 @@ end
 end
 
 @testset "presolve" begin
-  qp = QuadraticModel(zeros(2), zeros(2,2), lvar = zeros(2), uvar = zeros(2))
+  qp = QuadraticModel(zeros(2), zeros(2, 2), lvar = zeros(2), uvar = zeros(2))
   stats_ps = ripqp(qp)
   @test stats_ps.status == :first_order
   @test stats_ps.solution == [0.0; 0.0]
-  
+
   stats5 = ripqp(QuadraticModel(qps5), display = false)
   @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
   @test stats5.status == :first_order
