@@ -2,7 +2,10 @@ export LDLLowPrec
 
 mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
   T::FloatType
+  pos::Symbol # :L (left), :R (right) or :C (center) 
 end
+
+LDLLowPrec(T::DataType) = LDLLowPrec(T, :C)
 
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
@@ -66,23 +69,44 @@ function PreconditionerData(
   end
   ldl_factorize!(Symmetric(K, :U), K_fact)
   if sp.kmethod == :gmres
-    K_fact.d .= sqrt.(abs.(K_fact.d))
-    M = LinearOperator(
-      Tlow,
-      id.nvar + id.ncon,
-      id.nvar + id.ncon,
-      false,
-      false,
-      (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-    )
-    N = LinearOperator(
-      Tlow,
-      id.nvar + id.ncon,
-      id.nvar + id.ncon,
-      false,
-      false,
-      (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-    )
+    if sp.preconditioner.pos == :C
+      M = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        false,
+        false,
+        (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+      )
+      N = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        false,
+        false,
+        (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+      )
+    elseif sp.preconditioner.pos == :L
+      M = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        true,
+        true,
+        (res, v) -> ldiv!(res, K_fact, v),
+      )
+      N = I
+    elseif sp.preconditioner.pos == :R
+      M = I
+      N = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        true,
+        true,
+        (res, v) -> ldiv!(res, K_fact, v),
+      )
+    end
     P = LRPrecond(M, N)
   else
     K_fact.d .= abs.(K_fact.d)
