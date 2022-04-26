@@ -61,7 +61,7 @@ function LDLLowPrec(
     Tlow(max(regu.δ, sqrt(eps(Tlow)))),
     sqrt(eps(Tlow)),
     sqrt(eps(Tlow)),
-    :classic,
+    regu.δ != 0 ? :classic : :dynamic,
   )
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow)
   Dlp = copy(D)
