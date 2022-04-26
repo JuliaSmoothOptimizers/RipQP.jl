@@ -1,3 +1,9 @@
+export LDLLowPrec
+
+mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
+  T::FloatType
+end
+
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
   K::SparseMatrixCSC{Tlow, Int}
@@ -15,23 +21,6 @@ types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, 
 
 lowtype(pdat::LDLLowPrecData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
-LDLLowPrec32(
-  sp::SolverParams,
-  id::QM_IntData,
-  fd::QM_FloatData{T},
-  regu::Regularization{T},
-  D::AbstractVector{T},
-  K,
-) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float32)
-LDLLowPrec64(
-  sp::SolverParams,
-  id::QM_IntData,
-  fd::QM_FloatData{T},
-  regu::Regularization{T},
-  D::AbstractVector{T},
-  K,
-) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float64)
-
 function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
   z = @views y[P]
@@ -45,15 +34,15 @@ function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
   LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
 end
 
-function LDLLowPrec(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::AugmentedKrylovParams{<:LDLLowPrec},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
   D::AbstractVector{T},
   K,
-  Tlow::DataType,
 ) where {T <: Real}
+  Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   regu_precond = Regularization(

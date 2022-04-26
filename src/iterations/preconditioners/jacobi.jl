@@ -1,11 +1,16 @@
+export Jacobi
+
+mutable struct Jacobi <: AbstractPreconditioner
+end
+
 mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerData{T, S}
   P::L
   diagQ::S
   invDiagK::S
 end
 
-function Jacobi(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::AugmentedKrylovParams{Jacobi},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

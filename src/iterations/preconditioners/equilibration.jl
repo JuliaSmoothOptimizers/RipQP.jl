@@ -1,10 +1,15 @@
+export Equilibration
+
+mutable struct Equilibration <: AbstractPreconditioner
+end
+
 mutable struct EquilibrationData{T <: Real, S} <: PreconditionerData{T, S}
   P::Diagonal{T, S}
   C_equi::Diagonal{T, S}
 end
 
-function Equilibration(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::AugmentedKrylovParams{Equilibration},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -49,8 +54,8 @@ mutable struct EquilibrationK3SData{T <: Real, S, L <: LinearOperator{T}} <:
   d_u::S
 end
 
-function EquilibrationK3S(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::NewtonKrylovParams{Equilibration},
   id::QM_IntData,
   fd::QM_FloatData{T, S},
   regu::Regularization{T},

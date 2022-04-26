@@ -80,7 +80,7 @@ end
       QuadraticModel(qps2),
       display = false,
       iconf = InputConfig(
-        sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = Equilibration()),
         solve_method = :IPF,
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
@@ -92,7 +92,7 @@ end
       QuadraticModel(qps3),
       display = false,
       iconf = InputConfig(
-        sp = K3SKrylovParams(kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3SKrylovParams(kmethod = kmethod, preconditioner = Equilibration()),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -157,7 +157,7 @@ end
       QuadraticModel(qps2),
       display = false,
       iconf = InputConfig(
-        sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = Equilibration()),
         solve_method = :IPF,
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
@@ -169,7 +169,7 @@ end
       QuadraticModel(qps3),
       display = false,
       iconf = InputConfig(
-        sp = K3_5KrylovParams(kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3_5KrylovParams(kmethod = kmethod, preconditioner = Equilibration()),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )

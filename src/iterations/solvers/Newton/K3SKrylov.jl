@@ -11,7 +11,7 @@ Type to use the K3S formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3SKrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+    K3SKrylovParams(; uplo = :L, kmethod = :minres, preconditioner = Identity(),
                      rhs_scale = true,
                      atol0 = 1.0e-4, rtol0 = 1.0e-4,
                      atol_min = 1.0e-10, rtol_min = 1.0e-10,
@@ -26,10 +26,10 @@ The available methods are:
 - `:symmlq`
 
 """
-mutable struct K3SKrylovParams <: NewtonParams
+mutable struct K3SKrylovParams{PT} <: NewtonKrylovParams{PT}
   uplo::Symbol
   kmethod::Symbol
-  preconditioner::Symbol
+  preconditioner::PT
   rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
@@ -45,7 +45,7 @@ end
 function K3SKrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
-  preconditioner::Symbol = :Identity,
+  preconditioner::AbstractPreconditioner = Identity(),
   rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,
@@ -190,7 +190,7 @@ function PreallocatedData(
 
   rhs = similar(fd.c, id.nvar + id.ncon + id.nlow + id.nupp)
   KS = init_Ksolver(K, rhs, sp)
-  pdat = eval(sp.preconditioner)(sp, id, fd, regu, K)
+  pdat = PreconditionerData(sp, id, fd, regu, K)
 
   return PreallocatedDataK3SKrylov(
     pdat,

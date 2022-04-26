@@ -9,7 +9,7 @@ Type to use the K1 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K1KrylovParams(; uplo = :L, kmethod = :cg, preconditioner = :Identity,
+    K1KrylovParams(; uplo = :L, kmethod = :cg, preconditioner = Identity(),
                    rhs_scale = true,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
@@ -27,10 +27,10 @@ The available methods are:
 - `:symmlq`
 
 """
-mutable struct K1KrylovParams <: NormalParams
+mutable struct K1KrylovParams{PT} <: NormalKrylovParams{PT}
   uplo::Symbol
   kmethod::Symbol
-  preconditioner::Symbol
+  preconditioner::PT
   rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
@@ -46,7 +46,7 @@ end
 function K1KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :cg,
-  preconditioner::Symbol = :Identity,
+  preconditioner::AbstractPreconditioner = Identity(),
   rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,

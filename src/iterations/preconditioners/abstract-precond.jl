@@ -1,4 +1,7 @@
-export PreconditionerData
+export PreconditionerData, AbstractPreconditioner
+
+abstract type AbstractPreconditioner end
+
 """
 Abstract type that defines preconditioners.
 The available preconditioners are:

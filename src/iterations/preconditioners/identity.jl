@@ -1,9 +1,14 @@
+export Identity
+
+mutable struct Identity <: AbstractPreconditioner
+end
+
 mutable struct IdentityData{T <: Real, S, SI <: UniformScaling} <: PreconditionerData{T, S}
   P::SI
 end
 
-function Identity(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::AugmentedKrylovParams{Identity},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -14,13 +19,13 @@ function Identity(
   return IdentityData{T, typeof(fd.c), typeof(P)}(P)
 end
 
-function Identity(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::NewtonKrylovParams{Identity},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
   K::Union{LinearOperator{T}, AbstractMatrix{T}},
-) where {T <: Real}
+) where {T <: Real, PT <: Identity}
   P = I
   return IdentityData{T, typeof(fd.c), typeof(P)}(P)
 end
