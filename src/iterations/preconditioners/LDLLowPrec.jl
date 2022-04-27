@@ -2,10 +2,11 @@ export LDLLowPrec
 
 mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
   T::FloatType
-  pos::Symbol # :L (left), :R (right) or :C (center) 
+  pos::Symbol # :L (left), :R (right) or :C (center)
+  warm_start::Bool
 end
 
-LDLLowPrec(T::DataType) = LDLLowPrec(T, :C)
+LDLLowPrec(;T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T, pos, warm_start)
 
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
@@ -15,7 +16,8 @@ mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LR
   diag_Q::SparseVector{T, Int} # Q diagonal
   diagind_K::Vector{Int} # diagonal indices of J
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
-  fact_fail::Bool # true if factorization failed 
+  fact_fail::Bool # true if factorization failed
+  warm_start::Bool
   P::Op
 end
 
@@ -119,7 +121,7 @@ function PreconditionerData(
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
   end
-  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, P)
+  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, sp.preconditioner.warm_start, P)
 end
 
 function factorize_scale_K2!(
@@ -219,7 +221,10 @@ function update_preconditioner!(
     pad.pdat.fact_fail = true
     return out
   end
-  ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+  if pad.pdat.warm_start
+    ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+    warm_start!(pad.KS, pad.KS.x)
+  end
   if !(typeof(pad.KS) <: GmresSolver)
     pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
   end

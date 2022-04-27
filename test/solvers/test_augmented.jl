@@ -99,23 +99,25 @@ end
       @test stats3.status == :first_order
     end
   end
-  stats2 = ripqp(
-    QuadraticModel(qps2),
-    display = false,
-    iconf = InputConfig(
-      sp = K2KrylovParams(
-        uplo = :U,
-        kmethod = :minres,
-        preconditioner = LDLLowPrec(Float32),
-        rhs_scale = true,
-        form_mat = true,
-        equilibrate = true,
+  for precond in [LDLLowPrec(pos = :C), LDLLowPrec(pos = :L), LDLLowPrec(pos = :R), LDLLowPrec(warm_start = false)]
+    stats2 = ripqp(
+      QuadraticModel(qps2),
+      display = false,
+      iconf = InputConfig(
+        sp = K2KrylovParams(
+          uplo = :U,
+          kmethod = :gmres,
+          preconditioner = precond,
+          rhs_scale = true,
+          form_mat = true,
+          equilibrate = true,
+        ),
+        solve_method = :IPF,
       ),
-      solve_method = :IPF,
-    ),
-  )
-  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-  @test stats2.status == :first_order
+    )
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+    @test stats2.status == :first_order
+  end
 
   stats3 = ripqp(
     QuadraticModel(qps3),
@@ -123,8 +125,8 @@ end
     iconf = InputConfig(
       sp = K2KrylovParams(
         uplo = :U,
-        kmethod = :gmres,
-        preconditioner = LDLLowPrec(Float32),
+        kmethod = :minres,
+        preconditioner = LDLLowPrec(),
         rhs_scale = true,
         form_mat = true,
         equilibrate = true,
@@ -132,8 +134,8 @@ end
       solve_method = :IPF,
     ),
   )
-  @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-  @test stats2.status == :first_order
+  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+  @test stats3.status == :first_order
 end
 
 @testset "KrylovK2_5" begin
