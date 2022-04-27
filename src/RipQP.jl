@@ -1,6 +1,6 @@
 module RipQP
 
-using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics
+using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics, TimerOutputs
 
 using Krylov,
   LDLFactorizations,
@@ -55,6 +55,7 @@ function ripqp(
 ) where {T0 <: Real}
   start_time = time()
   elapsed_time = 0.0
+  @timeit_debug "ripqp" begin
   # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
   QM0 = convert_QM(QM0, iconf, display)
 
@@ -71,7 +72,7 @@ function ripqp(
 
   # allocate workspace
   sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
-    allocate_workspace(QM, iconf, itol, start_time, T0)
+    @timeit_debug "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0)
 
   if iconf.scaling
     scaling!(fd_T0, id, sd, T0(1.0e-5))
@@ -102,30 +103,32 @@ function ripqp(
 
   # display
   if display == true
-    @info log_header(
-      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :kiter],
-      [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
-      hdr_override = Dict(
-        :k => "iter",
-        :pri_obj => "obj",
-        :pdd => "rgap",
-        :rbNorm => "‖rb‖",
-        :rcNorm => "‖rc‖",
-      ),
-    )
-    @info log_row(
-      Any[
-        cnts.k,
-        itd.minimize ? itd.pri_obj : -itd.pri_obj,
-        itd.pdd,
-        res.rbNorm,
-        res.rcNorm,
-        zero(T),
-        zero(T),
-        itd.μ,
-        get_kiter(pad),
-      ],
-    )
+    @timeit_debug "display" begin
+      @info log_header(
+        [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :kiter],
+        [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
+        hdr_override = Dict(
+          :k => "iter",
+          :pri_obj => "obj",
+          :pdd => "rgap",
+          :rbNorm => "‖rb‖",
+          :rcNorm => "‖rc‖",
+        ),
+      )
+      @info log_row(
+        Any[
+          cnts.k,
+          itd.minimize ? itd.pri_obj : -itd.pri_obj,
+          itd.pdd,
+          res.rbNorm,
+          res.rcNorm,
+          zero(T),
+          zero(T),
+          itd.μ,
+          get_kiter(pad),
+        ],
+      )
+    end
   end
 
   if iconf.mode == :multi
@@ -302,6 +305,7 @@ function ripqp(LLS::LLSModel; iconf::InputConfig{Int} = InputConfig(), kwargs...
   x, r = stats.solution[1:n], stats.solution[(n + 1):end]
   solver_sp = stats.solver_specific
   solver_sp[:r] = r
+  end
   return GenericExecutionStats(
     stats.status,
     LLS,

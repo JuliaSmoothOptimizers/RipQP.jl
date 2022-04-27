@@ -202,7 +202,7 @@ function allocate_workspace(
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
   dda = eval(dda_type)(id, S)
 
-  cnts = Counters(zero(Int), zero(Int), 0, 0, iconf.kc, iconf.max_ref, zero(Int), iconf.w)
+  cnts = Counters(0, 0, 0, 0, iconf.kc, iconf.max_ref, 0, iconf.w)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 
@@ -272,8 +272,10 @@ function initialize!(
     itd.x_m_lvar .= one(T)
     itd.uvar_m_x .= one(T)
   end
-  pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
-  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
+  @timeit_debug "init solver" begin
+    pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
+    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
+  end
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]
 
