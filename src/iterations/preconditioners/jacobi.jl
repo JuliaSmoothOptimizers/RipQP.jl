@@ -1,5 +1,13 @@
 export Jacobi
 
+"""
+    preconditioner = Jacobi()
+
+Preconditioner using the inverse of the diagonal of the system to solve.
+Works with:
+- [`K2KrylovParams`](@ref)
+- [`K2_5KrylovParams`](@ref)
+"""
 mutable struct Jacobi <: AbstractPreconditioner
 end
 

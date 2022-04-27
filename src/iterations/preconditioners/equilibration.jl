@@ -1,5 +1,14 @@
 export Equilibration
 
+"""
+    preconditioner = Equilibration()
+
+Preconditioner using the equilibration algorithm in infinity norm.
+Works with:
+- [`K2KrylovParams`](@ref)
+- [`K3SKrylovParams`](@ref)
+- [`K3_5KrylovParams`](@ref)
+"""
 mutable struct Equilibration <: AbstractPreconditioner
 end
 

@@ -1,12 +1,20 @@
 export LDLLowPrec
 
+"""
+    preconditioner = LDLLowPrec(; T = Float32, pos = :C, warm_start = true)
+
+Preconditioner for [`K2KrylovParams`](@ref) using a LDL factorization in precision `T`.
+The `pos` argument is used to choose the type of preconditioning with an unsymmetric Krylov method.
+It can be `:C` (center), `:L` (left) or `:R` (right).
+The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
+"""
 mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
   T::FloatType
   pos::Symbol # :L (left), :R (right) or :C (center)
   warm_start::Bool
 end
 
-LDLLowPrec(;T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T, pos, warm_start)
+LDLLowPrec(; T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T, pos, warm_start)
 
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}

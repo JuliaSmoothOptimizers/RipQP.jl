@@ -1,5 +1,10 @@
 export Identity
 
+"""
+    preconditioner = Identity()
+
+Tells RipQP not to use a preconditioner.
+"""
 mutable struct Identity <: AbstractPreconditioner
 end
 

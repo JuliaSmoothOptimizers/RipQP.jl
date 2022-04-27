@@ -18,8 +18,6 @@ The available methods are:
 - `:minres`
 - `:minres_qlp`
 - `:symmlq`
-
-The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerData`](@ref).
 """
 mutable struct K2KrylovParams{PT} <: AugmentedKrylovParams{PT}
   uplo::Symbol
