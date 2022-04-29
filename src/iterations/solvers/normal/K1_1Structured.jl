@@ -83,7 +83,7 @@ function PreallocatedData(
   pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
-  @assert iconf.solve_method == :IPF
+  @assert typeof(iconf.solve_method) <: IPF
 
   # init Regularization values
   E = similar(fd.c, id.nvar)

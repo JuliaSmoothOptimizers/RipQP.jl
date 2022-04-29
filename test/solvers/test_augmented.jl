@@ -112,7 +112,7 @@ end
           form_mat = true,
           equilibrate = true,
         ),
-        solve_method = :IPF,
+        solve_method = IPF(),
       ),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -131,7 +131,7 @@ end
         form_mat = true,
         equilibrate = true,
       ),
-      solve_method = :IPF,
+      solve_method = IPF(),
     ),
   )
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
@@ -145,7 +145,7 @@ end
       display = true,
       iconf = InputConfig(
         sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = Identity()),
-        solve_method = :IPF,
+        solve_method = IPF(),
         history = true,
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
@@ -158,7 +158,7 @@ end
       display = false,
       iconf = InputConfig(
         sp = K2_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = Jacobi()),
-        solve_method = :IPF,
+        solve_method = IPF(),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -184,7 +184,7 @@ end
         display = false,
         iconf = InputConfig(
           sp = K2StructuredParams(kmethod = kmethod, δ_min = δ_min),
-          solve_method = :IPF,
+          solve_method = IPF(),
         ),
         itol = InputTol(
           max_iter = 50,
@@ -201,7 +201,7 @@ end
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
-    iconf = InputConfig(sp = K2StructuredParams(kmethod = :tricg), solve_method = :IPF),
+    iconf = InputConfig(sp = K2StructuredParams(kmethod = :tricg), solve_method = IPF()),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
@@ -216,7 +216,7 @@ end
         display = false,
         iconf = InputConfig(
           sp = K2_5StructuredParams(kmethod = kmethod, δ_min = δ_min),
-          solve_method = :IPF,
+          solve_method = IPF(),
         ),
         itol = InputTol(
           max_iter = 50,
@@ -233,7 +233,7 @@ end
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
-    iconf = InputConfig(sp = K2_5StructuredParams(kmethod = :tricg), solve_method = :IPF),
+    iconf = InputConfig(sp = K2_5StructuredParams(kmethod = :tricg), solve_method = IPF()),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)

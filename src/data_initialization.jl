@@ -200,7 +200,7 @@ function allocate_workspace(
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
-  dda = eval(dda_type)(id, S)
+  dda = DescentDirectionAllocs(id, iconf.solve_method, S)
 
   cnts = Counters(0, 0, 0, 0, iconf.kc, iconf.max_ref, 0, iconf.w)
 
