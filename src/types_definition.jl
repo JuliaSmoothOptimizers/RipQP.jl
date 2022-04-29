@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol, SystemWrite, SolverParams, PreallocatedData
+export InputConfig, InputTol, SolveMethod, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{
@@ -90,8 +90,8 @@ Type to specify the configuration used by RipQP.
     refinements
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
-- `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
-    use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
+- `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
+    use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
     Following algorithm
 - `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
     history, and the number of products if using a Krylov method in the `solver_specific` field of the 
