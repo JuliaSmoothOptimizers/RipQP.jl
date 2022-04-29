@@ -68,7 +68,7 @@ function PreconditionerData(
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow)
   Dlp = copy(D)
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
-  K_fact = @timeit_debug "LDL analyze" ldl_analyze(Symmetric(K, :U))
+  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(Symmetric(K, :U))
   regu_precond.regul = :dynamic
   if regu_precond.regul == :dynamic
     Amax = @views norm(K.nzval[diagind_K], Inf)
@@ -154,9 +154,9 @@ function factorize_scale_K2!(
 )
   if regu.regul == :dynamic
     update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
-    @timeit_debug "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
   elseif regu.regul == :classic
-    @timeit_debug "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
     while !factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts, T, T0)
       out == 1 && return out
@@ -178,11 +178,11 @@ function factorize_scale_K2!(
         ncon,
         T,
       )
-      @timeit_debug "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+      @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
   else # no Regularization
-    @timeit_debug "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
   end
 
   return 0 # factorization succeeded

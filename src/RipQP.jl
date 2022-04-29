@@ -27,6 +27,8 @@ include("scaling.jl")
 include("multi_precision.jl")
 include("utils.jl")
 
+const to = TimerOutput()
+
 """
     stats = ripqp(QM :: QuadraticModel{T0}; iconf :: InputConfig{Int} = InputConfig(),
                   itol :: InputTol{T0, Int} = InputTol(T0),
@@ -72,7 +74,7 @@ function ripqp(
 
   # allocate workspace
   sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
-    @timeit_debug "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0)
+    @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0)
 
   if iconf.scaling
     scaling!(fd_T0, id, sd, T0(1.0e-5))
@@ -103,7 +105,7 @@ function ripqp(
 
   # display
   if display == true
-    @timeit_debug "display" begin
+    @timeit_debug to "display" begin
       @info log_header(
         [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :kiter],
         [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
@@ -264,6 +266,7 @@ function ripqp(
     solver_specific = Dict(
       :absolute_iter_cnt => cnts.k,
       :pdd => itd.pdd,
+      :nvar_slack => id.nvar,
       :rbNormH => res.rbNormH,
       :rcNormH => res.rcNormH,
       :pddH => res.pddH,
@@ -275,7 +278,11 @@ function ripqp(
       :KresDNormH => res.KresDNormH,
     )
   else
-    solver_specific = Dict(:absolute_iter_cnt => cnts.k, :pdd => itd.pdd)
+    solver_specific = Dict(:absolute_iter_cnt => cnts.k, :pdd => itd.pdd, :nvar_slack => id.nvar)
+  end
+
+  if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrecData
+    solver_specific[:nnzLDL] = length(pad.pdat.K_fact.Lx) + length(pad.pdat.K_fact.d)
   end
 
   elapsed_time = time() - sc.start_time

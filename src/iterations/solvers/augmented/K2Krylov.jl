@@ -180,8 +180,8 @@ function PreallocatedData(
   end
 
   rhs = similar(fd.c, id.nvar + id.ncon)
-  KS = @timeit_debug "krylov solver setup" init_Ksolver(K, rhs, sp)
-  pdat = @timeit_debug "preconditioner setup" PreconditionerData(sp, id, fd, regu, D, K)
+  KS = @timeit_debug to "krylov solver setup" init_Ksolver(K, rhs, sp)
+  pdat = @timeit_debug to "preconditioner setup" PreconditionerData(sp, id, fd, regu, D, K)
 
   return PreallocatedDataK2Krylov(
     pdat,
@@ -219,9 +219,9 @@ function solver!(
     rhsNorm = kscale!(pad.rhs)
   end
   if step !== :cc  
-    @timeit_debug "preconditioner update" update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+    @timeit_debug to "preconditioner update" update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
   end
-  @timeit_debug "Krylov solve" ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  @timeit_debug to "Krylov solve" ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -270,7 +270,7 @@ function update_pad!(
     pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
     if pad.equilibrate
       pad.mt.Deq.diag .= one(T)
-      @timeit_debug "equilibration" equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-2), max_iter = 15)
+      @timeit_debug to "equilibration" equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-2), max_iter = 15)
     end
   end
 

@@ -272,7 +272,7 @@ function initialize!(
     itd.x_m_lvar .= one(T)
     itd.uvar_m_x .= one(T)
   end
-  @timeit_debug "init solver" begin
+  @timeit_debug to "init solver" begin
     pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
     out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
   end

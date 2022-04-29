@@ -172,7 +172,7 @@ function iter!(
 ) where {T <: Real, Tc <: Real}
   @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired
     time_fact = (cnts.kc == -1) ? time_ns() : UInt(0) # timer centrality_corr factorization
-    out = @timeit_debug "update solver" update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0) # update data for the solver! function used
+    out = @timeit_debug to "update solver" update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0) # update data for the solver! function used
     time_fact = (cnts.kc == -1) ? time_ns() - time_fact : 0.0
     out == 1 && break
 
@@ -228,7 +228,7 @@ function iter!(
     sc.tired = sc.Δt > sc.max_time
 
     if display == true
-      @timeit_debug "display" @info log_row(
+      @timeit_debug to "display" @info log_row(
         Any[
           cnts.k,
           itd.minimize ? itd.pri_obj : -itd.pri_obj,
