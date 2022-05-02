@@ -77,7 +77,7 @@ function PreconditionerData(
     K_fact.tol = Amax * Tlow(eps(Tlow))
     K_fact.n_d = id.nvar
   end
-  if sp.kmethod == :gmres
+  if sp.kmethod == :gmres || sp.kmethod == :dqgmres
     if sp.preconditioner.pos == :C
       M = LinearOperator(
         Tlow,
@@ -232,7 +232,7 @@ function update_preconditioner!(
     ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
     warm_start!(pad.KS, pad.KS.x)
   end
-  if !(typeof(pad.KS) <: GmresSolver)
+  if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver)
     pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
   end
 end

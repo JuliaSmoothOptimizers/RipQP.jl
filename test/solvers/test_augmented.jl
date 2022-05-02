@@ -136,6 +136,24 @@ end
   )
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
   @test stats3.status == :first_order
+
+  stats3 = ripqp(
+    QuadraticModel(qps3),
+    display = false,
+    iconf = InputConfig(
+      sp = K2KrylovParams(
+        uplo = :U,
+        kmethod = :dqgmres,
+        preconditioner = LDLLowPrec(),
+        rhs_scale = true,
+        form_mat = true,
+        equilibrate = true,
+      ),
+      solve_method = IPF(),
+    ),
+  )
+  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+  @test stats3.status == :first_order
 end
 
 @testset "KrylovK2_5" begin
