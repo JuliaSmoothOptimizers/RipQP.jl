@@ -5,8 +5,7 @@ export Identity
 
 Tells RipQP not to use a preconditioner.
 """
-mutable struct Identity <: AbstractPreconditioner
-end
+mutable struct Identity <: AbstractPreconditioner end
 
 mutable struct IdentityData{T <: Real, S, SI <: UniformScaling} <: PreconditionerData{T, S}
   P::SI

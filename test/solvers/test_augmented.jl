@@ -99,7 +99,12 @@ end
       @test stats3.status == :first_order
     end
   end
-  for precond in [LDLLowPrec(pos = :C), LDLLowPrec(pos = :L), LDLLowPrec(pos = :R), LDLLowPrec(warm_start = false)]
+  for precond in [
+    LDLLowPrec(pos = :C),
+    LDLLowPrec(pos = :L),
+    LDLLowPrec(pos = :R),
+    LDLLowPrec(warm_start = false),
+  ]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,

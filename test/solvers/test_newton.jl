@@ -38,7 +38,10 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = IPF()),
+      iconf = InputConfig(
+        sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod),
+        solve_method = IPF(),
+      ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-3, ϵ_rb = 1.0e-3, ϵ_pdd = 1.0e-3),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
