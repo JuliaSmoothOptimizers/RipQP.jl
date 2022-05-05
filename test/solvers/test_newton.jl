@@ -5,7 +5,7 @@
       display = false,
       iconf = InputConfig(
         sp = K3KrylovParams(kmethod = kmethod),
-        solve_method = :IPF,
+        solve_method = IPF(),
         history = true,
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
@@ -38,7 +38,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-3, ϵ_rb = 1.0e-3, ϵ_pdd = 1.0e-3),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
@@ -60,7 +60,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = true,
-      iconf = InputConfig(sp = K3SKrylovParams(uplo = :U, kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3SKrylovParams(uplo = :U, kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e0)
@@ -80,8 +80,8 @@ end
       QuadraticModel(qps2),
       display = false,
       iconf = InputConfig(
-        sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :EquilibrationK3S),
-        solve_method = :IPF,
+        sp = K3SKrylovParams(uplo = :U, kmethod = kmethod, preconditioner = Equilibration()),
+        solve_method = IPF(),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -92,7 +92,7 @@ end
       QuadraticModel(qps3),
       display = false,
       iconf = InputConfig(
-        sp = K3SKrylovParams(kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3SKrylovParams(kmethod = kmethod, preconditioner = Equilibration()),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -108,7 +108,7 @@ end
       display = false,
       iconf = InputConfig(
         sp = K3_5StructuredParams(kmethod = kmethod),
-        solve_method = :IPF,
+        solve_method = IPF(),
         history = true,
       ),
       itol = InputTol(
@@ -125,7 +125,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3_5StructuredParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3_5StructuredParams(kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(
         max_iter = 100,
         max_time = 20.0,
@@ -140,7 +140,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      iconf = InputConfig(sp = K3_5StructuredParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3_5StructuredParams(kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(
         max_iter = 100,
         max_time = 20.0,
@@ -157,8 +157,8 @@ end
       QuadraticModel(qps2),
       display = false,
       iconf = InputConfig(
-        sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = :EquilibrationK3S),
-        solve_method = :IPF,
+        sp = K3_5KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = Equilibration()),
+        solve_method = IPF(),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -169,7 +169,7 @@ end
       QuadraticModel(qps3),
       display = false,
       iconf = InputConfig(
-        sp = K3_5KrylovParams(kmethod = kmethod, preconditioner = :EquilibrationK3S),
+        sp = K3_5KrylovParams(kmethod = kmethod, preconditioner = Equilibration()),
       ),
       itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
     )
@@ -185,7 +185,7 @@ end
       display = false,
       iconf = InputConfig(
         sp = K3SStructuredParams(kmethod = kmethod),
-        solve_method = :IPF,
+        solve_method = IPF(),
         history = true,
       ),
       itol = InputTol(
@@ -202,7 +202,7 @@ end
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,
-      iconf = InputConfig(sp = K3SStructuredParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3SStructuredParams(kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(
         max_iter = 100,
         max_time = 20.0,
@@ -217,7 +217,7 @@ end
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      iconf = InputConfig(sp = K3SStructuredParams(kmethod = kmethod), solve_method = :IPF),
+      iconf = InputConfig(sp = K3SStructuredParams(kmethod = kmethod), solve_method = IPF()),
       itol = InputTol(
         max_iter = 100,
         max_time = 20.0,

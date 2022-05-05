@@ -68,19 +68,19 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
-    iconf = InputConfig(solve_method = :IPF, mode = :multi),
+    iconf = InputConfig(solve_method = IPF(), mode = :multi),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(QuadraticModel(qps2), display = false, iconf = InputConfig(solve_method = :IPF))
+  stats2 = ripqp(QuadraticModel(qps2), display = false, iconf = InputConfig(solve_method = IPF()))
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
-    iconf = InputConfig(solve_method = :IPF, sp = K2_5LDLParams(), refinement = :zoom),
+    iconf = InputConfig(solve_method = IPF(), sp = K2_5LDLParams(), refinement = :zoom),
   )
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
@@ -88,7 +88,7 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
-    iconf = InputConfig(solve_method = :IPF, mode = :multi, refinement = :multiref),
+    iconf = InputConfig(solve_method = IPF(), mode = :multi, refinement = :multiref),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
@@ -97,7 +97,7 @@ end
     QuadraticModel(qps2),
     display = false,
     iconf = InputConfig(
-      solve_method = :IPF,
+      solve_method = IPF(),
       mode = :multi,
       refinement = :multizoom,
       sp = K2_5LDLParams(),
@@ -110,7 +110,7 @@ end
     QuadraticModel(qps2),
     display = false,
     iconf = InputConfig(
-      solve_method = :IPF,
+      solve_method = IPF(),
       refinement = :zoom,
       sp = K2LDLParams(regul = :dynamic),
     ),

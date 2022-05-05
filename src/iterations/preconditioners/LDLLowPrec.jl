@@ -1,3 +1,21 @@
+export LDLLowPrec
+
+"""
+    preconditioner = LDLLowPrec(; T = Float32, pos = :C, warm_start = true)
+
+Preconditioner for [`K2KrylovParams`](@ref) using a LDL factorization in precision `T`.
+The `pos` argument is used to choose the type of preconditioning with an unsymmetric Krylov method.
+It can be `:C` (center), `:L` (left) or `:R` (right).
+The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
+"""
+mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
+  T::FloatType
+  pos::Symbol # :L (left), :R (right) or :C (center)
+  warm_start::Bool
+end
+
+LDLLowPrec(; T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T, pos, warm_start)
+
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
   K::SparseMatrixCSC{Tlow, Int}
@@ -6,7 +24,8 @@ mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LR
   diag_Q::SparseVector{T, Int} # Q diagonal
   diagind_K::Vector{Int} # diagonal indices of J
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
-  fact_fail::Bool # true if factorization failed 
+  fact_fail::Bool # true if factorization failed
+  warm_start::Bool
   P::Op
 end
 
@@ -15,20 +34,10 @@ types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, 
 
 lowtype(pdat::LDLLowPrecData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
-LDLLowPrec32(
-  sp::SolverParams,
-  id::QM_IntData,
-  fd::QM_FloatData{T},
-  regu::Regularization{T},
-  D::AbstractVector{T},
-  K,
-) where {T} = LDLLowPrec(sp, id, fd, regu, D, K, Float32)
-
 function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
   z = @views y[P]
   LDLFactorizations.ldl_lsolve!(n, z, Lp, Li, Lx)
-  LDLFactorizations.ldl_dsolve!(n, z, D)
 end
 
 function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
@@ -38,15 +47,15 @@ function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
   LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
 end
 
-function LDLLowPrec(
-  sp::SolverParams,
+function PreconditionerData(
+  sp::AugmentedKrylovParams{<:LDLLowPrec},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
   D::AbstractVector{T},
   K,
-  Tlow::DataType,
 ) where {T <: Real}
+  Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   regu_precond = Regularization(
@@ -54,12 +63,12 @@ function LDLLowPrec(
     Tlow(max(regu.δ, sqrt(eps(Tlow)))),
     sqrt(eps(Tlow)),
     sqrt(eps(Tlow)),
-    :classic,
+    regu.δ != 0 ? :classic : :dynamic,
   )
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow)
   Dlp = copy(D)
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
-  K_fact = ldl_analyze(Symmetric(K, :U))
+  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(Symmetric(K, :U))
   regu_precond.regul = :dynamic
   if regu_precond.regul == :dynamic
     Amax = @views norm(K.nzval[diagind_K], Inf)
@@ -68,25 +77,45 @@ function LDLLowPrec(
     K_fact.tol = Amax * Tlow(eps(Tlow))
     K_fact.n_d = id.nvar
   end
-  ldl_factorize!(Symmetric(K, :U), K_fact)
-  if sp.kmethod == :gmres
-    K_fact.d .= sqrt.(abs.(K_fact.d))
-    M = LinearOperator(
-      Tlow,
-      id.nvar + id.ncon,
-      id.nvar + id.ncon,
-      false,
-      false,
-      (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-    )
-    N = LinearOperator(
-      Tlow,
-      id.nvar + id.ncon,
-      id.nvar + id.ncon,
-      false,
-      false,
-      (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-    )
+  if sp.kmethod == :gmres || sp.kmethod == :dqgmres
+    if sp.preconditioner.pos == :C
+      M = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        false,
+        false,
+        (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+      )
+      N = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        false,
+        false,
+        (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+      )
+    elseif sp.preconditioner.pos == :L
+      M = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        true,
+        true,
+        (res, v) -> ldiv!(res, K_fact, v),
+      )
+      N = I
+    elseif sp.preconditioner.pos == :R
+      M = I
+      N = LinearOperator(
+        Tlow,
+        id.nvar + id.ncon,
+        id.nvar + id.ncon,
+        true,
+        true,
+        (res, v) -> ldiv!(res, K_fact, v),
+      )
+    end
     P = LRPrecond(M, N)
   else
     K_fact.d .= abs.(K_fact.d)
@@ -99,7 +128,7 @@ function LDLLowPrec(
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
   end
-  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, P)
+  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, sp.preconditioner.warm_start, P)
 end
 
 function factorize_scale_K2!(
@@ -125,9 +154,9 @@ function factorize_scale_K2!(
 )
   if regu.regul == :dynamic
     update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
-    ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
   elseif regu.regul == :classic
-    ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
     while !factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts, T, T0)
       out == 1 && return out
@@ -149,11 +178,11 @@ function factorize_scale_K2!(
         ncon,
         T,
       )
-      ldl_factorize!(Symmetric(K, :U), K_fact)
+      @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
     end
 
   else # no Regularization
-    ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
   end
 
   return 0 # factorization succeeded
@@ -199,9 +228,11 @@ function update_preconditioner!(
     pad.pdat.fact_fail = true
     return out
   end
-  if typeof(pad.KS) <: GmresSolver
-    pad.pdat.K_fact.d .= sqrt.(abs.(pad.pdat.K_fact.d))
-  else
+  if pad.pdat.warm_start
+    ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+    warm_start!(pad.KS, pad.KS.x)
+  end
+  if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver)
     pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
   end
 end

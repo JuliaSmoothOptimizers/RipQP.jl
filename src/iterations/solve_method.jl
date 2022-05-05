@@ -1,3 +1,8 @@
+export PC, IPF
+
+mutable struct PC <: SolveMethod
+end
+
 abstract type DescentDirectionAllocs{T <: Real, S} end
 
 mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{T, S}
@@ -36,7 +41,7 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
   end
 end
 
-DescentDirectionAllocsPC(id::QM_IntData, S::DataType) where {T <: Real} = DescentDirectionAllocsPC(
+DescentDirectionAllocs(id::QM_IntData, sm::PC, S::DataType) where {T <: Real} = DescentDirectionAllocsPC(
   S(undef, id.nvar + id.ncon), # Δxy_aff
   S(undef, id.nlow), # Δs_l_aff
   S(undef, id.nupp), # Δs_u_aff
@@ -111,7 +116,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, dda.Δxy_aff, :aff, cnts.k)
-  out = solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, T0, :aff)
+  out = @timeit_debug to "solver aff" solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, T0, :aff)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     dda.Δs_l_aff .= @views .-pt.s_l .- pt.s_l .* dda.Δxy_aff[id.ilow] ./ itd.x_m_lvar
@@ -184,7 +189,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
-  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+  out = @timeit_debug to "solver cc" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
@@ -199,26 +204,39 @@ function update_dd!(
   return out
 end
 
+mutable struct IPF <: SolveMethod
+  r::Float64
+  γ::Float64
+end
+
+IPF(; r::Float64 = 0.999, γ::Float64 = 0.05) = IPF(r, γ)
+
 mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs{T, S}
+  r::T
+  γ::T
   compl_l::S # complementarity s_lᵀ(x-lvar)
   compl_u::S # complementarity s_uᵀ(uvar-x)
   function DescentDirectionAllocsIPF(
+    r::T,
+    γ::T,
     compl_l::AbstractVector{T},
     compl_u::AbstractVector{T},
   ) where {T <: Real}
     S = typeof(compl_l)
-    return new{T, S}(compl_l, compl_u)
+    return new{T, S}(r, γ, compl_l, compl_u)
   end
 end
 
-DescentDirectionAllocsIPF(id::QM_IntData, S::DataType) =
-  DescentDirectionAllocsIPF(S(undef, id.nlow), S(undef, id.nupp))
+function DescentDirectionAllocs(id::QM_IntData, sm::IPF, S::DataType)
+  T = eltype(S)
+  return DescentDirectionAllocsIPF(T(sm.r), T(sm.γ), S(undef, id.nlow), S(undef, id.nupp))
+end
 
 convert(
   ::Type{<:DescentDirectionAllocs{T, S}},
   dda::DescentDirectionAllocsIPF{T0, S0},
 ) where {T <: Real, S <: AbstractVector{T}, T0 <: Real, S0} =
-  DescentDirectionAllocsIPF(convert(S, dda.compl_l), convert(S, dda.compl_u))
+  DescentDirectionAllocsIPF(T(dda.r), T(dda.γ), convert(S, dda.compl_l), convert(S, dda.compl_u))
 
 function update_dd!(
   dda::DescentDirectionAllocsIPF{T},
@@ -231,14 +249,13 @@ function update_dd!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real}
-  r, γ = T(0.999), T(0.05)
   # D = [s_l (x-lvar) + s_u (uvar-x)]
   dda.compl_l .= pt.s_l .* itd.x_m_lvar
   dda.compl_u .= pt.s_u .* itd.uvar_m_x
   min_compl_l = (id.nlow > 0) ? minimum(dda.compl_l) / (sum(dda.compl_l) / id.nlow) : one(T)
   min_compl_u = (id.nupp > 0) ? minimum(dda.compl_u) / (sum(dda.compl_u) / id.nupp) : one(T)
   ξ = min(min_compl_l, min_compl_u)
-  σ = γ * min((one(T) - r) * (one(T) - ξ) / ξ, T(2))^3
+  σ = dda.γ * min((one(T) - dda.r) * (one(T) - ξ) / ξ, T(2))^3
 
   itd.Δxy[1:(id.nvar)] .= .-res.rc
   itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
@@ -251,7 +268,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :IPF, cnts.k)
-  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
+  out = @timeit_debug to "solver IPF" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views (σ * itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l

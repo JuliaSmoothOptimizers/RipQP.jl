@@ -9,7 +9,7 @@ Type to use the K3 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K3KrylovParams(; uplo = :L, kmethod = :qmr, preconditioner = :Identity,
+    K3KrylovParams(; uplo = :L, kmethod = :qmr, preconditioner = Identity(),
                    rhs_scale = true,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4,
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
@@ -24,10 +24,10 @@ The available methods are:
 - `:usymqr`
 
 """
-mutable struct K3KrylovParams <: NewtonParams
+mutable struct K3KrylovParams{PT} <: NewtonKrylovParams{PT}
   uplo::Symbol
   kmethod::Symbol
-  preconditioner::Symbol
+  preconditioner::PT
   rhs_scale::Bool
   atol0::Float64
   rtol0::Float64
@@ -43,7 +43,7 @@ end
 function K3KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :qmr,
-  preconditioner::Symbol = :Identity,
+  preconditioner::AbstractPreconditioner = Identity(),
   rhs_scale::Bool = true,
   atol0::T = 1.0e-4,
   rtol0::T = 1.0e-4,

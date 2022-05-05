@@ -37,5 +37,8 @@ K1_2StructuredParams
 ## Preconditioners
 
 ```@docs
-PreconditionerData
+Identity
+Jacobi
+Equilibration
+LDLLowPrec
 ```

@@ -1,5 +1,7 @@
 abstract type AugmentedParams <: SolverParams end
 
+abstract type AugmentedKrylovParams{PT <: AbstractPreconditioner} <: AugmentedParams end
+
 abstract type PreallocatedDataAugmented{T <: Real, S} <: PreallocatedData{T, S} end
 
 abstract type PreallocatedDataAugmentedLDL{T <: Real, S} <: PreallocatedDataAugmented{T, S} end

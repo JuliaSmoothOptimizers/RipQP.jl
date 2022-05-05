@@ -5,7 +5,7 @@ Type to use the K2 formulation with a Krylov method, using the package
 [`Krylov.jl`](https://github.com/JuliaSmoothOptimizers/Krylov.jl). 
 The outer constructor 
 
-    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = :Identity,
+    K2KrylovParams(; uplo = :L, kmethod = :minres, preconditioner = Identity(),
                    rhs_scale = true, form_mat = false, equilibrate = false,
                    atol0 = 1.0e-4, rtol0 = 1.0e-4, 
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
@@ -18,13 +18,11 @@ The available methods are:
 - `:minres`
 - `:minres_qlp`
 - `:symmlq`
-
-The list of available preconditioners for this solver is displayed here: [`RipQP.PreconditionerData`](@ref).
 """
-mutable struct K2KrylovParams <: AugmentedParams
+mutable struct K2KrylovParams{PT} <: AugmentedKrylovParams{PT}
   uplo::Symbol
   kmethod::Symbol
-  preconditioner::Symbol
+  preconditioner::PT
   rhs_scale::Bool
   form_mat::Bool
   equilibrate::Bool
@@ -42,7 +40,7 @@ end
 function K2KrylovParams(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
-  preconditioner::Symbol = :Identity,
+  preconditioner::AbstractPreconditioner = Identity(),
   rhs_scale::Bool = true,
   form_mat::Bool = false,
   equilibrate::Bool = false,
@@ -182,8 +180,8 @@ function PreallocatedData(
   end
 
   rhs = similar(fd.c, id.nvar + id.ncon)
-  KS = init_Ksolver(K, rhs, sp)
-  pdat = eval(sp.preconditioner)(sp, id, fd, regu, D, K)
+  KS = @timeit_debug to "krylov solver setup" init_Ksolver(K, rhs, sp)
+  pdat = @timeit_debug to "preconditioner setup" PreconditionerData(sp, id, fd, regu, D, K)
 
   return PreallocatedDataK2Krylov(
     pdat,
@@ -220,13 +218,16 @@ function solver!(
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
-  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  if step !== :cc  
+    @timeit_debug to "preconditioner update" update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  end
+  @timeit_debug to "Krylov solve" ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end
   if pad.equilibrate
-    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
+    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}} && step !== :aff
       rdiv!(pad.K.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.K.data)
     end
@@ -269,11 +270,9 @@ function update_pad!(
     pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
     if pad.equilibrate
       pad.mt.Deq.diag .= one(T)
-      equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-4), max_iter = 100)
+      @timeit_debug to "equilibration" equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-2), max_iter = 15)
     end
   end
-
-  update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
   return 0
 end

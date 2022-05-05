@@ -138,14 +138,18 @@ function equilibrate!(
   min(size(A)...) == 0 && return
   get_norm_rc!(R_k.diag, A, :row)
   get_norm_rc!(C_k.diag, A, :col)
-  convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   mul_D1_A_D2(A, D1.diag, D2.diag, R_k, C_k, uplo)
+  R_k.diag .= abs.(one(T) .- R_k.diag)
+  C_k.diag .= abs.(one(T) .- C_k.diag)
+  convergence = maximum(R_k.diag) <= ϵ && maximum(C_k.diag) <= ϵ
   k = 1
   while !convergence && k < max_iter
     get_norm_rc!(R_k.diag, A, :row)
     get_norm_rc!(C_k.diag, A, :col)
-    convergence = maximum(abs.(one(T) .- R_k.diag)) <= ϵ && maximum(abs.(one(T) .- C_k.diag)) <= ϵ
     mul_D1_A_D2(A, D1.diag, D2.diag, R_k, C_k, uplo)
+    R_k.diag .= abs.(one(T) .- R_k.diag)
+    C_k.diag .= abs.(one(T) .- C_k.diag)
+    convergence = maximum(R_k.diag) <= ϵ && maximum(C_k.diag) <= ϵ
     k += 1
   end
 end
@@ -163,13 +167,15 @@ function equilibrate!(
 ) where {T <: Real, S <: AbstractVector{T}}
   size(Q, 1) == 0 && return
   get_norm_rc!(C_k.diag, Q, :col)
-  convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   mul_Q_D!(Q.data, D3.diag, C_k)
+  C_k.diag .= abs.(one(T) .- C_k.diag)
+  convergence = maximum(C_k.diag) <= ϵ
   k = 1
   while !convergence && k < max_iter
     get_norm_rc!(C_k.diag, Q, :col)
-    convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
     mul_Q_D!(Q.data, D3.diag, C_k)
+    C_k.diag .= abs.(one(T) .- C_k.diag)
+    convergence = maximum(C_k.diag) <= ϵ
     k += 1
   end
 end
@@ -444,14 +450,16 @@ function equilibrate_K2!(
   Deq.diag .= one(T)
   # get_norm_rc!(C_k.diag, Q.data, :col)
   get_norm_rc_K2!(C_k.diag, Q, A, D, Deq.diag, δ, nvar, ncon, uplo)
-  convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   Deq.diag ./= C_k.diag
+  C_k.diag .= abs.(one(T) .- C_k.diag)
+  convergence = maximum(C_k.diag) <= ϵ
   k = 1
   while !convergence && k < max_iter
     # get_norm_rc!(C_k.diag, Q, :col)
     get_norm_rc_K2!(C_k.diag, Q, A, D, Deq.diag, δ, nvar, ncon, uplo)
-    convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
     Deq.diag ./= C_k.diag
+    C_k.diag .= abs.(one(T) .- C_k.diag)
+    convergence = maximum(C_k.diag) <= ϵ
     k += 1
   end
 end
@@ -473,13 +481,15 @@ function scaling!(
   δ = zero(T)
   # scaling Q (symmetric)
   get_norm_rc_K2!(C_k.diag, fd_T0.Q, fd_T0.A, Dtmp, Deq.diag, δ, id.nvar, id.ncon, fd_T0.uplo)
-  convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
   Deq.diag ./= C_k.diag
+  C_k.diag .= abs.(one(T) .- C_k.diag)
+  convergence = maximum(C_k.diag) <= ϵ
   k = 1
   while !convergence && k < max_iter
     get_norm_rc_K2!(C_k.diag, fd_T0.Q, fd_T0.A, Dtmp, Deq.diag, δ, id.nvar, id.ncon, fd_T0.uplo)
-    convergence = maximum(abs.(one(T) .- C_k.diag)) <= ϵ
     Deq.diag ./= C_k.diag
+    C_k.diag .= abs.(one(T) .- C_k.diag)
+    convergence = maximum(C_k.diag) <= ϵ
     k += 1
   end
 

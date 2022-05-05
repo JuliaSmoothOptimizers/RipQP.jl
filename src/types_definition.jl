@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol, SystemWrite, SolverParams, PreallocatedData
+export InputConfig, InputTol, SolveMethod, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{
@@ -71,6 +71,8 @@ end
 SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int = 1) =
   SystemWrite(write, name, kfirst, kgap)
 
+abstract type SolveMethod end
+
 """
 Type to specify the configuration used by RipQP.
 
@@ -88,8 +90,8 @@ Type to specify the configuration used by RipQP.
     refinements
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
-- `solve_method :: Symbol` : method used to solve the system at each iteration, use `solve_method = :PC` to 
-    use the Predictor-Corrector algorithm (default), and use `solve_method = :IPF` to use the Infeasible Path 
+- `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
+    use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
     Following algorithm
 - `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
     history, and the number of products if using a Krylov method in the `solver_specific` field of the 
@@ -102,13 +104,13 @@ The constructor
                         normalize_rtol :: Bool = true, kc :: I = 0, 
                         refinement :: Symbol = :none, max_ref :: I = 0, 
                         sp :: SolverParams = K2LDLParams(),
-                        solve_method :: Symbol = :PC,
+                        solve_method :: Symbol = PC(),
                         history :: Bool = false, 
                         w :: SystemWrite = SystemWrite()) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
-mutable struct InputConfig{I <: Integer}
+mutable struct InputConfig{I <: Integer, SP <: SolverParams, SM <: SolveMethod}
   mode::Symbol
   scaling::Bool
   presolve::Bool
@@ -120,8 +122,8 @@ mutable struct InputConfig{I <: Integer}
   max_ref::I # maximum number of refinements
 
   # Functions to choose formulations
-  sp::SolverParams
-  solve_method::Symbol
+  sp::SP
+  solve_method::SM
 
   # output tools
   history::Bool
@@ -137,7 +139,7 @@ function InputConfig(;
   refinement::Symbol = :none,
   max_ref::I = 0,
   sp::SolverParams = K2LDLParams(),
-  solve_method::Symbol = :PC,
+  solve_method::SolveMethod = PC(),
   history::Bool = false,
   w::SystemWrite = SystemWrite(),
 ) where {I <: Integer}
@@ -148,11 +150,11 @@ function InputConfig(;
     refinement == :multiref ||
     refinement == :none ||
     error("not a valid refinement parameter")
-  solve_method == :IPF &&
+  typeof(solve_method) <: IPF &&
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
 
-  return InputConfig{I}(
+  return InputConfig{I, typeof(sp), typeof(solve_method)}(
     mode,
     scaling,
     presolve,
