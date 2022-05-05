@@ -91,6 +91,25 @@ rhs_aff = readdlm("test_rhs_iter4_aff.rhs", Float64)[:]
 rhs_cc =  readdlm("test_rhs_iter4_cc.rhs", Float64)[:] 
 ```
 
+## Timers
+
+You can see the elapsed time with:
+
+```julia
+stats1.elapsed_time
+```
+
+For more advanced timers you can use [`TimerOutputs.jl`](https://github.com/KristofferC/TimerOutputs.jl):
+
+```julia
+using TimerOutputs
+TimerOutputs.enable_debug_timings(RipQP)
+reset_timer!(RipQP.to)
+stats = ripqp(QM)
+TimerOutputs.complement!(RipQP.to) # print complement of timed sections
+show(RipQP.to, sortby = :firstexec)
+```
+
 ## Advanced: write your own solver
 
 You can use your own solver to compute the direction of descent inside RipQP at each iteration.
