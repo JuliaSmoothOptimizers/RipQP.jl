@@ -9,8 +9,7 @@ Works with:
 - [`K3SKrylovParams`](@ref)
 - [`K3_5KrylovParams`](@ref)
 """
-mutable struct Equilibration <: AbstractPreconditioner
-end
+mutable struct Equilibration <: AbstractPreconditioner end
 
 mutable struct EquilibrationData{T <: Real, S} <: PreconditionerData{T, S}
   P::Diagonal{T, S}

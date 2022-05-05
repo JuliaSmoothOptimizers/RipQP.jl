@@ -218,10 +218,26 @@ function solver!(
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
-  if step !== :cc  
-    @timeit_debug to "preconditioner update" update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
+  if step !== :cc
+    @timeit_debug to "preconditioner update" update_preconditioner!(
+      pad.pdat,
+      pad,
+      itd,
+      pt,
+      id,
+      fd,
+      cnts,
+    )
   end
-  @timeit_debug to "Krylov solve" ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol)
+  @timeit_debug to "Krylov solve" ksolve!(
+    pad.KS,
+    pad.K,
+    pad.rhs,
+    pad.pdat.P,
+    verbose = 0,
+    atol = pad.atol,
+    rtol = pad.rtol,
+  )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -270,7 +286,13 @@ function update_pad!(
     pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
     if pad.equilibrate
       pad.mt.Deq.diag .= one(T)
-      @timeit_debug to "equilibration" equilibrate!(pad.K, pad.mt.Deq, pad.mt.C_eq; ϵ = T(1.0e-2), max_iter = 15)
+      @timeit_debug to "equilibration" equilibrate!(
+        pad.K,
+        pad.mt.Deq,
+        pad.mt.C_eq;
+        ϵ = T(1.0e-2),
+        max_iter = 15,
+      )
     end
   end
 

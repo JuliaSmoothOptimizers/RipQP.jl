@@ -85,7 +85,8 @@ function PreconditionerData(
         id.nvar + id.ncon,
         false,
         false,
-        (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+        (res, v) ->
+          ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
       )
       N = LinearOperator(
         Tlow,
@@ -93,7 +94,8 @@ function PreconditionerData(
         id.nvar + id.ncon,
         false,
         false,
-        (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+        (res, v) ->
+          dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
       )
     elseif sp.preconditioner.pos == :L
       M = LinearOperator(
@@ -128,7 +130,17 @@ function PreconditionerData(
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
   end
-  return LDLLowPrecData(K, Dlp, regu_precond, diag_Q, diagind_K, K_fact, false, sp.preconditioner.warm_start, P)
+  return LDLLowPrecData(
+    K,
+    Dlp,
+    regu_precond,
+    diag_Q,
+    diagind_K,
+    K_fact,
+    false,
+    sp.preconditioner.warm_start,
+    P,
+  )
 end
 
 function factorize_scale_K2!(
