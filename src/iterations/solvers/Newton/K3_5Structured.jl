@@ -20,7 +20,7 @@ The outer constructor
                          atol_min = 1.0e-10, rtol_min = 1.0e-10,
                          ρ0 =  sqrt(eps()) * 1e3, δ0 = sqrt(eps()) * 1e4,
                          ρ_min = 1e4 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
-                         mem = 20)
+                         itmax = 0, mem = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -42,6 +42,7 @@ mutable struct K3_5StructuredParams <: NewtonParams
   δ0::Float64
   ρ_min::Float64
   δ_min::Float64
+  itmax::Int
   mem::Int
 end
 
@@ -57,6 +58,7 @@ function K3_5StructuredParams(;
   δ0::T = sqrt(eps()) * 1e4,
   ρ_min::T = 1e4 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
+  itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
   return K3_5StructuredParams(
@@ -71,6 +73,7 @@ function K3_5StructuredParams(;
     δ0,
     ρ_min,
     δ_min,
+    itmax,
     mem,
   )
 end
@@ -98,6 +101,7 @@ mutable struct PreallocatedDataK3_5Structured{
   rtol::T
   atol_min::T
   rtol_min::T
+  itmax::Int
 end
 
 function opAsprod!(
@@ -328,6 +332,7 @@ function PreallocatedData(
     T(sp.rtol0),
     T(sp.atol_min),
     T(sp.rtol_min),
+    sp.itmax,
   )
 end
 
@@ -370,6 +375,7 @@ function solver!(
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
+    itmax = pad.itmax,
   )
   update_kresiduals_history!(
     res,

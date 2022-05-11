@@ -10,7 +10,7 @@ The outer constructor
                          atol0 = 1.0e-4, rtol0 = 1.0e-4,
                          atol_min = 1.0e-10, rtol_min = 1.0e-10, 
                          ρ_min = 1e3 * sqrt(eps()), δ_min = 1e4 * sqrt(eps()),
-                         mem = 20)
+                         itmax = 0, mem = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -29,6 +29,7 @@ mutable struct K1_1StructuredParams <: NormalParams
   rtol_min::Float64
   ρ_min::Float64
   δ_min::Float64
+  itmax::Int
   mem::Int
 end
 
@@ -42,6 +43,7 @@ function K1_1StructuredParams(;
   rtol_min::T = 1.0e-10,
   ρ_min::T = 1e3 * sqrt(eps()),
   δ_min::T = 1e4 * sqrt(eps()),
+  itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
   return K1_1StructuredParams(
@@ -54,6 +56,7 @@ function K1_1StructuredParams(;
     rtol_min,
     ρ_min,
     δ_min,
+    itmax,
     mem,
   )
 end
@@ -73,6 +76,7 @@ mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver
   rtol::T
   atol_min::T
   rtol_min::T
+  itmax::Int
 end
 
 function PreallocatedData(
@@ -128,6 +132,7 @@ function PreallocatedData(
     T(sp.rtol0),
     T(sp.atol_min),
     T(sp.rtol_min),
+    sp.itmax,
   )
 end
 
@@ -171,6 +176,7 @@ function solver!(
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
+    itmax = pad.itmax,
   )
   if pad.rhs_scale
     kunscale!(pad.KS.x, ξ12Norm)
