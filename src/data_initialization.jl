@@ -170,7 +170,7 @@ function allocate_workspace(
   sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
-  if iconf.mode == :multi
+  if iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom
     T = Float32
   end
   S0 = typeof(fd_T0.c)
@@ -202,7 +202,7 @@ function allocate_workspace(
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
   dda = DescentDirectionAllocs(id, iconf.solve_method, S)
 
-  cnts = Counters(0, 0, 0, 0, iconf.kc, iconf.max_ref, 0, iconf.w)
+  cnts = Counters(0, 0, 0, 0, iconf.kc, 0, iconf.w)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 

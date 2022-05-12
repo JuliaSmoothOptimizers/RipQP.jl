@@ -29,7 +29,7 @@ function fd_refinement(
   spd::StartingPointData{T},
   cnts::Counters,
   T0::DataType,
-  refinement::Symbol;
+  mode::Symbol;
   centering::Bool = false,
 ) where {T <: Real}
 
@@ -63,10 +63,10 @@ function fd_refinement(
 
   c_ref = fd.c .- itd.ATy .+ itd.Qx
   αref = T(1.0e12)
-  if refinement == :zoom || refinement == :multizoom
+  if mode == :zoom || mode == :multizoom
     # zoom parameter
     Δref = one(T) / res.rbNorm
-  elseif refinement == :ref || refinement == :multiref
+  elseif mode == :ref || mode == :multiref
     Δref = one(T)
     δd = norm(c_ref, Inf)
     if id.nlow == 0 && id.nupp > 0

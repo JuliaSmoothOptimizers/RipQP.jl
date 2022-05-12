@@ -39,17 +39,17 @@ end
 end
 
 @testset "refinement" begin
-  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement = :zoom), display = false) # automatic centrality corrections computation
+  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :zoom), display = false) # automatic centrality corrections computation
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(refinement = :ref), display = false) # automatic centrality corrections computation
+  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :ref), display = false) # automatic centrality corrections computation
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
   stats2 = ripqp(
     QuadraticModel(qps2),
-    iconf = InputConfig(mode = :multi, scaling = false, refinement = :multizoom),
+    iconf = InputConfig(mode = :multizoom, scaling = false),
     display = false,
   )
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
@@ -57,7 +57,7 @@ end
 
   stats3 = ripqp(
     QuadraticModel(qps3),
-    iconf = InputConfig(mode = :multi, refinement = :multiref),
+    iconf = InputConfig(mode = :multiref),
     display = false,
   )
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
@@ -80,7 +80,7 @@ end
   stats2 = ripqp(
     QuadraticModel(qps2),
     display = false,
-    iconf = InputConfig(solve_method = IPF(), sp = K2_5LDLParams(), refinement = :zoom),
+    iconf = InputConfig(solve_method = IPF(), sp = K2_5LDLParams(), mode = :zoom),
   )
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
@@ -88,7 +88,7 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
-    iconf = InputConfig(solve_method = IPF(), mode = :multi, refinement = :multiref),
+    iconf = InputConfig(solve_method = IPF(), mode = :multiref),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
@@ -98,8 +98,7 @@ end
     display = false,
     iconf = InputConfig(
       solve_method = IPF(),
-      mode = :multi,
-      refinement = :multizoom,
+      mode = :multizoom,
       sp = K2_5LDLParams(),
     ),
   )
@@ -111,7 +110,7 @@ end
     display = false,
     iconf = InputConfig(
       solve_method = IPF(),
-      refinement = :zoom,
+      mode = :zoom,
       sp = K2LDLParams(regul = :dynamic),
     ),
   )

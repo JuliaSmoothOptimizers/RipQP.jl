@@ -76,18 +76,16 @@ abstract type SolveMethod end
 """
 Type to specify the configuration used by RipQP.
 
-- `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
+- `mode :: Symbol`: should be `:mono` to use the mono-precision mode, `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
-    to `T0`)
+    to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
+    with multi-precision, `ref` to use the QP refinement procedure, or `multiref` 
+    to use the QP refinement procedure with multi_precision
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `presolve :: Bool` : activate/deactivate presolve
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
 - `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
-- `refinement :: Symbol` : should be `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
-    with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
-    to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
-    refinements
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
 - `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
@@ -102,7 +100,6 @@ The constructor
 
     iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, 
                         normalize_rtol :: Bool = true, kc :: I = 0, 
-                        refinement :: Symbol = :none, max_ref :: I = 0, 
                         sp :: SolverParams = K2LDLParams(),
                         solve_method :: Symbol = PC(),
                         history :: Bool = false, 
@@ -116,10 +113,6 @@ mutable struct InputConfig{I <: Integer, SP <: SolverParams, SM <: SolveMethod}
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
-
-  # QP refinement 
-  refinement::Symbol
-  max_ref::I # maximum number of refinements
 
   # Functions to choose formulations
   sp::SP
@@ -136,20 +129,13 @@ function InputConfig(;
   presolve::Bool = true,
   normalize_rtol::Bool = true,
   kc::I = 0,
-  refinement::Symbol = :none,
-  max_ref::I = 0,
   sp::SolverParams = K2LDLParams(),
   solve_method::SolveMethod = PC(),
   history::Bool = false,
   w::SystemWrite = SystemWrite(),
 ) where {I <: Integer}
-  mode == :mono || mode == :multi || error("mode should be :mono or :multi")
-  refinement == :zoom ||
-    refinement == :multizoom ||
-    refinement == :ref ||
-    refinement == :multiref ||
-    refinement == :none ||
-    error("not a valid refinement parameter")
+  mode == :mono || mode == :multi || mode == :zoom || mode == :multizoom || mode == :ref ||
+    mode == :multiref || error("not a valid mode")
   typeof(solve_method) <: IPF &&
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
@@ -160,8 +146,6 @@ function InputConfig(;
     presolve,
     normalize_rtol,
     kc,
-    refinement,
-    max_ref,
     sp,
     solve_method,
     history,
@@ -679,7 +663,6 @@ mutable struct Counters
   k::Int # iter count
   km::Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
   kc::Int # maximum corrector steps
-  max_ref::Int # maximum number of refinements
   c_ref::Int # current number of refinements
   w::SystemWrite # store SystemWrite data
 end

@@ -36,6 +36,7 @@ function convert_types(
 end
 
 function iter_and_update_T!(
+  iconf::InputConfig,
   pt::Point{T},
   itd::IterData{T},
   fd_T::Abstract_QM_FloatData{T},

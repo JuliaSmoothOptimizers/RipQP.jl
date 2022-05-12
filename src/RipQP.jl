@@ -81,7 +81,7 @@ function ripqp(
     end
 
     # extra workspace for multi mode
-    if iconf.mode == :multi
+    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
       fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
       if T0 == Float128
         fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
@@ -89,14 +89,14 @@ function ripqp(
     end
 
     # initialize
-    if iconf.mode == :multi
+    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
       pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
       set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
       if T0 == Float128
         set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
         T = Float32
       end
-    elseif iconf.mode == :mono
+    elseif iconf.mode == :mono || iconf.mode == :zoom || iconf.mode == :ref
       pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     end
 
@@ -133,9 +133,10 @@ function ripqp(
       end
     end
 
-    if iconf.mode == :multi
+    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
       # iter in Float32 then convert data to Float64
       pt, itd, res, dda, pad = iter_and_update_T!(
+        iconf,
         pt,
         itd,
         fd32,
@@ -155,6 +156,7 @@ function ripqp(
       if T0 == Float128
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(
+          iconf,
           pt,
           itd,
           fd64,
@@ -177,7 +179,7 @@ function ripqp(
     ## iter T0
     # refinement
     if !sc.optimal
-      if iconf.refinement == :zoom || iconf.refinement == :ref
+      if iconf.mode == :zoom || iconf.mode == :ref
         ϵz = Tolerances(
           T(1),
           T(itol.ϵ_rbz),
@@ -204,12 +206,12 @@ function ripqp(
           spd,
           cnts,
           T0,
-          iconf.refinement,
+          iconf.mode,
         )
         iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
-      elseif iconf.refinement == :multizoom || iconf.refinement == :multiref
+      elseif iconf.mode == :multizoom || iconf.mode == :multiref
         spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
         fd_ref, pt_ref = fd_refinement(
           fd_T0,
@@ -224,13 +226,13 @@ function ripqp(
           spd,
           cnts,
           T0,
-          iconf.refinement,
+          iconf.mode,
           centering = true,
         )
         iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
-      else
+      elseif iconf.mode == :mono || iconf.mode == :multi
         # iters T0, no refinement
         iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
       end
