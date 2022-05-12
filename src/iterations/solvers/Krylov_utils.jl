@@ -39,7 +39,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::SymmlqSolver{T},
@@ -72,7 +73,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::CrSolver{T},
@@ -171,7 +173,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = dqgmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  dqgmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::DqgmresSolver{T},
@@ -182,7 +185,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = dqgmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  dqgmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::GmresSolver{T},
@@ -193,7 +197,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = gmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  gmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::GmresSolver{T},
@@ -204,7 +209,8 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = gmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} =
+  gmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::TricgSolver{T},
@@ -218,8 +224,19 @@ ksolve!(
   rtol::T = T(sqrt(eps(T))),
   gsp::Bool = false,
   itmax::Int = 0,
-) where {T} =
-  tricg!(KS, A, ξ1, ξ2, M = M, N = N, flip = true, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+) where {T} = tricg!(
+  KS,
+  A,
+  ξ1,
+  ξ2,
+  M = M,
+  N = N,
+  flip = true,
+  verbose = verbose,
+  atol = atol,
+  rtol = rtol,
+  itmax = itmax,
+)
 
 ksolve!(
   KS::TrimrSolver{T},

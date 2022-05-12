@@ -245,7 +245,16 @@ function solver!(
     rhsNorm = kscale!(pad.rhs)
   end
   pad.K.nprod = 0
-  ksolve!(pad.KS, pad.K, pad.rhs, pad.pdat.P, verbose = 0, atol = pad.atol, rtol = pad.rtol, itmax = pad.itmax)
+  ksolve!(
+    pad.KS,
+    pad.K,
+    pad.rhs,
+    pad.pdat.P,
+    verbose = 0,
+    atol = pad.atol,
+    rtol = pad.rtol,
+    itmax = pad.itmax,
+  )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
