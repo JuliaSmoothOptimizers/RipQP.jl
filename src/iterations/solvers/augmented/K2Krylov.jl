@@ -11,7 +11,7 @@ The outer constructor
                    atol_min = 1.0e-10, rtol_min = 1.0e-10,
                    ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5, 
                    ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
-                   memory = 20)
+                   itmax = 0, memory = 20)
 
 creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
 The available methods are:
@@ -34,6 +34,7 @@ mutable struct K2KrylovParams{PT} <: AugmentedKrylovParams{PT}
   δ0::Float64
   ρ_min::Float64
   δ_min::Float64
+  itmax::Int
   mem::Int
 end
 
@@ -52,6 +53,7 @@ function K2KrylovParams(;
   δ0::T = sqrt(eps()) * 1e5,
   ρ_min::T = 1e2 * sqrt(eps()),
   δ_min::T = 1e2 * sqrt(eps()),
+  itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
   if uplo == :L && form_mat
@@ -75,6 +77,7 @@ function K2KrylovParams(;
     δ0,
     ρ_min,
     δ_min,
+    itmax,
     mem,
   )
 end
@@ -108,6 +111,7 @@ mutable struct PreallocatedDataK2Krylov{
   rtol::T
   atol_min::T
   rtol_min::T
+  itmax::Int
 end
 
 function opK2prod!(
@@ -198,6 +202,7 @@ function PreallocatedData(
     T(sp.rtol0),
     T(sp.atol_min),
     T(sp.rtol_min),
+    sp.itmax,
   )
 end
 
@@ -237,6 +242,7 @@ function solver!(
     verbose = 0,
     atol = pad.atol,
     rtol = pad.rtol,
+    itmax = pad.itmax,
   )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
