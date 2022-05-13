@@ -36,7 +36,7 @@ end
   stats1 = ripqp(
     qm128_1,
     itol = InputTol(Float128, ϵ_rb32 = Float128(0.1), ϵ_rb64 = Float128(0.01)),
-    iconf = InputConfig(mode = :multi, normalize_rtol = false),
+    iconf = InputConfig(mode = :multi, Timulti = Float64, normalize_rtol = false),
     display = false,
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)

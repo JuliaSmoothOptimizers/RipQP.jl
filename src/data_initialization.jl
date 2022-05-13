@@ -171,7 +171,7 @@ function allocate_workspace(
 
   # allocate data for iterations
   if iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom
-    T = Float32
+    T = iconf.Timulti
   end
   S0 = typeof(fd_T0.c)
   S = change_vector_eltype(S0, T)

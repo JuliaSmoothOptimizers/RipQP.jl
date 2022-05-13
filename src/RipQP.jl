@@ -82,7 +82,9 @@ function ripqp(
 
     # extra workspace for multi mode
     if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+      if iconf.Timulti == Float32
+        fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+      end
       if T0 == Float128
         fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
       end
@@ -90,12 +92,18 @@ function ripqp(
 
     # initialize
     if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
-      set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
-      if T0 == Float128
-        set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
-        T = Float32
+      if iconf.Timulti == Float32
+        pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
+        if T0 == Float128
+          set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
+          T = Float32
+        end
+      elseif iconf.Timulti == Float64
+        pad = initialize!(fd64, id, res, itd, dda, pt, spd, ϵ64, sc, iconf, cnts, T0)
+      else
+        error("not a valid Timulti")
       end
+      set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
     elseif iconf.mode == :mono || iconf.mode == :zoom || iconf.mode == :ref
       pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     end
@@ -133,26 +141,27 @@ function ripqp(
       end
     end
 
-    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      # iter in Float32 then convert data to Float64
-      pt, itd, res, dda, pad = iter_and_update_T!(
-        iconf,
-        pt,
-        itd,
-        fd32,
-        id,
-        res,
-        sc,
-        dda,
-        pad,
-        ϵ32,
-        ϵ,
-        cnts,
-        itol.max_iter32,
-        Float64,
-        display,
-      )
-
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+      if iconf.Timulti == Float32
+        # iter in Float32 then convert data to Float64
+        pt, itd, res, dda, pad = iter_and_update_T!(
+          iconf,
+          pt,
+          itd,
+          fd32,
+          id,
+          res,
+          sc,
+          dda,
+          pad,
+          ϵ32,
+          ϵ,
+          cnts,
+          itol.max_iter32,
+          Float64,
+          display,
+        )
+      end
       if T0 == Float128
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(

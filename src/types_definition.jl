@@ -55,8 +55,7 @@ Type to write the matrix (.mtx format) and the right hand side (.rhs format) of 
 
 The constructor
 
-    SystemWrite(; write::Bool = false, name::String = "", 
-                kfirst::Int = 0, kgap::Int = 1)
+    SystemWrite(; write = false, name = "", kfirst = 0, kgap = 1)
 
 returns a `SystemWrite` structure that should be used to tell RipQP to save the system. 
 See the tutorial for more information. 
@@ -81,6 +80,8 @@ Type to specify the configuration used by RipQP.
     to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
     with multi-precision, `ref` to use the QP refinement procedure, or `multiref` 
     to use the QP refinement procedure with multi_precision
+- `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
+    it should be lower than the QP precision 
 - `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
 - `presolve :: Bool` : activate/deactivate presolve
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
@@ -88,6 +89,9 @@ Type to specify the configuration used by RipQP.
 - `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
+- `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
+    to solve linear systems that occurs at each iteration in the second and third solving phase when `mode != :mono`, 
+    leave to `nothing` if you want to keep using `sp`. 
 - `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
     Following algorithm
@@ -98,17 +102,16 @@ Type to specify the configuration used by RipQP.
 
 The constructor
 
-    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, 
-                        normalize_rtol :: Bool = true, kc :: I = 0, 
-                        sp :: SolverParams = K2LDLParams(),
-                        solve_method :: Symbol = PC(),
-                        history :: Bool = false, 
-                        w :: SystemWrite = SystemWrite()) where {I<:Integer}
+    iconf = InputConfig(; mode = :mono, Timulti = Float32, scaling = true, normalize_rtol = true, kc = 0, 
+                        sp = K2LDLParams(), sp2 = nothing, sp3 = nothing, 
+                        solve_method = PC(), history = false, w = SystemWrite()) where {I<:Integer}
 
 returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
 """
-mutable struct InputConfig{I <: Integer, SP <: SolverParams, SM <: SolveMethod}
+mutable struct InputConfig{I <: Integer, SP <: SolverParams, 
+    SP2 <: Union{Nothing, SolverParams}, SP3 <: Union{Nothing, SolverParams}, SM <: SolveMethod, D <: DataType}
   mode::Symbol
+  Timulti::D
   scaling::Bool
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
@@ -116,6 +119,8 @@ mutable struct InputConfig{I <: Integer, SP <: SolverParams, SM <: SolveMethod}
 
   # Functions to choose formulations
   sp::SP
+  sp2::SP2 # second solver to use (usually when using multi-prec in Floa64)
+  sp3::SP3 # third solver to use (usually when using multi-prec in Floa128)
   solve_method::SM
 
   # output tools
@@ -125,11 +130,14 @@ end
 
 function InputConfig(;
   mode::Symbol = :mono,
+  Timulti::DataType = Float32,
   scaling::Bool = true,
   presolve::Bool = true,
   normalize_rtol::Bool = true,
   kc::I = 0,
   sp::SolverParams = K2LDLParams(),
+  sp2::Union{Nothing, SolverParams} = nothing,
+  sp3::Union{Nothing, SolverParams} = nothing,
   solve_method::SolveMethod = PC(),
   history::Bool = false,
   w::SystemWrite = SystemWrite(),
@@ -140,13 +148,16 @@ function InputConfig(;
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
 
-  return InputConfig{I, typeof(sp), typeof(solve_method)}(
+  return InputConfig(
     mode,
+    Timulti,
     scaling,
     presolve,
     normalize_rtol,
     kc,
     sp,
+    sp2,
+    sp3,
     solve_method,
     history,
     w,
