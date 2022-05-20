@@ -24,22 +24,28 @@ function convert_types(
   res::AbstractResiduals{T_old, S_old},
   dda::DescentDirectionAllocs{T_old, S_old},
   pad::PreallocatedData{T_old},
+  sp_old::Union{Nothing, SolverParams},
+  sp_new::Union{Nothing, SolverParams},
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData, # type T
   T0::DataType,
 ) where {T_old <: Real, S_old}
   S = S_old.name.wrapper{T, 1}
   pt = convert(Point{T, S}, pt)
   res = convert(AbstractResiduals{T, S}, res)
   itd = convert(IterData{T, S}, itd)
-  pad = convertpad(PreallocatedData{T}, pad, T0)
+  pad = convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0)
   dda = convert(DescentDirectionAllocs{T, S}, dda)
   return pt, itd, res, dda, pad
 end
 
 function iter_and_update_T!(
-  iconf::InputConfig,
+  sp_old::Union{Nothing, SolverParams},
+  sp_new::Union{Nothing, SolverParams},
   pt::Point{T},
   itd::IterData{T},
   fd_T::Abstract_QM_FloatData{T},
+  fd_Tnew::Abstract_QM_FloatData{Tnew},
   id::QM_IntData,
   res::AbstractResiduals{T},
   sc::StopCrit{Tsc},
@@ -49,15 +55,14 @@ function iter_and_update_T!(
   ϵ::Tolerances{T0},
   cnts::Counters,
   max_iter_T::Int,
-  T_next::DataType,
   display::Bool,
-) where {T <: Real, T0 <: Real, Tsc <: Real}
+) where {T <: Real, Tnew <: Real, T0 <: Real, Tsc <: Real}
   # iters T
   sc.max_iter = max_iter_T
   iter!(pt, itd, fd_T, id, res, sc, dda, pad, ϵ_T, cnts, T0, display)
 
   # convert to T_next
-  pt, itd, res, dda, pad = convert_types(T_next, pt, itd, res, dda, pad, T0)
+  pt, itd, res, dda, pad = convert_types(Tnew, pt, itd, res, dda, pad, sp_old, sp_new, id, fd_Tnew, T0)
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
   return pt, itd, res, dda, pad

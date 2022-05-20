@@ -94,35 +94,6 @@ function PreallocatedData(
   )
 end
 
-function convertpad(
-  ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedDataK2LDL{T_old},
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
-  pad = PreallocatedDataK2LDL(
-    convert(Array{T}, pad.D),
-    convert(Regularization{T}, pad.regu),
-    convert(SparseVector{T, Int}, pad.diag_Q),
-    convert(SparseMatrixCSC{T, Int}, pad.K),
-    convertldl(T, pad.K_fact),
-    pad.fact_fail,
-    pad.diagind_K,
-  )
-
-  if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
-    else
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
-    end
-  elseif pad.regu.regul == :dynamic
-    pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
-  end
-
-  return pad
-end
-
 # function used to solve problems
 # solver LDLFactorization
 function solver!(
@@ -398,4 +369,38 @@ function factorize_K2!(
   end
 
   return 0 # factorization succeeded
+end
+
+# conversion functions
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2LDL{T_old},
+  sp_old::K2LDLParams,
+  sp_new::Union{Nothing, K2LDLParams},
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+  pad = PreallocatedDataK2LDL(
+    convert(Array{T}, pad.D),
+    convert(Regularization{T}, pad.regu),
+    convert(SparseVector{T, Int}, pad.diag_Q),
+    convert(SparseMatrixCSC{T, Int}, pad.K),
+    convertldl(T, pad.K_fact),
+    pad.fact_fail,
+    pad.diagind_K,
+  )
+
+  if pad.regu.regul == :classic
+    if T == Float64 && T0 == Float64
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
+    else
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
+    end
+  elseif pad.regu.regul == :dynamic
+    pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
+  end
+
+  return pad
 end

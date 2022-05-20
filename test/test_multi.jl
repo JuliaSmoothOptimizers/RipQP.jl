@@ -74,3 +74,25 @@ end
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 end
+
+@testset "multi solvers" begin
+  for mode ∈ [:multi, :multizoom, :multiref]
+    stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = mode, solve_method = IPF(),
+      sp2 = K2KrylovParams(uplo=:U, preconditioner = LDLLowPrec())), display = false)
+    @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
+    @test stats1.status == :first_order
+  end
+
+  qm128_1 = createQuadraticModelT(qps1, T = Float128)
+  stats1 = ripqp(qm128_1, iconf = InputConfig(mode = :multi, Timulti = Float64, solve_method = IPF(),
+    sp3 = K2KrylovParams{Float128}(
+      uplo=:U,
+      form_mat = true,
+      equilibrate = true,
+      preconditioner = LDLLowPrec(),
+      ρ_min = sqrt(eps(Float128)),
+      δ_min = sqrt(eps(Float128)),
+    )), display = true)
+  @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
+  @test stats1.status == :first_order
+end

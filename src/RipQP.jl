@@ -145,10 +145,12 @@ function ripqp(
       if iconf.Timulti == Float32
         # iter in Float32 then convert data to Float64
         pt, itd, res, dda, pad = iter_and_update_T!(
-          iconf,
+          iconf.sp,
+          iconf.sp2,
           pt,
           itd,
           fd32,
+          (T0 == Float64) ? fd_T0 : fd64,
           id,
           res,
           sc,
@@ -158,17 +160,18 @@ function ripqp(
           ϵ,
           cnts,
           itol.max_iter32,
-          Float64,
           display,
         )
       end
       if T0 == Float128
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(
-          iconf,
+          (iconf.sp2 === nothing) ? iconf.sp : iconf.sp2,
+          iconf.sp3,
           pt,
           itd,
           fd64,
+          fd_T0,
           id,
           res,
           sc,
@@ -178,7 +181,6 @@ function ripqp(
           ϵ,
           cnts,
           itol.max_iter64,
-          Float128,
           display,
         )
       end

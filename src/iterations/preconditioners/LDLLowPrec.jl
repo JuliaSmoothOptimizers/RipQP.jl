@@ -69,20 +69,35 @@ function PreconditionerData(
   Dlp = copy(D)
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
   K_fact = @timeit_debug to "LDL analyze" ldl_analyze(Symmetric(K, :U))
+
+  return PreconditionerData(sp, K_fact, Dlp, id.nvar, id.ncon, diag_Q, diagind_K, regu_precond, K)
+end
+
+function PreconditionerData(
+  sp::AugmentedKrylovParams{<:LDLLowPrec},
+  K_fact::LDLFactorizations.LDLFactorization{Tlow},
+  Dlp::AbstractVector{T},
+  nvar::Int,
+  ncon::Int,
+  diag_Q::AbstractVector{T},
+  diagind_K::AbstractVector{Int},
+  regu_precond::Regularization{Tlow},
+  K,
+) where {T <: Real, Tlow <: Real}
   regu_precond.regul = :dynamic
   if regu_precond.regul == :dynamic
     Amax = @views norm(K.nzval[diagind_K], Inf)
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
     K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
     K_fact.tol = Amax * Tlow(eps(Tlow))
-    K_fact.n_d = id.nvar
+    K_fact.n_d = nvar
   end
   if sp.kmethod == :gmres || sp.kmethod == :dqgmres
     if sp.preconditioner.pos == :C
       M = LinearOperator(
         Tlow,
-        id.nvar + id.ncon,
-        id.nvar + id.ncon,
+        nvar + ncon,
+        nvar + ncon,
         false,
         false,
         (res, v) ->
@@ -90,8 +105,8 @@ function PreconditionerData(
       )
       N = LinearOperator(
         Tlow,
-        id.nvar + id.ncon,
-        id.nvar + id.ncon,
+        nvar + ncon,
+        nvar + ncon,
         false,
         false,
         (res, v) ->
@@ -100,8 +115,8 @@ function PreconditionerData(
     elseif sp.preconditioner.pos == :L
       M = LinearOperator(
         Tlow,
-        id.nvar + id.ncon,
-        id.nvar + id.ncon,
+        nvar + ncon,
+        nvar + ncon,
         true,
         true,
         (res, v) -> ldiv!(res, K_fact, v),
@@ -111,8 +126,8 @@ function PreconditionerData(
       M = I
       N = LinearOperator(
         Tlow,
-        id.nvar + id.ncon,
-        id.nvar + id.ncon,
+        nvar + ncon,
+        nvar + ncon,
         true,
         true,
         (res, v) -> ldiv!(res, K_fact, v),
@@ -123,8 +138,8 @@ function PreconditionerData(
     K_fact.d .= abs.(K_fact.d)
     P = LinearOperator(
       Tlow,
-      id.nvar + id.ncon,
-      id.nvar + id.ncon,
+      nvar + ncon,
+      nvar + ncon,
       true,
       true,
       (res, v, α, β) -> ldiv!(res, K_fact, v),
@@ -206,7 +221,7 @@ function update_preconditioner!(
   itd::IterData{T},
   pt::Point{T},
   id::QM_IntData,
-  fd::QM_FloatData{T},
+  fd::Abstract_QM_FloatData{T},
   cnts::Counters,
 ) where {T <: Real}
   Tlow = lowtype(pad.pdat)
