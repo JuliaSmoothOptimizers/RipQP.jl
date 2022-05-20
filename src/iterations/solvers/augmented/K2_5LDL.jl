@@ -75,8 +75,8 @@ function PreallocatedData(
   K_fact = ldl_analyze(Symmetric(K, :U))
   if regu.regul == :dynamic
     Amax = @views norm(K.nzval[diagind_K], Inf)
-    regu.ρ, regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = regu.ρ, regu.δ
+    regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    K_fact.r1, K_fact.r2 = -regu.ρ, regu.δ
     K_fact.tol = Amax * T(eps(T))
     K_fact.n_d = id.nvar
   elseif regu.regul == :none
@@ -322,8 +322,8 @@ function convertpad(
     pad.regu.ρ /= 10
     pad.regu.δ /= 10
   elseif pad.regu.regul == :dynamic
-    pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
+    pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
   end
 
   return pad

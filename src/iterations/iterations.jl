@@ -238,6 +238,8 @@ function iter!(
           α_pri,
           α_dual,
           itd.μ,
+          pad.regu.ρ,
+          pad.regu.δ,
           get_kiter(pad),
         ],
       )

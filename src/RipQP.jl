@@ -30,17 +30,45 @@ include("utils.jl")
 const to = TimerOutput()
 
 """
-    stats = ripqp(QM :: QuadraticModel{T0}; iconf :: InputConfig{Int} = InputConfig(),
-                  itol :: InputTol{T0, Int} = InputTol(T0),
-                  display :: Bool = true) where {T0<:Real}
+    stats = ripqp(QM :: QuadraticModel{T0};
+                  itol = InputTol(T0), scaling = true, ps = true,
+                  normalize_rtol = true, kc = 0, mode = :mono,
+                  Timulti = Float32, 
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+                  sp2 = nothing, sp3 = nothing, 
+                  solve_method = PC(), 
+                  history = false, w = SystemWrite(), display = true) where {T0<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
 Returns a [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats) 
 containing information about the solved problem.
 
 - `QM :: QuadraticModel`: problem to solve
-- `iconf :: InputConfig{Int}`: input RipQP configuration. See [`RipQP.InputConfig`](@ref).
 - `itol :: InputTol{T, Int}` input Tolerances for the stopping criteria. See [`RipQP.InputTol`](@ref).
+- `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
+- `ps :: Bool` : activate/deactivate presolve
+- `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
+    are normalized by the initial primal and dual residuals
+- `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
+- `mode :: Symbol`: should be `:mono` to use the mono-precision mode, `:multi` to use
+    the multi-precision mode (start in single precision and gradually transitions
+    to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
+    with multi-precision, `ref` to use the QP refinement procedure, or `multiref` 
+    to use the QP refinement procedure with multi_precision
+- `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
+    it should be lower than the QP precision
+- `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
+    initialization, see [`RipQP.SolverParams`](@ref)
+- `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
+    to solve linear systems that occurs at each iteration in the second and third solving phase when `mode != :mono`, 
+    leave to `nothing` if you want to keep using `sp`. 
+- `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
+    use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
+    Following algorithm
+- `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
+    history, and the number of products if using a Krylov method in the `solver_specific` field of the 
+    [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
+- `w :: SystemWrite`: configure writing of the systems to solve (no writing is done by default), see [`RipQP.SystemWrite`](@ref)
 - `display::Bool`: activate/deactivate iteration data display
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
@@ -51,13 +79,43 @@ You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.git
 """
 function ripqp(
   QM0::QuadraticModel{T0};
-  iconf::InputConfig{Int} = InputConfig(),
   itol::InputTol{T0, Int} = InputTol(T0),
+  scaling::Bool = true,
+  ps::Bool = true,
+  normalize_rtol::Bool = true,
+  kc::I = 0,
+  mode::Symbol = :mono,
+  Timulti::DataType = Float32,
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+  sp2::Union{Nothing, SolverParams} = nothing,
+  sp3::Union{Nothing, SolverParams} = nothing,
+  solve_method::SolveMethod = PC(),
+  history::Bool = false,
+  w::SystemWrite = SystemWrite(),
   display::Bool = true,
-) where {T0 <: Real}
+) where {T0 <: Real, I <: Integer}
   start_time = time()
   elapsed_time = 0.0
   @timeit_debug to "ripqp" begin
+    # config
+    mode == :mono || mode == :multi || mode == :zoom || mode == :multizoom || mode == :ref ||
+      mode == :multiref || error("not a valid mode")
+    typeof(solve_method) <: IPF && kc != 0 && error("IPF method should not be used with centrality corrections")
+    iconf = InputConfig(
+      mode,
+      Timulti,
+      scaling,
+      ps,
+      normalize_rtol,
+      kc,
+      sp,
+      sp2,
+      sp3,
+      solve_method,
+      history,
+      w,
+    )
+
     # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
     QM0 = convert_QM(QM0, iconf, display)
 
@@ -115,8 +173,8 @@ function ripqp(
     if display == true
       @timeit_debug to "display" begin
         @info log_header(
-          [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :kiter],
-          [Int, T, T, T, T, T, T, T, T, T, T, T, Int],
+          [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :ρ, :δ, :kiter],
+          [Int, T, T, T, T, T, T, T, T, T, T, T, T, T, Int],
           hdr_override = Dict(
             :k => "iter",
             :pri_obj => "obj",
@@ -135,6 +193,8 @@ function ripqp(
             zero(T),
             zero(T),
             itd.μ,
+            pad.regu.ρ,
+            pad.regu.δ,
             get_kiter(pad),
           ],
         )
@@ -318,10 +378,22 @@ function ripqp(
   return stats
 end
 
-function ripqp(LLS::LLSModel; iconf::InputConfig{Int} = InputConfig(), kwargs...)
-  iconf.sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
+function ripqp(
+  LLS::LLSModel{T0};
+  mode::Symbol = :mono,
+  Timulti::DataType = Float32,
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
+  kwargs...,
+  ) where {T0 <: Real}
+  sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
   FLLS = FeasibilityFormNLS(LLS)
-  stats = ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); iconf = iconf, kwargs...)
+  stats = ripqp(
+    QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name);
+    mode = mode,
+    Timulti = Timulti,
+    sp = sp,
+    kwargs...,
+  )
   n = LLS.meta.nvar
   x, r = stats.solution[1:n], stats.solution[(n + 1):end]
   solver_sp = stats.solver_specific

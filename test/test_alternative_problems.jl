@@ -26,7 +26,7 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
-    iconf = InputConfig(w = SystemWrite(write = true, name = "test_", kfirst = 4, kgap = 1000)),
+    w = SystemWrite(write = true, name = "test_", kfirst = 4, kgap = 1000),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
@@ -80,7 +80,7 @@ end
   @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
   @test stats5.status == :first_order
 
-  stats5 = ripqp(QuadraticModel(qps5), iconf = InputConfig(sp = K2KrylovParams()), display = false)
+  stats5 = ripqp(QuadraticModel(qps5), sp = K2KrylovParams(), display = false)
   @test isapprox(stats5.objective, 0.250000001, atol = 1e-2)
   @test stats5.status == :first_order
 end
@@ -111,24 +111,22 @@ qp_dense = QuadraticModel(
 @testset "Dense and LinearOperator QPs" begin
   stats_linop = ripqp(
     qp_linop,
-    iconf = InputConfig(sp = K2KrylovParams(), presolve = false, scaling = false),
+    sp = K2KrylovParams(), ps = false, scaling = false,
     display = false,
   )
   @test isapprox(stats_linop.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_linop.status == :first_order
 
-  stats_dense = ripqp(qp_dense, iconf = InputConfig(sp = K2KrylovParams(uplo = :U)))
+  stats_dense = ripqp(qp_dense, sp = K2KrylovParams(uplo = :U))
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 
   for fact_alg in [:bunchkaufman, :ldl]
     stats_dense = ripqp(
       qp_dense,
-      iconf = InputConfig(
-        sp = K2LDLDenseParams(fact_alg = fact_alg, ρ0 = 0.0, δ0 = 0.0),
-        presolve = false,
-        scaling = false,
-      ),
+      sp = K2LDLDenseParams(fact_alg = fact_alg, ρ0 = 0.0, δ0 = 0.0),
+      ps = false,
+      scaling = false,
       display = false,
     )
     @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
