@@ -48,8 +48,8 @@ function fd_refinement(
     itd.Δxy[id.ilow] .-= itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
     padT = typeof(pad)
-    if (padT <: PreallocatedDataAugmentedLDL || 
-      (padT <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrec)) && !factorized(pad.K_fact)
+    if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) ||
+      (padT <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrecData && !factorized(pad.pdat.K_fact)) 
       out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
     else

@@ -16,25 +16,39 @@ encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 """
-mutable struct K2LDLParams <: AugmentedParams
+mutable struct K2LDLParams{T} <: AugmentedParams
   uplo::Symbol
   regul::Symbol
-  ρ0::Float64
-  δ0::Float64
+  ρ0::T
+  δ0::T
+  ρ_min::T
+  δ_min::T
+  function K2LDLParams{T}(regul::Symbol, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where {T}
+    regul == :classic ||
+      regul == :dynamic ||
+      regul == :none ||
+      error("regul should be :classic or :dynamic or :none")
+    uplo = :U # mandatory for LDLFactorizations
+    return new(uplo, regul, ρ0, δ0, ρ_min, δ_min)
+  end
 end
 
-function K2LDLParams(;
+K2LDLParams{Float64}(;
   regul::Symbol = :classic,
   ρ0::Float64 = sqrt(eps()) * 1e5,
   δ0::Float64 = sqrt(eps()) * 1e5,
-)
-  regul == :classic ||
-    regul == :dynamic ||
-    regul == :none ||
-    error("regul should be :classic or :dynamic or :none")
-  uplo = :U # mandatory for LDLFactorizations
-  return K2LDLParams(uplo, regul, ρ0, δ0)
-end
+  ρ_min::Float64 = 1e-5 * sqrt(eps()),
+  δ_min::Float64 = 1e0 * sqrt(eps()),
+) = K2LDLParams{Float64}(regul, ρ0, δ0, ρ_min, δ_min)
+K2LDLParams{T}(;
+  regul::Symbol = :classic,
+  ρ0::T = one(T),
+  δ0::T = one(T),
+  ρ_min::T = sqrt(eps(T)),
+  δ_min::T = sqrt(eps(T)),
+) where {T <: Union{Float32, Float128}} = K2LDLParams{T}(regul, ρ0, δ0, ρ_min, δ_min)
+
+K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK2LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
@@ -58,14 +72,8 @@ function PreallocatedData(
 
   # init Regularization values
   D = similar(fd.c, id.nvar)
-  if iconf.mode == :mono && T == Float64
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), 1e-5 * sqrt(eps(T)), 1e0 * sqrt(eps(T)), sp.regul)
-    D .= -T(1.0e0) / 2
-  else
-    regu =
-      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), sp.regul)
-    D .= -T(1.0e-2)
-  end
+  D .= -T(1.0e0) / 2
+  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min) , T(sp.δ_min), sp.regul)
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu)
 
