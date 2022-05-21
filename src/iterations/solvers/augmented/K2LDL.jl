@@ -10,7 +10,7 @@ The outer constructor
 
     sp = K2LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).

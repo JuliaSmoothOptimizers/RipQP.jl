@@ -53,11 +53,10 @@ stats = ripqp(QM, display = false)
 
 ## Change configuration and tolerances
 
-The [`RipQP.InputConfig`](@ref) type allows the user to change the configuration of RipQP.
-For example, you can use the multi-precision mode without scaling with:
+You can use the multi-precision mode without scaling with:
 
 ```julia
-stats = ripqp(QM, iconf = InputConfig(mode = :multi, scaling = false))
+stats = ripqp(QM, mode = :multi, scaling = false)
 ```
 
 You can also change the [`RipQP.InputTol`](@ref) type to change the tolerances for the
@@ -65,7 +64,7 @@ stopping criteria:
 
 ```julia
 stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1.0e-4),
-              iconf = InputConfig(mode = :multi, scaling = false))
+              mode = :multi, scaling = false)
 ```
 
 ## Save the Interior-Point system
@@ -77,7 +76,7 @@ To save these systems, you can use:
 
 ```julia
 w = SystemWrite(write = true, name="test_", kfirst = 4, kgap=3) 
-stats1 = ripqp(QM, iconf = InputConfig(w = w))
+stats1 = ripqp(QM, w = w)
 ```
 
 This will save one matrix and the associated two right hand sides of the PC method every three iterations starting at 
@@ -215,5 +214,5 @@ Then, you can use your solver:
 ```julia
 using QuadraticModels, QPSReader
 qm = QuadraticModel(readqps("QAFIRO.SIF"))
-stats1 = ripqp(qm, iconf = RipQP.InputConfig(sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6)))
+stats1 = ripqp(qm, sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6))
 ```

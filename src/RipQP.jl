@@ -32,8 +32,7 @@ const to = TimerOutput()
 """
     stats = ripqp(QM :: QuadraticModel{T0};
                   itol = InputTol(T0), scaling = true, ps = true,
-                  normalize_rtol = true, kc = 0, mode = :mono,
-                  Timulti = Float32, 
+                  normalize_rtol = true, kc = 0, mode = :mono, Timulti = Float32, 
                   sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
                   sp2 = nothing, sp3 = nothing, 
                   solve_method = PC(), 
@@ -73,9 +72,9 @@ containing information about the solved problem.
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
 
-    stats = ripqp(LLS :: LLSModel{T0}; iconf :: InputConfig{Int} = InputConfig(),
-                  itol :: InputTol{T0, Int} = InputTol(T0),
-                  display :: Bool = true) where {T0<:Real}
+    stats = ripqp(LLS::LLSModel{T0}; mode = :mono, Timulti = Float32,
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
+                  kwargs...) where {T0 <: Real}
 """
 function ripqp(
   QM0::QuadraticModel{T0};

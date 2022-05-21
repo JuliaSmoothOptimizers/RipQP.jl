@@ -13,7 +13,7 @@ The outer constructor
                    ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
                    itmax = 0, memory = 20)
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 The available methods are:
 - `:minres`
 - `:minres_qlp`
