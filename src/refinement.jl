@@ -72,15 +72,15 @@ function fd_refinement(
     Δref = one(T)
     δd = norm(c_ref, Inf)
     if id.nlow == 0 && id.nupp > 0
-      δp = max(res.rbNorm, maximum(itd.uvar_m_x))
+      δp = max(res.rbNorm, minimum(itd.uvar_m_x))
     elseif id.nlow > 0 && id.nupp == 0
-      δp = max(res.rbNorm, maximum(itd.x_m_lvar))
+      δp = max(res.rbNorm, minimum(itd.x_m_lvar))
     elseif id.nlow == 0 && id.nupp == 0
       δp = max(res.rbNorm)
     else
-      δp = max(res.rbNorm, maximum(itd.x_m_lvar), maximum(itd.uvar_m_x))
+      δp = max(res.rbNorm, minimum(itd.x_m_lvar), minimum(itd.uvar_m_x))
     end
-    Δref = max(αref / Δref, one(T) / δp, one(T) / δd)
+    Δref = min(αref / Δref, one(T) / δp, one(T) / δd)
   end
   if Δref == T(Inf)
     Δref = αref
@@ -117,7 +117,7 @@ function fd_refinement(
   fd_ref.uplo == :U ? mul!(itd.ATy, fd_ref.A, pt_z.y) : mul!(itd.ATy, fd_ref.A', pt_z.y)
   itd.x_m_lvar .= @views pt_z.x[id.ilow] .- fd_ref.lvar[id.ilow]
   itd.uvar_m_x .= @views fd_ref.uvar[id.iupp] .- pt_z.x[id.iupp]
-  
+
   # update residuals
   res.rb .= itd.Ax .- fd_ref.b
   res.rc .= itd.ATy .- itd.Qx .- fd_ref.c
