@@ -110,11 +110,14 @@ function fd_refinement(
   pt_z = Point(
     fill!(S(undef, id.nvar), zero(T)),
     fill!(S(undef, id.ncon), zero(T)),
-    max.(abs.(c_ref[id.ilow]), eps(T)),
-    max.(abs.(c_ref[id.iupp]), eps(T)),
+    pt.s_l .* Δref,
+    pt.s_u .* Δref,
   )
-  starting_points!(pt_z, fd_ref, id, itd, spd)
-
+  mul!(itd.Qx, fd_ref.Q, pt_z.x)
+  fd_ref.uplo == :U ? mul!(itd.ATy, fd_ref.A, pt_z.y) : mul!(itd.ATy, fd_ref.A', pt_z.y)
+  itd.x_m_lvar .= @views pt_z.x[id.ilow] .- fd_ref.lvar[id.ilow]
+  itd.uvar_m_x .= @views fd_ref.uvar[id.iupp] .- pt_z.x[id.iupp]
+  
   # update residuals
   res.rb .= itd.Ax .- fd_ref.b
   res.rc .= itd.ATy .- itd.Qx .- fd_ref.c
