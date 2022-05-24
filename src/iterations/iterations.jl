@@ -114,6 +114,7 @@ function perturb_x!(
   x_m_lvar .= @views x[ilow] .- lvar[ilow]
   uvar_m_x .= @views uvar[iupp] .- x[iupp]
   boundary_safety!(x_m_lvar, uvar_m_x)
+  boundary_safety!(s_l, s_u)
 end
 
 function update_IterData!(itd, pt, fd, id, safety)
