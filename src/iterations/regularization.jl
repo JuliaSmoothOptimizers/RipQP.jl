@@ -59,10 +59,9 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
     regu.δ_min /= 10
     cnts.c_pdd += 1
   elseif T != T0 &&
-         regu.regul == :classic &&
-         cnts.c_pdd < 2 &&
+         cnts.c_pdd <= 2 &&
          @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-5)
-    return 1
+    regu.regul == :classic && return 1
   elseif T == Float128 &&
          cnts.k > 10 &&
          cnts.c_catch <= 1 &&

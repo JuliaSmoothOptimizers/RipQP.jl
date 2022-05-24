@@ -74,6 +74,7 @@ mutable struct InputConfig{I <: Integer, SP <: SolverParams,
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
+  perturb::Bool
 
   # Functions to choose formulations
   sp::SP
@@ -84,37 +85,6 @@ mutable struct InputConfig{I <: Integer, SP <: SolverParams,
   # output tools
   history::Bool
   w::SystemWrite # write systems 
-end
-
-function InputConfig(;
-  mode::Symbol = :mono,
-  Timulti::DataType = Float32,
-  scaling::Bool = true,
-  presolve::Bool = true,
-  normalize_rtol::Bool = true,
-  kc::I = 0,
-  sp::SolverParams = K2LDLParams(),
-  sp2::Union{Nothing, SolverParams} = nothing,
-  sp3::Union{Nothing, SolverParams} = nothing,
-  solve_method::SolveMethod = PC(),
-  history::Bool = false,
-  w::SystemWrite = SystemWrite(),
-) where {I <: Integer}
-
-  return InputConfig(
-    mode,
-    Timulti,
-    scaling,
-    presolve,
-    normalize_rtol,
-    kc,
-    sp,
-    sp2,
-    sp3,
-    solve_method,
-    history,
-    w,
-  )
 end
 
 """
@@ -402,6 +372,7 @@ mutable struct IterDataCPU{T <: Real, S} <: IterData{T, S}
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
+  perturb::Bool
 end
 
 mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
@@ -423,6 +394,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
+  perturb::Bool
   store_vpri::S
   store_vdual_l::S
   store_vdual_u::S
@@ -445,6 +417,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     mean_pdd::T,
     qp::Bool,
     minimize::Bool,
+    perturb::Bool,
   ) where {T <: Real, S} = new{T, S}(
     Δxy,
     Δs_l,
@@ -464,6 +437,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     mean_pdd,
     qp,
     minimize,
+    perturb,
     similar(Qx),
     similar(Δs_l),
     similar(Δs_u),
@@ -489,6 +463,7 @@ function IterData(
   mean_pdd,
   qp,
   minimize,
+  perturb,
 )
   if typeof(Δxy) <: Vector
     return IterDataCPU(
@@ -510,6 +485,7 @@ function IterData(
       mean_pdd,
       qp,
       minimize,
+      perturb,
     )
   else
     return IterDataGPU(
@@ -531,6 +507,7 @@ function IterData(
       mean_pdd,
       qp,
       minimize,
+      perturb,
     )
   end
 end
@@ -557,6 +534,7 @@ convert(
   convert(T, itd.mean_pdd),
   itd.qp,
   itd.minimize,
+  itd.perturb,
 )
 
 abstract type ScaleData{T <: Real, S} end

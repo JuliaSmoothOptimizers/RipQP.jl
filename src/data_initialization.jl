@@ -197,6 +197,7 @@ function allocate_workspace(
     one(T), #mean_pdd
     typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
+    iconf.perturb,
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)

@@ -194,8 +194,14 @@ function update_data!(
   itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
   itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
   boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
-
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+
+  if itd.perturb && itd.μ ≤ eps(T)
+    perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
+    boundary_safety!(pt.s_l, pt.s_u)
+    itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+  end
+
   itd.Qx = mul!(itd.Qx, fd.Q, pt.x)
   x_approxQx = dot(fd.x_approx, itd.Qx)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
