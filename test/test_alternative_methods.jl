@@ -88,6 +88,7 @@ end
   stats1 = ripqp(
     QuadraticModel(qps1),
     display = false,
+    perturb = true,
     solve_method = IPF(), mode = :multiref,
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
