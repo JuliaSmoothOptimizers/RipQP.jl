@@ -32,7 +32,8 @@ const to = TimerOutput()
 """
     stats = ripqp(QM :: QuadraticModel{T0};
                   itol = InputTol(T0), scaling = true, ps = true,
-                  normalize_rtol = true, kc = 0, mode = :mono, Timulti = Float32, 
+                  normalize_rtol = true, kc = 0, mode = :mono, perturb = false,
+                  Timulti = Float32, 
                   sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
                   sp2 = nothing, sp3 = nothing, 
                   solve_method = PC(), 
@@ -49,6 +50,7 @@ containing information about the solved problem.
 - `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
     are normalized by the initial primal and dual residuals
 - `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
+- `perturb :: Bool` : activate / deativate perturbation of the current point when μ is too small
 - `mode :: Symbol`: should be `:mono` to use the mono-precision mode, `:multi` to use
     the multi-precision mode (start in single precision and gradually transitions
     to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
