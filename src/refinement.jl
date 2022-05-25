@@ -198,7 +198,6 @@ function update_data!(
 
   if itd.perturb && itd.μ ≤ eps(T)
     perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
-    boundary_safety!(pt.s_l, pt.s_u)
     itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
   end
 
