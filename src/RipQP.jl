@@ -100,9 +100,16 @@ function ripqp(
   elapsed_time = 0.0
   @timeit_debug to "ripqp" begin
     # config
-    mode == :mono || mode == :multi || mode == :zoom || mode == :multizoom || mode == :ref ||
-      mode == :multiref || error("not a valid mode")
-    typeof(solve_method) <: IPF && kc != 0 && error("IPF method should not be used with centrality corrections")
+    mode == :mono ||
+      mode == :multi ||
+      mode == :zoom ||
+      mode == :multizoom ||
+      mode == :ref ||
+      mode == :multiref ||
+      error("not a valid mode")
+    typeof(solve_method) <: IPF &&
+      kc != 0 &&
+      error("IPF method should not be used with centrality corrections")
     iconf = InputConfig(
       mode,
       Timulti,
@@ -267,21 +274,8 @@ function ripqp(
         iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
         sc.optimal = false
 
-        fd_ref, pt_ref = fd_refinement(
-          fd_T0,
-          id,
-          res,
-          itd.Δxy,
-          pt,
-          itd,
-          ϵ,
-          dda,
-          pad,
-          spd,
-          cnts,
-          T0,
-          iconf.mode,
-        )
+        fd_ref, pt_ref =
+          fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
         iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
@@ -385,9 +379,9 @@ function ripqp(
   LLS::LLSModel{T0};
   mode::Symbol = :mono,
   Timulti::DataType = Float32,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
   kwargs...,
-  ) where {T0 <: Real}
+) where {T0 <: Real}
   sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
   FLLS = FeasibilityFormNLS(LLS)
   stats = ripqp(

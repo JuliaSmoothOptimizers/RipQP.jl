@@ -66,8 +66,14 @@ SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int
 
 abstract type SolveMethod end
 
-mutable struct InputConfig{I <: Integer, SP <: SolverParams, 
-    SP2 <: Union{Nothing, SolverParams}, SP3 <: Union{Nothing, SolverParams}, SM <: SolveMethod, D <: DataType}
+mutable struct InputConfig{
+  I <: Integer,
+  SP <: SolverParams,
+  SP2 <: Union{Nothing, SolverParams},
+  SP3 <: Union{Nothing, SolverParams},
+  SM <: SolveMethod,
+  D <: DataType,
+}
   mode::Symbol
   Timulti::D
   scaling::Bool

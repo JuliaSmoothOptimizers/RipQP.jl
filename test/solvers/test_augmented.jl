@@ -21,19 +21,11 @@ end
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(
-    QuadraticModel(qps2),
-    display = false,
-    sp = K2_5LDLParams(), mode = :multi,
-  )
+  stats2 = ripqp(QuadraticModel(qps2), display = false, sp = K2_5LDLParams(), mode = :multi)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
-  stats3 = ripqp(
-    QuadraticModel(qps3),
-    display = false,
-    sp = K2_5LDLParams(regul = :dynamic),
-  )
+  stats3 = ripqp(QuadraticModel(qps3), display = false, sp = K2_5LDLParams(regul = :dynamic))
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
 end
@@ -206,7 +198,8 @@ end
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
-    sp = K2StructuredParams(kmethod = :tricg), solve_method = IPF(),
+    sp = K2StructuredParams(kmethod = :tricg),
+    solve_method = IPF(),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
@@ -236,7 +229,8 @@ end
   stats4 = ripqp(
     QuadraticModel(qps4),
     display = false,
-    sp = K2_5StructuredParams(kmethod = :tricg), solve_method = IPF(),
+    sp = K2_5StructuredParams(kmethod = :tricg),
+    solve_method = IPF(),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)

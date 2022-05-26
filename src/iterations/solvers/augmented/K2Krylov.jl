@@ -317,8 +317,7 @@ function convertpad(
   fd::Abstract_QM_FloatData,
   T0::DataType,
 ) where {T <: Real, T_old <: Real}
-
-  @assert sp_new.uplo == :U 
+  @assert sp_new.uplo == :U
   D = convert(Array{T}, pad.D)
   regu = convert(Regularization{T}, pad.regu)
   regu.ρ_min = T(sp_new.ρ_min)
@@ -337,7 +336,17 @@ function convertpad(
   mt = MatrixTools(convert(SparseVector{T, Int}, pad.diag_Q), pad.diagind_K, Deq, C_eq)
   regu_precond = pad.regu
   regu_precond.regul = :dynamic
-  pdat = PreconditionerData(sp_new, pad.K_fact, copy(D), id.nvar, id.ncon, mt.diag_Q, mt.diagind_K, regu_precond, pad.K)
+  pdat = PreconditionerData(
+    sp_new,
+    pad.K_fact,
+    copy(D),
+    id.nvar,
+    id.ncon,
+    mt.diag_Q,
+    mt.diagind_K,
+    regu_precond,
+    pad.K,
+  )
   KS = init_Ksolver(K, rhs, sp_new)
 
   return PreallocatedDataK2Krylov(

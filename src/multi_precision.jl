@@ -62,7 +62,8 @@ function iter_and_update_T!(
   iter!(pt, itd, fd_T, id, res, sc, dda, pad, ϵ_T, cnts, T0, display)
 
   # convert to T_next
-  pt, itd, res, dda, pad = convert_types(Tnew, pt, itd, res, dda, pad, sp_old, sp_new, id, fd_Tnew, T0)
+  pt, itd, res, dda, pad =
+    convert_types(Tnew, pt, itd, res, dda, pad, sp_old, sp_new, id, fd_Tnew, T0)
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
   return pt, itd, res, dda, pad

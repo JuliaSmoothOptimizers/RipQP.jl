@@ -48,8 +48,11 @@ function fd_refinement(
     itd.Δxy[id.ilow] .-= itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
     padT = typeof(pad)
-    if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) ||
-      (padT <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrecData && !factorized(pad.pdat.K_fact)) 
+    if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) || (
+      padT <: PreallocatedDataK2Krylov &&
+      typeof(pad.pdat) <: LDLLowPrecData &&
+      !factorized(pad.pdat.K_fact)
+    )
       out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
     else
@@ -197,7 +200,21 @@ function update_data!(
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
 
   if itd.perturb && itd.μ ≤ eps(T)
-    perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
+    perturb_x!(
+      pt.x,
+      pt.s_l,
+      pt.s_u,
+      itd.x_m_lvar,
+      itd.uvar_m_x,
+      fd.lvar,
+      fd.uvar,
+      itd.μ,
+      id.ilow,
+      id.iupp,
+      id.nlow,
+      id.nupp,
+      id.nvar,
+    )
     itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
   end
 
