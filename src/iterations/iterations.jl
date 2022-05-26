@@ -96,17 +96,17 @@ function perturb_x!(
 ) where {T}
   pert = μ * 10
   if pert > zero(T)
-    for i=1:nvar
+    for i = 1:nvar
       ldist_i = x[i] - lvar[i]
       udist_i = uvar[i] - x[i]
       alea = rand(T) + T(0.5)
       x[i] = (ldist_i < udist_i) ? x[i] + alea * pert : x[i] - alea * pert
     end
-    for i=1:nlow
+    for i = 1:nlow
       alea = rand(T) + T(0.5)
       s_l[i] += alea * pert
     end
-    for i=1:nupp
+    for i = 1:nupp
       alea = rand(T) + T(0.5)
       s_u[i] += alea * pert
     end
@@ -125,7 +125,21 @@ function update_IterData!(itd, pt, fd, id, safety)
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
 
   if itd.perturb && itd.μ ≤ eps(T)
-    perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
+    perturb_x!(
+      pt.x,
+      pt.s_l,
+      pt.s_u,
+      itd.x_m_lvar,
+      itd.uvar_m_x,
+      fd.lvar,
+      fd.uvar,
+      itd.μ,
+      id.ilow,
+      id.iupp,
+      id.nlow,
+      id.nupp,
+      id.nvar,
+    )
     itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
   end
 

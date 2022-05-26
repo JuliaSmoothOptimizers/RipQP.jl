@@ -75,7 +75,7 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
-  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min) , T(sp.δ_min), sp.regul)
+  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.regul)
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu)
 
@@ -233,7 +233,9 @@ function fill_K2!(
     end
     K_colptr[nvar + j + 1] = countsum
     for k = A_colptr[j]:(A_colptr[j + 1] - 1)
-      nz_idx = ((regul == :classic || regul == :hybrid) && δ > 0) ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
+      nz_idx =
+        ((regul == :classic || regul == :hybrid) && δ > 0) ? k + nnz_top_left + j - 2 :
+        k + nnz_top_left - 1
       K_rowval[nz_idx] = A_rowval[k]
       K_nzval[nz_idx] = A_nzval[k]
     end
