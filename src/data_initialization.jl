@@ -170,8 +170,8 @@ function allocate_workspace(
   sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
-  if iconf.mode == :multi
-    T = Float32
+  if iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom
+    T = iconf.Timulti
   end
   S0 = typeof(fd_T0.c)
   S = change_vector_eltype(S0, T)
@@ -197,12 +197,13 @@ function allocate_workspace(
     one(T), #mean_pdd
     typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     QM.meta.minimize,
+    iconf.perturb,
   )
 
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
   dda = DescentDirectionAllocs(id, iconf.solve_method, S)
 
-  cnts = Counters(0, 0, 0, 0, iconf.kc, iconf.max_ref, 0, iconf.w)
+  cnts = Counters(0, 0, 0, 0, iconf.kc, 0, iconf.w)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 

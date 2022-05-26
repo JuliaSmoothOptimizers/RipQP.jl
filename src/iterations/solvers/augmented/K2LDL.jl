@@ -10,31 +10,47 @@ The outer constructor
 
     sp = K2LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 """
-mutable struct K2LDLParams <: AugmentedParams
+mutable struct K2LDLParams{T} <: AugmentedParams
   uplo::Symbol
   regul::Symbol
-  ρ0::Float64
-  δ0::Float64
+  ρ0::T
+  δ0::T
+  ρ_min::T
+  δ_min::T
 end
 
-function K2LDLParams(;
+function K2LDLParams(regul::Symbol, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where {T}
+  regul == :classic ||
+    regul == :dynamic ||
+    regul == :hybrid ||
+    regul == :none ||
+    error("regul should be :classic or :dynamic or :hybrid or :none")
+  uplo = :U # mandatory for LDLFactorizations
+  return K2LDLParams(uplo, regul, ρ0, δ0, ρ_min, δ_min)
+end
+
+K2LDLParams{Float64}(;
   regul::Symbol = :classic,
   ρ0::Float64 = sqrt(eps()) * 1e5,
   δ0::Float64 = sqrt(eps()) * 1e5,
-)
-  regul == :classic ||
-    regul == :dynamic ||
-    regul == :none ||
-    error("regul should be :classic or :dynamic or :none")
-  uplo = :U # mandatory for LDLFactorizations
-  return K2LDLParams(uplo, regul, ρ0, δ0)
-end
+  ρ_min::Float64 = 1e-5 * sqrt(eps()),
+  δ_min::Float64 = 1e0 * sqrt(eps()),
+) = K2LDLParams(regul, ρ0, δ0, ρ_min, δ_min)
+K2LDLParams{T}(;
+  regul::Symbol = :classic,
+  ρ0::T = one(T),
+  δ0::T = one(T),
+  ρ_min::T = sqrt(eps(T)),
+  δ_min::T = sqrt(eps(T)),
+) where {T <: Union{Float16, Float32, Float128}} = K2LDLParams(regul, ρ0, δ0, ρ_min, δ_min)
+
+K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK2LDL{T <: Real, S} <: PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
@@ -58,23 +74,17 @@ function PreallocatedData(
 
   # init Regularization values
   D = similar(fd.c, id.nvar)
-  if iconf.mode == :mono && T == Float64
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), 1e-5 * sqrt(eps(T)), 1e0 * sqrt(eps(T)), sp.regul)
-    D .= -T(1.0e0) / 2
-  else
-    regu =
-      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), sp.regul)
-    D .= -T(1.0e-2)
-  end
+  D .= -T(1.0e0) / 2
+  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min) , T(sp.δ_min), sp.regul)
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu)
 
   diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
   K_fact = ldl_analyze(Symmetric(K, :U))
-  if regu.regul == :dynamic
+  if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.nzval[diagind_K], Inf)
-    regu.ρ, regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = regu.ρ, regu.δ
+    # regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    K_fact.r1, K_fact.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
     K_fact.tol = Amax * T(eps(T))
     K_fact.n_d = id.nvar
   elseif regu.regul == :none
@@ -92,35 +102,6 @@ function PreallocatedData(
     false,
     diagind_K, #diagind_K
   )
-end
-
-function convertpad(
-  ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedDataK2LDL{T_old},
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
-  pad = PreallocatedDataK2LDL(
-    convert(Array{T}, pad.D),
-    convert(Regularization{T}, pad.regu),
-    convert(SparseVector{T, Int}, pad.diag_Q),
-    convert(SparseMatrixCSC{T, Int}, pad.K),
-    convertldl(T, pad.K_fact),
-    pad.fact_fail,
-    pad.diagind_K,
-  )
-
-  if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
-    else
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
-    end
-  elseif pad.regu.regul == :dynamic
-    pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
-  end
-
-  return pad
 end
 
 # function used to solve problems
@@ -153,7 +134,8 @@ function update_pad!(
   cnts::Counters,
   T0::DataType,
 ) where {T <: Real}
-  if pad.regu.regul == :classic && cnts.k != 0 # update ρ and δ values, check K diag magnitude 
+  if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
+    # update ρ and δ values, check K diag magnitude 
     out = update_regu_diagK2!(
       pad.regu,
       pad.K.nzval,
@@ -246,16 +228,16 @@ function fill_K2!(
   nnz_top_left = countsum # number of coefficients + 1 already added
   @inbounds for j = 1:ncon
     countsum += A_colptr[j + 1] - A_colptr[j]
-    if regul == :classic && δ > 0
+    if (regul == :classic || regul == :hybrid) && δ > 0
       countsum += 1
     end
     K_colptr[nvar + j + 1] = countsum
     for k = A_colptr[j]:(A_colptr[j + 1] - 1)
-      nz_idx = (regul == :classic && δ > 0) ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
+      nz_idx = ((regul == :classic || regul == :hybrid) && δ > 0) ? k + nnz_top_left + j - 2 : k + nnz_top_left - 1
       K_rowval[nz_idx] = A_rowval[k]
       K_nzval[nz_idx] = A_nzval[k]
     end
-    if regul == :classic && δ > 0
+    if (regul == :classic || regul == :hybrid) && δ > 0
       nz_idx = K_colptr[nvar + j + 1] - 1
       K_rowval[nz_idx] = nvar + j
       K_nzval[nz_idx] = δ
@@ -266,7 +248,7 @@ end
 function create_K2(id, D, Q, A, diag_Q, regu; T = eltype(D))
   # for classic regul only
   n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
-  if regu.regul == :classic && regu.δ > 0
+  if (regu.regul == :classic || regu.regul == :hybrid) && regu.δ > 0
     n_nz += id.ncon
   end
   K_colptr = Vector{Int}(undef, id.ncon + id.nvar + 1)
@@ -313,7 +295,7 @@ function update_K!(
   ncon,
   T,
 )
-  if regu.regul == :classic
+  if regu.regul == :classic || regu.regul == :hybrid
     D .= -regu.ρ
     if regu.δ > zero(T)
       K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
@@ -330,7 +312,7 @@ end
 function update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
   Amax = @views norm(K.nzval[diagind_K], Inf)
   if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
-    if T == Float32
+    if T == Float32 && regu.regul == :dynamic
       return one(Int) # update to Float64
     elseif qp || cnts.c_pdd < 4
       cnts.c_pdd += 1
@@ -364,7 +346,7 @@ function factorize_K2!(
 )
   update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon, T)
 
-  if regu.regul == :dynamic
+  if regu.regul == :dynamic || regu.regul == :hybrid
     update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
     ldl_factorize!(Symmetric(K, :U), K_fact)
   elseif regu.regul == :classic
@@ -398,4 +380,38 @@ function factorize_K2!(
   end
 
   return 0 # factorization succeeded
+end
+
+# conversion functions
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2LDL{T_old},
+  sp_old::K2LDLParams,
+  sp_new::Union{Nothing, K2LDLParams},
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+  pad = PreallocatedDataK2LDL(
+    convert(Array{T}, pad.D),
+    convert(Regularization{T}, pad.regu),
+    convert(SparseVector{T, Int}, pad.diag_Q),
+    convert(SparseMatrixCSC{T, Int}, pad.K),
+    convertldl(T, pad.K_fact),
+    pad.fact_fail,
+    pad.diagind_K,
+  )
+
+  if pad.regu.regul == :classic
+    if T == Float64 && T0 == Float64
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
+    else
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
+    end
+  elseif pad.regu.regul == :dynamic
+    pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
+  end
+
+  return pad
 end

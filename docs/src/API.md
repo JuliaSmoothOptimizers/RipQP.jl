@@ -7,7 +7,6 @@ ripqp
 ## Input Types
 
 ```@docs
-InputConfig
 InputTol
 SystemWrite
 ```

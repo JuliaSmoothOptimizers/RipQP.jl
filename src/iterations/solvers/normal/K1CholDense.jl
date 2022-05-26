@@ -11,7 +11,7 @@ The outer constructor
 
     sp = K1CholDenseParams(; ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 """
 mutable struct K1CholDenseParams <: NormalParams
   uplo::Symbol
@@ -34,32 +34,6 @@ mutable struct PreallocatedDataK1CholDense{T <: Real, S, M <: AbstractMatrix{T}}
   K::M # augmented matrix
   diagindK::StepRange{Int, Int}
   tmpldiv::S
-end
-
-function convertpad(
-  ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedDataK1CholDense{T0, S0, M0},
-  T02::DataType,
-) where {T <: Real, T0 <: Real, S0, M0}
-  S = change_vector_eltype(S0, T)
-  pad = PreallocatedDataK1CholDense(
-    convert(S, pad.D),
-    Diagonal(convert(S, pad.invD.diag)),
-    convert_mat(pad.AinvD, T),
-    convert(S, pad.rhs),
-    convert(Regularization{T}, pad.regu),
-    convert_mat(pad.K, T),
-    pad.diagindK,
-    convert(S, pad.tmpldiv),
-  )
-
-  if T == Float64 && T0 == Float64
-    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e0), T(sqrt(eps()) * 1e0)
-  else
-    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
-  end
-
-  return pad
 end
 
 # outer constructor
@@ -154,4 +128,34 @@ function update_pad!(
   cholesky!(Symmetric(pad.K))
 
   return 0
+end
+
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK1CholDense{T0, S0, M0},
+  sp_old::K1CholDenseParams,
+  sp_new::Union{Nothing, K1CholDenseParams},
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T02::DataType,
+) where {T <: Real, T0 <: Real, S0, M0}
+  S = change_vector_eltype(S0, T)
+  pad = PreallocatedDataK1CholDense(
+    convert(S, pad.D),
+    Diagonal(convert(S, pad.invD.diag)),
+    convert_mat(pad.AinvD, T),
+    convert(S, pad.rhs),
+    convert(Regularization{T}, pad.regu),
+    convert_mat(pad.K, T),
+    pad.diagindK,
+    convert(S, pad.tmpldiv),
+  )
+
+  if T == Float64 && T0 == Float64
+    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e0), T(sqrt(eps()) * 1e0)
+  else
+    pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
+  end
+
+  return pad
 end

@@ -29,7 +29,7 @@ function fd_refinement(
   spd::StartingPointData{T},
   cnts::Counters,
   T0::DataType,
-  refinement::Symbol;
+  mode::Symbol;
   centering::Bool = false,
 ) where {T <: Real}
 
@@ -47,7 +47,9 @@ function fd_refinement(
     itd.Δxy .= 0
     itd.Δxy[id.ilow] .-= itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
-    if pad.fact_fail
+    padT = typeof(pad)
+    if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) ||
+      (padT <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrecData && !factorized(pad.pdat.K_fact)) 
       out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
     else
@@ -63,22 +65,22 @@ function fd_refinement(
 
   c_ref = fd.c .- itd.ATy .+ itd.Qx
   αref = T(1.0e12)
-  if refinement == :zoom || refinement == :multizoom
+  if mode == :zoom || mode == :multizoom
     # zoom parameter
     Δref = one(T) / res.rbNorm
-  elseif refinement == :ref || refinement == :multiref
+  elseif mode == :ref || mode == :multiref
     Δref = one(T)
     δd = norm(c_ref, Inf)
     if id.nlow == 0 && id.nupp > 0
-      δp = max(res.rbNorm, maximum(itd.uvar_m_x))
+      δp = max(res.rbNorm, minimum(itd.uvar_m_x))
     elseif id.nlow > 0 && id.nupp == 0
-      δp = max(res.rbNorm, maximum(itd.x_m_lvar))
+      δp = max(res.rbNorm, minimum(itd.x_m_lvar))
     elseif id.nlow == 0 && id.nupp == 0
       δp = max(res.rbNorm)
     else
-      δp = max(res.rbNorm, maximum(itd.x_m_lvar), maximum(itd.uvar_m_x))
+      δp = max(res.rbNorm, minimum(itd.x_m_lvar), minimum(itd.uvar_m_x))
     end
-    Δref = max(αref / Δref, one(T) / δp, one(T) / δd)
+    Δref = min(αref / Δref, one(T) / δp, one(T) / δd)
   end
   if Δref == T(Inf)
     Δref = αref
@@ -108,10 +110,13 @@ function fd_refinement(
   pt_z = Point(
     fill!(S(undef, id.nvar), zero(T)),
     fill!(S(undef, id.ncon), zero(T)),
-    max.(abs.(c_ref[id.ilow]), eps(T)),
-    max.(abs.(c_ref[id.iupp]), eps(T)),
+    pt.s_l .* Δref,
+    pt.s_u .* Δref,
   )
-  starting_points!(pt_z, fd_ref, id, itd, spd)
+  mul!(itd.Qx, fd_ref.Q, pt_z.x)
+  fd_ref.uplo == :U ? mul!(itd.ATy, fd_ref.A, pt_z.y) : mul!(itd.ATy, fd_ref.A', pt_z.y)
+  itd.x_m_lvar .= @views pt_z.x[id.ilow] .- fd_ref.lvar[id.ilow]
+  itd.uvar_m_x .= @views fd_ref.uvar[id.iupp] .- pt_z.x[id.iupp]
 
   # update residuals
   res.rb .= itd.Ax .- fd_ref.b
@@ -189,8 +194,13 @@ function update_data!(
   itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
   itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
   boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
-
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+
+  if itd.perturb && itd.μ ≤ eps(T)
+    perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
+    itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+  end
+
   itd.Qx = mul!(itd.Qx, fd.Q, pt.x)
   x_approxQx = dot(fd.x_approx, itd.Qx)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2

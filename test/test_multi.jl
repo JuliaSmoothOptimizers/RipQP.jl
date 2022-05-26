@@ -18,15 +18,15 @@ function createQuadraticModelT(qpdata; T = Float128, name = "qp_pb")
 end
 
 @testset "multi_mode" begin
-  stats1 = ripqp(QuadraticModel(qps1), iconf = InputConfig(mode = :multi), display = false)
+  stats1 = ripqp(QuadraticModel(qps1), mode = :multi, display = false)
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(QuadraticModel(qps2), iconf = InputConfig(mode = :multi), display = false)
+  stats2 = ripqp(QuadraticModel(qps2), mode = :multi, display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
-  stats3 = ripqp(QuadraticModel(qps3), iconf = InputConfig(mode = :multi), display = false)
+  stats3 = ripqp(QuadraticModel(qps3), mode = :multi, display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
 end
@@ -36,7 +36,7 @@ end
   stats1 = ripqp(
     qm128_1,
     itol = InputTol(Float128, ϵ_rb32 = Float128(0.1), ϵ_rb64 = Float128(0.01)),
-    iconf = InputConfig(mode = :multi, normalize_rtol = false),
+    mode = :multi, normalize_rtol = false,
     display = false,
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
@@ -63,14 +63,33 @@ end
   )
   stats_dense = ripqp(
     qm16,
-    itol = InputTol(
-      Float16,
-      ϵ_pdd = Float16(1.0e-1),
-      ϵ_rb = Float16(1.0e-1),
-      ϵ_rc = Float16(1.0e-1),
-    ),
+    itol = InputTol(Float16),
     display = false,
   )
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
+end
+
+@testset "multi solvers" begin
+  for mode ∈ [:multi, :multizoom, :multiref]
+    stats1 = ripqp(QuadraticModel(qps1), mode = mode, solve_method = IPF(),
+      sp2 = K2KrylovParams(uplo=:U, preconditioner = LDLLowPrec()), display = false)
+    @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
+    @test stats1.status == :first_order
+  end
+
+  qm128_1 = createQuadraticModelT(qps1, T = Float128)
+  stats1 = ripqp(qm128_1, mode = :multi, Timulti = Float64, solve_method = IPF(),
+    sp3 = K2KrylovParams{Float128}(
+      uplo=:U,
+      form_mat = true,
+      equilibrate = true,
+      preconditioner = LDLLowPrec(),
+      ρ_min = sqrt(eps(Float128)),
+      δ_min = sqrt(eps(Float128)),
+    ),
+    display = true,
+  )
+  @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
+  @test stats1.status == :first_order
 end

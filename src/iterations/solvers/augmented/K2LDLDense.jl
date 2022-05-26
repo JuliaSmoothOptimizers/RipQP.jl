@@ -9,7 +9,7 @@ The outer constructor
 
     sp = K2LDLDenseParams(; ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 """
 mutable struct K2LDLDenseParams <: AugmentedParams
   uplo::Symbol

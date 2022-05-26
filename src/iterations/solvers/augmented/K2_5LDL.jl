@@ -12,7 +12,7 @@ The outer constructor
 
     sp = K2_5LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5)
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
 encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
@@ -75,8 +75,8 @@ function PreallocatedData(
   K_fact = ldl_analyze(Symmetric(K, :U))
   if regu.regul == :dynamic
     Amax = @views norm(K.nzval[diagind_K], Inf)
-    regu.ρ, regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = regu.ρ, regu.δ
+    regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    K_fact.r1, K_fact.r2 = -regu.ρ, regu.δ
     K_fact.tol = Amax * T(eps(T))
     K_fact.n_d = id.nvar
   elseif regu.regul == :none
@@ -95,38 +95,6 @@ function PreallocatedData(
     diagind_K, #diagind_K
     false,
   )
-end
-
-function convertpad(
-  ::Type{<:PreallocatedData{T}},
-  pad::PreallocatedDataK2_5LDL{T_old},
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
-  pad = PreallocatedDataK2_5LDL(
-    convert(Array{T}, pad.D),
-    convert(Regularization{T}, pad.regu),
-    convert(SparseVector{T, Int}, pad.diag_Q),
-    convert(SparseMatrixCSC{T, Int}, pad.K),
-    convertldl(T, pad.K_fact),
-    pad.fact_fail,
-    pad.diagind_K,
-    pad.K_scaled,
-  )
-
-  if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
-    else
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
-    end
-    pad.regu.ρ /= 10
-    pad.regu.δ /= 10
-  elseif pad.regu.regul == :dynamic
-    pad.regu.ρ, pad.regu.δ = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = pad.regu.ρ, pad.regu.δ
-  end
-
-  return pad
 end
 
 # solver LDLFactorization
@@ -322,4 +290,41 @@ function factorize_K2_5!(
   end
 
   return 0 # factorization succeeded
+end
+
+# conversion functions
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2_5LDL{T_old},
+  sp_old::K2_5LDLParams,
+  sp_new::Union{Nothing, K2_5LDLParams},
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+  pad = PreallocatedDataK2_5LDL(
+    convert(Array{T}, pad.D),
+    convert(Regularization{T}, pad.regu),
+    convert(SparseVector{T, Int}, pad.diag_Q),
+    convert(SparseMatrixCSC{T, Int}, pad.K),
+    convertldl(T, pad.K_fact),
+    pad.fact_fail,
+    pad.diagind_K,
+    pad.K_scaled,
+  )
+
+  if pad.regu.regul == :classic
+    if T == Float64 && T0 == Float64
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
+    else
+      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
+    end
+    pad.regu.ρ /= 10
+    pad.regu.δ /= 10
+  elseif pad.regu.regul == :dynamic
+    pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
+  end
+
+  return pad
 end

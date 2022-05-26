@@ -79,13 +79,56 @@ function boundary_safety!(x_m_lvar, uvar_m_x)
   uvar_m_x .= safe_boundary.(uvar_m_x)
 end
 
+function perturb_x!(
+  x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  lvar::AbstractVector{T},
+  uvar::AbstractVector{T},
+  μ::T,
+  ilow::Vector{Int},
+  iupp::Vector{Int},
+  nlow::Int,
+  nupp::Int,
+  nvar::Int,
+) where {T}
+  pert = μ * 10
+  if pert > zero(T)
+    for i=1:nvar
+      ldist_i = x[i] - lvar[i]
+      udist_i = uvar[i] - x[i]
+      alea = rand(T) + T(0.5)
+      x[i] = (ldist_i < udist_i) ? x[i] + alea * pert : x[i] - alea * pert
+    end
+    for i=1:nlow
+      alea = rand(T) + T(0.5)
+      s_l[i] += alea * pert
+    end
+    for i=1:nupp
+      alea = rand(T) + T(0.5)
+      s_u[i] += alea * pert
+    end
+  end
+  x_m_lvar .= @views x[ilow] .- lvar[ilow]
+  uvar_m_x .= @views uvar[iupp] .- x[iupp]
+  boundary_safety!(x_m_lvar, uvar_m_x)
+  boundary_safety!(s_l, s_u)
+end
+
 function update_IterData!(itd, pt, fd, id, safety)
   T = eltype(itd.x_m_lvar)
   itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
   itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
   safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
-
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+
+  if itd.perturb && itd.μ ≤ eps(T)
+    perturb_x!(pt.x, pt.s_l, pt.s_u, itd.x_m_lvar, itd.uvar_m_x, fd.lvar, fd.uvar, itd.μ, id.ilow, id.iupp, id.nlow, id.nupp, id.nvar)
+    itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
+  end
+
   mul!(itd.Qx, fd.Q, pt.x)
   itd.xTQx_2 = dot(pt.x, itd.Qx) / 2
   fd.uplo == :U ? mul!(itd.ATy, fd.A, pt.y) : mul!(itd.ATy, fd.A', pt.y)
@@ -238,6 +281,8 @@ function iter!(
           α_pri,
           α_dual,
           itd.μ,
+          pad.regu.ρ,
+          pad.regu.δ,
           get_kiter(pad),
         ],
       )

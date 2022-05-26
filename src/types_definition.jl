@@ -1,6 +1,6 @@
 import Base: convert
 
-export InputConfig, InputTol, SolveMethod, SystemWrite, SolverParams, PreallocatedData
+export InputTol, SolveMethod, SystemWrite, SolverParams, PreallocatedData
 
 # problem: min 1/2 x'Qx + c'x + c0     s.t.  Ax = b,  lvar ≤ x ≤ uvar
 abstract type Abstract_QM_FloatData{
@@ -36,12 +36,6 @@ end
 """
 Abstract type for tuning the parameters of the different solvers. 
 Each solver has its own `SolverParams` type.
-
-The `SolverParams` currently implemented within RipQP are:
-
-- [`RipQP.K2LDLParams`](@ref)
-- [`RipQP.K2_5LDLParams`](@ref)
-
 """
 abstract type SolverParams end
 
@@ -55,8 +49,7 @@ Type to write the matrix (.mtx format) and the right hand side (.rhs format) of 
 
 The constructor
 
-    SystemWrite(; write::Bool = false, name::String = "", 
-                kfirst::Int = 0, kgap::Int = 1)
+    SystemWrite(; write = false, name = "", kfirst = 0, kgap = 1)
 
 returns a `SystemWrite` structure that should be used to tell RipQP to save the system. 
 See the tutorial for more information. 
@@ -73,100 +66,25 @@ SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int
 
 abstract type SolveMethod end
 
-"""
-Type to specify the configuration used by RipQP.
-
-- `mode :: Symbol`: should be `:mono` to use the mono-precision mode, or `:multi` to use
-    the multi-precision mode (start in single precision and gradually transitions
-    to `T0`)
-- `scaling :: Bool`: activate/deactivate scaling of A and Q in `QM0`
-- `presolve :: Bool` : activate/deactivate presolve
-- `normalize_rtol :: Bool = true` : if `true`, the primal and dual tolerance for the stopping criteria 
-    are normalized by the initial primal and dual residuals
-- `kc :: Int`: number of centrality corrections (set to `-1` for automatic computation)
-- `refinement :: Symbol` : should be `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
-    with multi-precision (then `mode` should be `:multi`), `ref` to use the QP refinement procedure, `multiref` 
-    to use the QP refinement procedure with multi_precision (then `mode` should be `:multi`), or `none` to avoid 
-    refinements
-- `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
-    initialization, see [`RipQP.SolverParams`](@ref)
-- `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
-    use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
-    Following algorithm
-- `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
-    history, and the number of products if using a Krylov method in the `solver_specific` field of the 
-    [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
-- `w :: SystemWrite`: configure writing of the systems to solve (no writing is done by default), see [`RipQP.SystemWrite`](@ref)
-
-The constructor
-
-    iconf = InputConfig(; mode :: Symbol = :mono, scaling :: Bool = true, 
-                        normalize_rtol :: Bool = true, kc :: I = 0, 
-                        refinement :: Symbol = :none, max_ref :: I = 0, 
-                        sp :: SolverParams = K2LDLParams(),
-                        solve_method :: Symbol = PC(),
-                        history :: Bool = false, 
-                        w :: SystemWrite = SystemWrite()) where {I<:Integer}
-
-returns a `InputConfig` struct that shall be used to solve the input `QuadraticModel` with RipQP.
-"""
-mutable struct InputConfig{I <: Integer, SP <: SolverParams, SM <: SolveMethod}
+mutable struct InputConfig{I <: Integer, SP <: SolverParams, 
+    SP2 <: Union{Nothing, SolverParams}, SP3 <: Union{Nothing, SolverParams}, SM <: SolveMethod, D <: DataType}
   mode::Symbol
+  Timulti::D
   scaling::Bool
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
-
-  # QP refinement 
-  refinement::Symbol
-  max_ref::I # maximum number of refinements
+  perturb::Bool
 
   # Functions to choose formulations
   sp::SP
+  sp2::SP2 # second solver to use (usually when using multi-prec in Floa64)
+  sp3::SP3 # third solver to use (usually when using multi-prec in Floa128)
   solve_method::SM
 
   # output tools
   history::Bool
   w::SystemWrite # write systems 
-end
-
-function InputConfig(;
-  mode::Symbol = :mono,
-  scaling::Bool = true,
-  presolve::Bool = true,
-  normalize_rtol::Bool = true,
-  kc::I = 0,
-  refinement::Symbol = :none,
-  max_ref::I = 0,
-  sp::SolverParams = K2LDLParams(),
-  solve_method::SolveMethod = PC(),
-  history::Bool = false,
-  w::SystemWrite = SystemWrite(),
-) where {I <: Integer}
-  mode == :mono || mode == :multi || error("mode should be :mono or :multi")
-  refinement == :zoom ||
-    refinement == :multizoom ||
-    refinement == :ref ||
-    refinement == :multiref ||
-    refinement == :none ||
-    error("not a valid refinement parameter")
-  typeof(solve_method) <: IPF &&
-    kc != 0 &&
-    error("IPF method should not be used with centrality corrections")
-
-  return InputConfig{I, typeof(sp), typeof(solve_method)}(
-    mode,
-    scaling,
-    presolve,
-    normalize_rtol,
-    kc,
-    refinement,
-    max_ref,
-    sp,
-    solve_method,
-    history,
-    w,
-  )
 end
 
 """
@@ -454,6 +372,7 @@ mutable struct IterDataCPU{T <: Real, S} <: IterData{T, S}
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
+  perturb::Bool
 end
 
 mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
@@ -475,6 +394,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
   mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
+  perturb::Bool
   store_vpri::S
   store_vdual_l::S
   store_vdual_u::S
@@ -497,6 +417,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     mean_pdd::T,
     qp::Bool,
     minimize::Bool,
+    perturb::Bool,
   ) where {T <: Real, S} = new{T, S}(
     Δxy,
     Δs_l,
@@ -516,6 +437,7 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     mean_pdd,
     qp,
     minimize,
+    perturb,
     similar(Qx),
     similar(Δs_l),
     similar(Δs_u),
@@ -541,6 +463,7 @@ function IterData(
   mean_pdd,
   qp,
   minimize,
+  perturb,
 )
   if typeof(Δxy) <: Vector
     return IterDataCPU(
@@ -562,6 +485,7 @@ function IterData(
       mean_pdd,
       qp,
       minimize,
+      perturb,
     )
   else
     return IterDataGPU(
@@ -583,6 +507,7 @@ function IterData(
       mean_pdd,
       qp,
       minimize,
+      perturb,
     )
   end
 end
@@ -609,6 +534,7 @@ convert(
   convert(T, itd.mean_pdd),
   itd.qp,
   itd.minimize,
+  itd.perturb,
 )
 
 abstract type ScaleData{T <: Real, S} end
@@ -679,7 +605,6 @@ mutable struct Counters
   k::Int # iter count
   km::Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
   kc::Int # maximum corrector steps
-  max_ref::Int # maximum number of refinements
   c_ref::Int # current number of refinements
   w::SystemWrite # store SystemWrite data
 end

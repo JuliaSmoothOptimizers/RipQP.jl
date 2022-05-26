@@ -13,46 +13,46 @@ The outer constructor
                    ρ_min = 1e2 * sqrt(eps()), δ_min = 1e2 * sqrt(eps()),
                    itmax = 0, memory = 20)
 
-creates a [`RipQP.SolverParams`](@ref) that should be used to create a [`RipQP.InputConfig`](@ref).
+creates a [`RipQP.SolverParams`](@ref).
 The available methods are:
 - `:minres`
 - `:minres_qlp`
 - `:symmlq`
 """
-mutable struct K2KrylovParams{PT} <: AugmentedKrylovParams{PT}
+mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{PT}
   uplo::Symbol
   kmethod::Symbol
   preconditioner::PT
   rhs_scale::Bool
   form_mat::Bool
   equilibrate::Bool
-  atol0::Float64
-  rtol0::Float64
-  atol_min::Float64
-  rtol_min::Float64
-  ρ0::Float64
-  δ0::Float64
-  ρ_min::Float64
-  δ_min::Float64
+  atol0::T
+  rtol0::T
+  atol_min::T
+  rtol_min::T
+  ρ0::T
+  δ0::T
+  ρ_min::T
+  δ_min::T
   itmax::Int
   mem::Int
 end
 
-function K2KrylovParams(;
+function K2KrylovParams{T}(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
   preconditioner::AbstractPreconditioner = Identity(),
   rhs_scale::Bool = true,
   form_mat::Bool = false,
   equilibrate::Bool = false,
-  atol0::T = 1.0e-4,
-  rtol0::T = 1.0e-4,
-  atol_min::T = 1.0e-10,
-  rtol_min::T = 1.0e-10,
-  ρ0::T = sqrt(eps()) * 1e5,
-  δ0::T = sqrt(eps()) * 1e5,
-  ρ_min::T = 1e2 * sqrt(eps()),
-  δ_min::T = 1e2 * sqrt(eps()),
+  atol0::T = T(1.0e-4),
+  rtol0::T = T(1.0e-4),
+  atol_min::T = T(1.0e-10),
+  rtol_min::T = T(1.0e-10),
+  ρ0::T = T(sqrt(eps()) * 1e5),
+  δ0::T = T(sqrt(eps()) * 1e5),
+  ρ_min::T = 1e2 * sqrt(eps(T)),
+  δ_min::T = 1e2 * sqrt(eps(T)),
   itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
@@ -81,6 +81,8 @@ function K2KrylovParams(;
     mem,
   )
 end
+
+K2KrylovParams(; kwargs...) = K2KrylovParams{Float64}(; kwargs...)
 
 mutable struct MatrixTools{T, S}
   diag_Q::SparseVector{T, Int} # Q diag
@@ -303,4 +305,56 @@ function update_pad!(
   end
 
   return 0
+end
+
+#conversion functions
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2LDL{T_old},
+  sp_old::K2LDLParams,
+  sp_new::K2KrylovParams,
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+
+  @assert sp_new.uplo == :U 
+  D = convert(Array{T}, pad.D)
+  regu = convert(Regularization{T}, pad.regu)
+  regu.ρ_min = T(sp_new.ρ_min)
+  regu.δ_min = T(sp_new.δ_min)
+  K = Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K), sp_new.uplo)
+  rhs = similar(D, id.nvar + id.ncon)
+  δv = [regu.δ]
+  if sp_new.equilibrate
+    Deq = Diagonal(similar(D, id.nvar + id.ncon))
+    Deq.diag .= one(T)
+    C_eq = Diagonal(similar(D, id.nvar + id.ncon))
+  else
+    Deq = Diagonal(similar(D, 0))
+    C_eq = Diagonal(similar(D, 0))
+  end
+  mt = MatrixTools(convert(SparseVector{T, Int}, pad.diag_Q), pad.diagind_K, Deq, C_eq)
+  regu_precond = pad.regu
+  regu_precond.regul = :dynamic
+  pdat = PreconditionerData(sp_new, pad.K_fact, copy(D), id.nvar, id.ncon, mt.diag_Q, mt.diagind_K, regu_precond, pad.K)
+  KS = init_Ksolver(K, rhs, sp_new)
+
+  return PreallocatedDataK2Krylov(
+    pdat,
+    D,
+    rhs,
+    sp_new.rhs_scale,
+    sp_new.equilibrate,
+    regu,
+    δv,
+    K, #K
+    mt,
+    KS,
+    T(sp_new.atol0),
+    T(sp_new.rtol0),
+    T(sp_new.atol_min),
+    T(sp_new.rtol_min),
+    sp_new.itmax,
+  )
 end
