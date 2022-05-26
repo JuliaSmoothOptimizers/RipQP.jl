@@ -357,6 +357,4 @@ function convertpad(
     T(sp_new.rtol_min),
     sp_new.itmax,
   )
-
-  return pad
 end
