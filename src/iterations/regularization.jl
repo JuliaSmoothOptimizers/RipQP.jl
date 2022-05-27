@@ -43,6 +43,7 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
   mean_pdd = mean(l_pdd)
 
   if T == Float64 &&
+     regu.regul == :classic &&
      cnts.k > 10 &&
      mean_pdd != zero(T) &&
      std(l_pdd ./ mean_pdd) < T(1e-2) &&
@@ -52,6 +53,7 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
     cnts.c_pdd += 1
   end
   if T == Float64 &&
+     regu.regul == :classic &&
      cnts.k > 10 &&
      cnts.c_catch <= 1 &&
      @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
