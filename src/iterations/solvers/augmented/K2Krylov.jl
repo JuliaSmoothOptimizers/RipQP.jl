@@ -91,6 +91,13 @@ mutable struct MatrixTools{T, S}
   C_eq::Diagonal{T, S}
 end
 
+convert(::Type{MatrixTools{T, S}}, mt::MatrixTools) where {T, S} = MatrixTools(
+  convert(SparseVector{T, Int}, mt.diag_Q),
+  mt.diagind_K,
+  Diagonal(convert(S, mt.Deq.diag)),
+  Diagonal(convert(S, mt.C_eq.diag)),
+)
+
 mutable struct PreallocatedDataK2Krylov{
   T <: Real,
   S,
@@ -156,7 +163,7 @@ function PreallocatedData(
     D .= -T(1.0e0) / 2
   else
     regu =
-      Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), :classic)
+      Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :hybrid)
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
@@ -345,6 +352,59 @@ function convertpad(
     mt.diag_Q,
     mt.diagind_K,
     regu_precond,
+    Symmetric(pad.K, :U),
+  )
+  KS = init_Ksolver(K, rhs, sp_new)
+
+  return PreallocatedDataK2Krylov(
+    pdat,
+    D,
+    rhs,
+    sp_new.rhs_scale,
+    sp_new.equilibrate,
+    regu,
+    δv,
+    K, #K
+    mt,
+    KS,
+    T(sp_new.atol0),
+    T(sp_new.rtol0),
+    T(sp_new.atol_min),
+    T(sp_new.rtol_min),
+    sp_new.itmax,
+  )
+end
+
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2Krylov{T_old},
+  sp_old::K2KrylovParams,
+  sp_new::K2KrylovParams,
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+  @assert sp_new.uplo == :U
+  D = convert(Array{T}, pad.D)
+  regu = convert(Regularization{T}, pad.regu)
+  regu.ρ_min = T(sp_new.ρ_min)
+  regu.δ_min = T(sp_new.δ_min)
+  K = Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), sp_new.uplo)
+  rhs = similar(D, id.nvar + id.ncon)
+  δv = [regu.δ]
+  mt = convert(MatrixTools{T, typeof(D)}, pad.mt)
+  mt.Deq.diag .= one(T)
+  regu_precond = pad.regu
+  regu_precond.regul = :dynamic
+  pdat = PreconditionerData(
+    sp_new,
+    pad.pdat.K_fact,
+    copy(D),
+    id.nvar,
+    id.ncon,
+    mt.diag_Q,
+    mt.diagind_K,
+    regu_precond,
     pad.K,
   )
   KS = init_Ksolver(K, rhs, sp_new)
@@ -367,3 +427,4 @@ function convertpad(
     sp_new.itmax,
   )
 end
+
