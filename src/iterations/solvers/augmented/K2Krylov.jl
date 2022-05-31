@@ -392,8 +392,15 @@ function convertpad(
   K = Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), sp_new.uplo)
   rhs = similar(D, id.nvar + id.ncon)
   δv = [regu.δ]
-  mt = convert(MatrixTools{T, typeof(D)}, pad.mt)
-  mt.Deq.diag .= one(T)
+  if !(sp_old.equilibrate) && sp_new.equilibrate
+    Deq = Diagonal(similar(D, id.nvar + id.ncon))
+    C_eq = Diagonal(similar(D, id.nvar + id.ncon))
+    mt = MatrixTools(convert(SparseVector{T, Int}, pad.mt.diag_Q), pad.mt.diagind_K, Deq, C_eq)
+  else
+    mt = convert(MatrixTools{T, typeof(D)}, pad.mt)
+    mt.Deq.diag .= one(T) 
+  end
+  sp_new.equilibrate && (mt.Deq.diag .= one(T))
   regu_precond = pad.regu
   regu_precond.regul = :dynamic
   pdat = PreconditionerData(
