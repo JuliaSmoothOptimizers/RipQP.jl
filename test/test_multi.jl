@@ -86,6 +86,14 @@ end
     mode = :multi,
     Timulti = Float64,
     solve_method = IPF(),
+    sp = K2KrylovParams(
+      uplo = :U,
+      form_mat = true,
+      equilibrate = false,
+      preconditioner = LDLLowPrec(T = Float64),
+      ρ_min = sqrt(eps()),
+      δ_min = sqrt(eps()),
+    ),
     sp3 = K2KrylovParams{Float128}(
       uplo = :U,
       form_mat = true,
