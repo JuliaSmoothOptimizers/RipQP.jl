@@ -162,8 +162,7 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :classic)
     D .= -T(1.0e0) / 2
   else
-    regu =
-      Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :hybrid)
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :hybrid)
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
@@ -398,7 +397,7 @@ function convertpad(
     mt = MatrixTools(convert(SparseVector{T, Int}, pad.mt.diag_Q), pad.mt.diagind_K, Deq, C_eq)
   else
     mt = convert(MatrixTools{T, typeof(D)}, pad.mt)
-    mt.Deq.diag .= one(T) 
+    mt.Deq.diag .= one(T)
   end
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
   regu_precond = pad.regu
@@ -434,4 +433,3 @@ function convertpad(
     sp_new.itmax,
   )
 end
-
