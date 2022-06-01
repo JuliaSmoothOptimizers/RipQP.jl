@@ -18,7 +18,7 @@ LDLLowPrec(; T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T,
 
 mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
-  K::SparseMatrixCSC{Tlow, Int}
+  K::Symmetric{Tlow, SparseMatrixCSC{Tlow, Int}}
   Dlp::S
   regu::Regularization{Tlow}
   diag_Q::SparseVector{T, Int} # Q diagonal
@@ -65,10 +65,10 @@ function PreconditionerData(
     sqrt(eps(Tlow)),
     regu.δ != 0 ? :classic : :dynamic,
   )
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow)
+  K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow), :U)
   Dlp = copy(D)
-  diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
-  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(Symmetric(K, :U))
+  diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
+  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K)
 
   return PreconditionerData(sp, K_fact, Dlp, id.nvar, id.ncon, diag_Q, diagind_K, regu_precond, K)
 end
@@ -86,7 +86,7 @@ function PreconditionerData(
 ) where {T <: Real, Tlow <: Real}
   regu_precond.regul = :dynamic
   if regu_precond.regul == :dynamic
-    Amax = @views norm(K.nzval[diagind_K], Inf)
+    Amax = @views norm(K.data.nzval[diagind_K], Inf)
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
     K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
     K_fact.tol = Amax * Tlow(eps(Tlow))
@@ -227,10 +227,10 @@ function update_preconditioner!(
   Tlow = lowtype(pad.pdat)
   pad.pdat.regu.ρ, pad.pdat.regu.δ =
     max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
-  pad.pdat.K.nzval .= pad.K.data.nzval
+  pad.pdat.K.data.nzval .= pad.K.data.nzval
 
   out = factorize_scale_K2!(
-    pad.pdat.K,
+    pad.pdat.K.data,
     pad.pdat.K_fact,
     pad.pdat.Dlp,
     pad.mt.Deq,
