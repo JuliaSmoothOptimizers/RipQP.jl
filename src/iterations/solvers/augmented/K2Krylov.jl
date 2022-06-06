@@ -162,7 +162,9 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  typeof(sp.preconditioner) <: LDL && !(sp.form_mat) && (sp.form_mat = true) && 
+  typeof(sp.preconditioner) <: LDL &&
+    !(sp.form_mat) &&
+    (sp.form_mat = true) &&
     @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
