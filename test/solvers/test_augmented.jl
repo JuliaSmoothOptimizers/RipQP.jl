@@ -86,10 +86,10 @@ end
     end
   end
   for precond in [
-    LDLLowPrec(pos = :C),
-    LDLLowPrec(pos = :L),
-    LDLLowPrec(pos = :R),
-    LDLLowPrec(warm_start = false),
+    LDL(pos = :C),
+    LDL(pos = :L),
+    LDL(pos = :R),
+    LDL(warm_start = false),
   ]
     stats2 = ripqp(
       QuadraticModel(qps2),
@@ -114,7 +114,7 @@ end
     sp = K2KrylovParams(
       uplo = :U,
       kmethod = :minres,
-      preconditioner = LDLLowPrec(),
+      preconditioner = LDL(),
       rhs_scale = true,
       form_mat = true,
       equilibrate = true,
@@ -130,7 +130,7 @@ end
     sp = K2KrylovParams(
       uplo = :U,
       kmethod = :dqgmres,
-      preconditioner = LDLLowPrec(),
+      preconditioner = LDL(),
       rhs_scale = true,
       form_mat = true,
       equilibrate = true,

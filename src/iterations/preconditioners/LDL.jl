@@ -57,6 +57,7 @@ function PreconditionerData(
 ) where {T <: Real}
   Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
+  sp.form_mat = true
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   regu_precond = Regularization(
     -Tlow(D[1]),

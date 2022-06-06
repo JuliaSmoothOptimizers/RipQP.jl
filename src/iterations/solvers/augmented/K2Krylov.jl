@@ -14,10 +14,6 @@ The outer constructor
                    itmax = 0, memory = 20)
 
 creates a [`RipQP.SolverParams`](@ref).
-The available methods are:
-- `:minres`
-- `:minres_qlp`
-- `:symmlq`
 """
 mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{PT}
   uplo::Symbol
@@ -166,6 +162,8 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
+  typeof(sp.preconditioner) <: LDL && !(sp.form_mat) && (sp.form_mat = true) && 
+    @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
     K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
