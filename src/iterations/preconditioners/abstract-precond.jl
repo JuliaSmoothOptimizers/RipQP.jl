@@ -1,5 +1,8 @@
 export PreconditionerData, AbstractPreconditioner
 
+"""
+Abstract type for the preconditioners used with a solver using a Krylov method.
+"""
 abstract type AbstractPreconditioner end
 
 abstract type PreconditionerData{T <: Real, S} end

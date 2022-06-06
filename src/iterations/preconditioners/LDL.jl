@@ -1,22 +1,22 @@
-export LDLLowPrec
+export LDL
 
 """
-    preconditioner = LDLLowPrec(; T = Float32, pos = :C, warm_start = true)
+    preconditioner = LDL(; T = Float32, pos = :C, warm_start = true)
 
 Preconditioner for [`K2KrylovParams`](@ref) using a LDL factorization in precision `T`.
 The `pos` argument is used to choose the type of preconditioning with an unsymmetric Krylov method.
 It can be `:C` (center), `:L` (left) or `:R` (right).
 The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
 """
-mutable struct LDLLowPrec{FloatType <: DataType} <: AbstractPreconditioner
+mutable struct LDL{FloatType <: DataType} <: AbstractPreconditioner
   T::FloatType
   pos::Symbol # :L (left), :R (right) or :C (center)
   warm_start::Bool
 end
 
-LDLLowPrec(; T::DataType = Float32, pos = :C, warm_start = true) = LDLLowPrec(T, pos, warm_start)
+LDL(; T::DataType = Float32, pos = :C, warm_start = true) = LDL(T, pos, warm_start)
 
-mutable struct LDLLowPrecData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
+mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
   K::Symmetric{Tlow, SparseMatrixCSC{Tlow, Int}}
   Dlp::S
@@ -32,7 +32,7 @@ end
 types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, S} =
   T, I, F, Ftu, Faw, S
 
-lowtype(pdat::LDLLowPrecData{T, S, Tlow}) where {T, S, Tlow} = Tlow
+lowtype(pdat::LDLData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
 function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
@@ -48,7 +48,7 @@ function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LDLLowPrec},
+  sp::AugmentedKrylovParams{<:LDL},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -57,6 +57,7 @@ function PreconditionerData(
 ) where {T <: Real}
   Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
+  sp.form_mat = true
   diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   regu_precond = Regularization(
     -Tlow(D[1]),
@@ -74,7 +75,7 @@ function PreconditionerData(
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LDLLowPrec},
+  sp::AugmentedKrylovParams{<:LDL},
   K_fact::LDLFactorizations.LDLFactorization{Tlow},
   Dlp::AbstractVector{T},
   nvar::Int,
@@ -145,7 +146,7 @@ function PreconditionerData(
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
   end
-  return LDLLowPrecData(
+  return LDLData(
     K,
     Dlp,
     regu_precond,
@@ -216,7 +217,7 @@ function factorize_scale_K2!(
 end
 
 function update_preconditioner!(
-  pdat::LDLLowPrecData{T},
+  pdat::LDLData{T},
   pad::PreallocatedData{T},
   itd::IterData{T},
   pt::Point{T},

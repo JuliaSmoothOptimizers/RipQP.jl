@@ -14,6 +14,8 @@ makedocs(
     "Home" => "index.md",
     "API" => "API.md",
     "Tutorial" => "tutorial.md",
+    "Switching solvers" => "switch_solv.md",
+    "Multi-precision" => "multi_precision.md",
     "Reference" => "reference.md",
   ],
 )

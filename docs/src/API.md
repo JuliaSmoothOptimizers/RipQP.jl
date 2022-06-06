@@ -36,8 +36,9 @@ K1_2StructuredParams
 ## Preconditioners
 
 ```@docs
+AbstractPreconditioner
 Identity
 Jacobi
 Equilibration
-LDLLowPrec
+LDL
 ```

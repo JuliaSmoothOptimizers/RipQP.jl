@@ -50,7 +50,7 @@ function fd_refinement(
     padT = typeof(pad)
     if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) || (
       padT <: PreallocatedDataK2Krylov &&
-      typeof(pad.pdat) <: LDLLowPrecData &&
+      typeof(pad.pdat) <: LDLData &&
       !factorized(pad.pdat.K_fact)
     )
       out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)

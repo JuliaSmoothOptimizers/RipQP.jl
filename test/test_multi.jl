@@ -73,7 +73,7 @@ end
       QuadraticModel(qps1),
       mode = mode,
       solve_method = IPF(),
-      sp2 = K2KrylovParams(uplo = :U, preconditioner = LDLLowPrec()),
+      sp2 = K2KrylovParams(uplo = :U, preconditioner = LDL()),
       display = false,
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
@@ -90,7 +90,7 @@ end
       uplo = :U,
       form_mat = true,
       equilibrate = false,
-      preconditioner = LDLLowPrec(T = Float64),
+      preconditioner = LDL(T = Float64),
       ρ_min = sqrt(eps()),
       δ_min = sqrt(eps()),
     ),
@@ -98,7 +98,7 @@ end
       uplo = :U,
       form_mat = true,
       equilibrate = true,
-      preconditioner = LDLLowPrec(),
+      preconditioner = LDL(),
       ρ_min = sqrt(eps(Float128)),
       δ_min = sqrt(eps(Float128)),
     ),
