@@ -351,7 +351,7 @@ function ripqp(
       solver_specific = Dict(:absolute_iter_cnt => cnts.k, :pdd => itd.pdd, :nvar_slack => id.nvar)
     end
 
-    if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLLowPrecData
+    if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLData
       solver_specific[:nnzLDL] = length(pad.pdat.K_fact.Lx) + length(pad.pdat.K_fact.d)
     end
 
