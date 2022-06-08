@@ -226,7 +226,7 @@ function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::
     iconf.normalize_rtol,
   )
   fd32 = convert_FloatData(T, fd_T0)
-  return fd32, ϵ32, T
+  return fd32, ϵ32
 end
 
 function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
@@ -242,8 +242,7 @@ function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::
     T(itol.ϵ_Δx),
     iconf.normalize_rtol,
   )
-  T = Float32
-  return fd64, ϵ64, T
+  return fd64, ϵ64
 end
 
 function initialize!(

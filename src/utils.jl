@@ -27,31 +27,15 @@ function push_history_residuals!(
 
   pad_type = typeof(pad)
   if pad_type <: PreallocatedDataAugmentedKrylov ||
-     pad_type <: PreallocatedDataNewtonKrylov ||
-     pad_type <: PreallocatedDataAugmentedStructured ||
-     pad_type <: PreallocatedDataNewtonStructured
+     pad_type <: PreallocatedDataNewtonKrylov
     push!(res.kiterH, niterations(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
-  elseif pad_type <: PreallocatedDataNormalKrylov || pad_type <: PreallocatedDataNormalStructured
+  elseif pad_type <: PreallocatedDataNormalKrylov
     push!(res.kiterH, niterations(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
   end
-end
-
-function get_kiter(pad::PreallocatedData)
-  padT = typeof(pad)
-  nprod =
-    (
-      padT <: PreallocatedDataNewtonKrylov ||
-      padT <: PreallocatedDataNewtonStructured ||
-      padT <: PreallocatedDataAugmentedKrylov ||
-      padT <: PreallocatedDataAugmentedStructured ||
-      padT <: PreallocatedDataNormalKrylov ||
-      padT <: PreallocatedDataNormalStructured
-    ) ? niterations(pad.KS) : zero(Int)
-  return nprod
 end
 
 struct IntDataInit{I <: Integer}
@@ -106,4 +90,106 @@ function get_multipliers(
     @views s_l[(nlow + nrng + njlow + 1):end] .- s_u[(nupp + nrng + njupp + 1):end]
 
   return multipliers, multipliers_L, multipliers_U
+end
+
+uses_krylov(pad::PreallocatedData) = false
+
+# logs
+function setup_log_header(pad::PreallocatedData{T}) where {T}
+  if uses_krylov(pad)
+    @info log_header(
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :ρ, :δ, :kiter, :x],
+      [Int, T, T, T, T, T, T, T, T, T, Int, Char],
+      hdr_override = Dict(
+        :k => "iter",
+        :pri_obj => "obj",
+        :pdd => "rgap",
+        :rbNorm => "‖rb‖",
+        :rcNorm => "‖rc‖",
+      ),
+    )
+  else
+    @info log_header(
+      [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :ρ, :δ],
+      [Int, T, T, T, T, T, T, T, T, T],
+      hdr_override = Dict(
+        :k => "iter",
+        :pri_obj => "obj",
+        :pdd => "rgap",
+        :rbNorm => "‖rb‖",
+        :rcNorm => "‖rc‖",
+      ),
+    )
+  end
+end
+
+function status_to_char(st::String)
+  if st == "user-requested exit"
+    return 'u'
+  elseif st == "maximum number of iterations exceeded"
+    return 'i'
+  else
+    return 's'
+  end
+end
+
+function show_log_row_krylov(
+  pad::PreallocatedData{T},
+  itd::IterData{T},
+  res::AbstractResiduals{T},
+  cnts::Counters,
+  α_pri::T,
+  α_dual::T,
+) where {T}
+  @info log_row(
+    Any[
+      cnts.k,
+      itd.minimize ? itd.pri_obj : -itd.pri_obj,
+      itd.pdd,
+      res.rbNorm,
+      res.rcNorm,
+      α_pri,
+      α_dual,
+      itd.μ,
+      pad.regu.ρ,
+      pad.regu.δ,
+      niterations(pad.KS),
+      status_to_char(pad.KS.stats.status),
+    ],
+  )
+end
+
+function show_log_row(
+  pad::PreallocatedData{T},
+  itd::IterData{T},
+  res::AbstractResiduals{T},
+  cnts::Counters,
+  α_pri::T,
+  α_dual::T,
+) where {T}
+  if uses_krylov(pad)
+    show_log_row_krylov(pad, itd, res, cnts, α_pri, α_dual)
+  else
+    @info log_row(
+      Any[
+        cnts.k,
+        itd.minimize ? itd.pri_obj : -itd.pri_obj,
+        itd.pdd,
+        res.rbNorm,
+        res.rcNorm,
+        α_pri,
+        α_dual,
+        itd.μ,
+        pad.regu.ρ,
+        pad.regu.δ,
+      ],
+    )
+  end
+end
+
+solver_name(pad::PreallocatedData) = string(typeof(pad).name.name)[17:end]
+
+function show_used_solver(pad::PreallocatedData{T}) where {T}
+  slv_name = solver_name(pad)
+  @info "Solving in $T using $slv_name"
 end

@@ -3,15 +3,15 @@
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(QuadraticModel(qps2))
+  stats2 = ripqp(QuadraticModel(qps2), display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats3 = ripqp(QuadraticModel(qps3))
+  stats3 = ripqp(QuadraticModel(qps3), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
 
-  stats4 = ripqp(QuadraticModel(qps4))
+  stats4 = ripqp(QuadraticModel(qps4), display = false)
   @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
   @test stats4.status == :first_order
 end
@@ -105,7 +105,7 @@ end
 
   stats3 = ripqp(
     QuadraticModel(qps3),
-    display = false,
+    display = true,
     sp = K2KrylovParams(
       uplo = :U,
       kmethod = :minres,
@@ -140,7 +140,7 @@ end
   for kmethod in [:minres, :minres_qlp, :symmlq, :dqgmres, :diom]
     stats1 = ripqp(
       QuadraticModel(qps1),
-      display = true,
+      display = false,
       sp = K2_5KrylovParams(kmethod = kmethod, preconditioner = Identity()),
       solve_method = IPF(),
       history = true,

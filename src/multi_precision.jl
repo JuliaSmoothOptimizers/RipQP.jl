@@ -66,5 +66,6 @@ function iter_and_update_T!(
     convert_types(Tnew, pt, itd, res, dda, pad, sp_old, sp_new, id, fd_Tnew, T0)
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
+  display && show_used_solver(pad)
   return pt, itd, res, dda, pad
 end
