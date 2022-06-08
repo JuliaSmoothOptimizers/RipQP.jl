@@ -540,3 +540,11 @@ function update_kresiduals_history_K1struct!(
     res.Kres .+= res.KΔxy .+ δ .* sol # residual computation
   end
 end
+
+get_krylov_method_name(KS::KrylovSolver) = uppercase(string(typeof(KS).name.name)[1:end-6])
+
+solver_name(pad::Union{PreallocatedDataNewtonKrylov, PreallocatedDataAugmentedKrylov, PreallocatedDataNormalKrylov}) = string(
+  string(typeof(pad).name.name)[17:end],
+  " with $(get_krylov_method_name(pad.KS))",
+  " and $(precond_name(pad.pdat)) preconditioner",
+)

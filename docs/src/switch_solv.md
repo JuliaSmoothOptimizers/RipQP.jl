@@ -40,6 +40,12 @@ It is also possible to change the Krylov method used to solve the system:
 stats = ripqp(qm, sp = K2KrylovParams(uplo = :U, kmethod = :gmres, preconditioner = LDL()))
 ```
 
+## Logging for Krylov Solver
+
+Solvers using a Krylov method have two more log columns.
+The first one is the number of iterations to solve the interior-point system with the Krylov method, and the second one is a character indication the output status of the Krylov method.
+The different characters are `'u'` for user-requested exit (callback), `'i'` for maximum number of iterations exceeded, and `'s'` otherwise.
+
 ## Advanced: write your own solver
 
 You can use your own solver to compute the direction of descent inside RipQP at each iteration.

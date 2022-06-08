@@ -284,22 +284,6 @@ function iter!(
     sc.Δt = time() - sc.start_time
     sc.tired = sc.Δt > sc.max_time
 
-    if display == true
-      @timeit_debug to "display" @info log_row(
-        Any[
-          cnts.k,
-          itd.minimize ? itd.pri_obj : -itd.pri_obj,
-          itd.pdd,
-          res.rbNorm,
-          res.rcNorm,
-          α_pri,
-          α_dual,
-          itd.μ,
-          pad.regu.ρ,
-          pad.regu.δ,
-          get_kiter(pad),
-        ],
-      )
-    end
+    display == true && (@timeit_debug to "display" show_log_row(pad, itd, res, cnts, α_pri, α_dual))
   end
 end

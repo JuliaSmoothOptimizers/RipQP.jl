@@ -151,10 +151,10 @@ function ripqp(
     # extra workspace for multi mode
     if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
       if iconf.Timulti == Float32
-        fd32, ϵ32, T = allocate_extra_workspace_32(itol, iconf, fd_T0)
+        fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
       end
       if T0 == Float128
-        fd64, ϵ64, T = allocate_extra_workspace_64(itol, iconf, fd_T0)
+        fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
       end
     end
 
@@ -182,32 +182,9 @@ function ripqp(
     # display
     if display == true
       @timeit_debug to "display" begin
-        @info log_header(
-          [:k, :pri_obj, :pdd, :rbNorm, :rcNorm, :α_pri, :α_du, :μ, :ρ, :δ, :kiter],
-          [Int, T, T, T, T, T, T, T, T, T, T, T, T, T, Int],
-          hdr_override = Dict(
-            :k => "iter",
-            :pri_obj => "obj",
-            :pdd => "rgap",
-            :rbNorm => "‖rb‖",
-            :rcNorm => "‖rc‖",
-          ),
-        )
-        @info log_row(
-          Any[
-            cnts.k,
-            itd.minimize ? itd.pri_obj : -itd.pri_obj,
-            itd.pdd,
-            res.rbNorm,
-            res.rcNorm,
-            zero(T),
-            zero(T),
-            itd.μ,
-            pad.regu.ρ,
-            pad.regu.δ,
-            get_kiter(pad),
-          ],
-        )
+        show_used_solver(pad)
+        setup_log_header(pad) 
+        show_log_row(pad, itd, res, cnts, zero(T), zero(T))
       end
     end
 
