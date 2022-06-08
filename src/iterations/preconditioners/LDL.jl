@@ -29,11 +29,8 @@ mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond
   P::Op
 end
 
-precond_name(pdat::LDLData{T, S, Tlow}) where {T, S, Tlow} = string(
-  Tlow,
-  " ",
-  string(typeof(pdat).name.name)[1:end-4],
-)
+precond_name(pdat::LDLData{T, S, Tlow}) where {T, S, Tlow} =
+  string(Tlow, " ", string(typeof(pdat).name.name)[1:(end - 4)])
 
 types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, S} =
   T, I, F, Ftu, Faw, S
