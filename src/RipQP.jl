@@ -183,7 +183,7 @@ function ripqp(
     if display == true
       @timeit_debug to "display" begin
         show_used_solver(pad)
-        setup_log_header(pad) 
+        setup_log_header(pad)
         show_log_row(pad, itd, res, cnts, zero(T), zero(T))
       end
     end
