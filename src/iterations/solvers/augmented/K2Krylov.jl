@@ -80,25 +80,25 @@ end
 
 K2KrylovParams(; kwargs...) = K2KrylovParams{Float64}(; kwargs...)
 
-mutable struct MatrixTools{T, S}
+mutable struct MatrixTools{T}
   diag_Q::SparseVector{T, Int} # Q diag
   diagind_K::Vector{Int}
-  Deq::Diagonal{T, S}
-  C_eq::Diagonal{T, S}
+  Deq::Diagonal{T, Vector{T}}
+  C_eq::Diagonal{T, Vector{T}}
 end
 
-convert(::Type{MatrixTools{T, S}}, mt::MatrixTools) where {T, S} = MatrixTools(
+convert(::Type{MatrixTools{T}}, mt::MatrixTools) where {T} = MatrixTools(
   convert(SparseVector{T, Int}, mt.diag_Q),
   mt.diagind_K,
-  Diagonal(convert(S, mt.Deq.diag)),
-  Diagonal(convert(S, mt.C_eq.diag)),
+  Diagonal(convert(Vector{T}, mt.Deq.diag)),
+  Diagonal(convert(Vector{T}, mt.C_eq.diag)),
 )
 
 mutable struct PreallocatedDataK2Krylov{
   T <: Real,
   S,
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
-  MT <: Union{MatrixTools{T, S}, Int},
+  MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerData,
   Ksol <: KrylovSolver,
 } <: PreallocatedDataAugmentedKrylov{T, S}
@@ -171,12 +171,12 @@ function PreallocatedData(
     K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
     diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
     if sp.equilibrate
-      Deq = Diagonal(similar(D, id.nvar + id.ncon))
+      Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
       Deq.diag .= one(T)
-      C_eq = Diagonal(similar(D, id.nvar + id.ncon))
+      C_eq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
     else
-      Deq = Diagonal(similar(D, 0))
-      C_eq = Diagonal(similar(D, 0))
+      Deq = Diagonal(Vector{T}(undef, 0))
+      C_eq = Diagonal(Vector{T}(undef, 0))
     end
     mt = MatrixTools(diag_Q, diagind_K, Deq, C_eq)
   else
@@ -393,7 +393,7 @@ function convertpad(
     C_eq = Diagonal(similar(D, id.nvar + id.ncon))
     mt = MatrixTools(convert(SparseVector{T, Int}, pad.mt.diag_Q), pad.mt.diagind_K, Deq, C_eq)
   else
-    mt = convert(MatrixTools{T, typeof(D)}, pad.mt)
+    mt = convert(MatrixTools{T}, pad.mt)
     mt.Deq.diag .= one(T)
   end
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
