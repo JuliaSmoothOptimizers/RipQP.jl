@@ -18,11 +18,8 @@ LDL(; T::DataType = Float32, pos = :C, warm_start = true) = LDL(T, pos, warm_sta
 
 mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
-  K::Symmetric{Tlow, SparseMatrixCSC{Tlow, Int}}
-  Dlp::S
+  K::Symmetric{T, SparseMatrixCSC{T, Int}}
   regu::Regularization{Tlow}
-  diag_Q::SparseVector{T, Int} # Q diagonal
-  diagind_K::Vector{Int} # diagonal indices of J
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
   fact_fail::Bool # true if factorization failed
   warm_start::Bool
@@ -61,7 +58,6 @@ function PreconditionerData(
   Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
   sp.form_mat = true
-  diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
   regu_precond = Regularization(
     -Tlow(D[1]),
     Tlow(max(regu.δ, sqrt(eps(Tlow)))),
@@ -69,31 +65,24 @@ function PreconditionerData(
     sqrt(eps(Tlow)),
     regu.δ != 0 ? :classic : :dynamic,
   )
-  K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu_precond, T = Tlow), :U)
-  Dlp = copy(D)
-  diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
-  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K)
+  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K, Tf = Tlow)
 
-  return PreconditionerData(sp, K_fact, Dlp, id.nvar, id.ncon, diag_Q, diagind_K, regu_precond, K)
+  return PreconditionerData(sp, K_fact, id.nvar, id.ncon, regu_precond, K)
 end
 
 function PreconditionerData(
   sp::AugmentedKrylovParams{<:LDL},
   K_fact::LDLFactorizations.LDLFactorization{Tlow},
-  Dlp::AbstractVector{T},
   nvar::Int,
   ncon::Int,
-  diag_Q::AbstractVector{T},
-  diagind_K::AbstractVector{Int},
   regu_precond::Regularization{Tlow},
   K,
-) where {T <: Real, Tlow <: Real}
+) where {Tlow <: Real}
   regu_precond.regul = :dynamic
   if regu_precond.regul == :dynamic
-    Amax = @views norm(K.data.nzval[diagind_K], Inf)
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
     K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
-    K_fact.tol = Amax * Tlow(eps(Tlow))
+    K_fact.tol = Tlow(eps(Tlow))
     K_fact.n_d = nvar
   end
   if sp.kmethod == :gmres || sp.kmethod == :dqgmres
@@ -149,12 +138,10 @@ function PreconditionerData(
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
   end
-  return LDLData(
+  T = eltype(K)
+  return LDLData{T, Vector{T}, Tlow, typeof(P)}(
     K,
-    Dlp,
     regu_precond,
-    diag_Q,
-    diagind_K,
     K_fact,
     false,
     sp.preconditioner.warm_start,
@@ -231,15 +218,14 @@ function update_preconditioner!(
   Tlow = lowtype(pad.pdat)
   pad.pdat.regu.ρ, pad.pdat.regu.δ =
     max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
-  pad.pdat.K.data.nzval .= pad.K.data.nzval
 
   out = factorize_scale_K2!(
     pad.pdat.K.data,
     pad.pdat.K_fact,
-    pad.pdat.Dlp,
+    pad.D,
     pad.mt.Deq,
-    pad.pdat.diag_Q,
-    pad.pdat.diagind_K,
+    pad.mt.diag_Q,
+    pad.mt.diagind_K,
     pad.pdat.regu,
     pt.s_l,
     pt.s_u,

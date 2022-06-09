@@ -345,13 +345,10 @@ function convertpad(
   pdat = PreconditionerData(
     sp_new,
     pad.K_fact,
-    copy(D),
     id.nvar,
     id.ncon,
-    mt.diag_Q,
-    mt.diagind_K,
     regu_precond,
-    Symmetric(pad.K, :U),
+    K,
   )
   KS = init_Ksolver(K, rhs, sp_new)
 
@@ -405,13 +402,10 @@ function convertpad(
   pdat = PreconditionerData(
     sp_new,
     pad.pdat.K_fact,
-    copy(D),
     id.nvar,
     id.ncon,
-    mt.diag_Q,
-    mt.diagind_K,
     regu_precond,
-    pad.K,
+    K,
   )
   KS = init_Ksolver(K, rhs, sp_new)
 

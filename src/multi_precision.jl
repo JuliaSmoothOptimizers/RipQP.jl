@@ -67,5 +67,6 @@ function iter_and_update_T!(
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
   display && show_used_solver(pad)
+  display && setup_log_header(pad) 
   return pt, itd, res, dda, pad
 end
