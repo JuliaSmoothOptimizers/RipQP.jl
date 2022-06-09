@@ -342,14 +342,7 @@ function convertpad(
   mt = MatrixTools(convert(SparseVector{T, Int}, pad.diag_Q), pad.diagind_K, Deq, C_eq)
   regu_precond = pad.regu
   regu_precond.regul = :dynamic
-  pdat = PreconditionerData(
-    sp_new,
-    pad.K_fact,
-    id.nvar,
-    id.ncon,
-    regu_precond,
-    K,
-  )
+  pdat = PreconditionerData(sp_new, pad.K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
 
   return PreallocatedDataK2Krylov(
@@ -399,14 +392,7 @@ function convertpad(
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
   regu_precond = pad.regu
   regu_precond.regul = :dynamic
-  pdat = PreconditionerData(
-    sp_new,
-    pad.pdat.K_fact,
-    id.nvar,
-    id.ncon,
-    regu_precond,
-    K,
-  )
+  pdat = PreconditionerData(sp_new, pad.pdat.K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
 
   return PreallocatedDataK2Krylov(
