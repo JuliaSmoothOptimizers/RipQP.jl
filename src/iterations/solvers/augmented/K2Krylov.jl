@@ -263,6 +263,7 @@ function solver!(
     itmax = pad.itmax,
   )
   pad.kiter += niterations(pad.KS)
+  println(pad.K * pad.KS.x - pad.rhs)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)

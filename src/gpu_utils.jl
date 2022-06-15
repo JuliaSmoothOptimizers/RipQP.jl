@@ -1,5 +1,7 @@
 using .CUDA
 
+include("iterations/solvers/augmented/K2KrylovLDLGPU.jl")
+
 change_vector_eltype(S0::Type{<:CUDA.CuVector}, ::Type{T}) where {T} =
   S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
 
@@ -177,4 +179,48 @@ function LinearAlgebra.ldiv!(D::Diagonal, M::CUDA.AbstractGPUArray{T}) where {T}
   lmul!(D, M)
   D.diag .= one(T) ./ D.diag
   return M
+end
+
+import NLPModelsModifiers.SlackModel
+
+function slackdata2(
+  data::QuadraticModels.QPData{T, S, M1, M2},
+  meta::NLPModelsModifiers.NLPModelMeta{T},
+  ns::Int,
+) where {T, S, M1 <: CUDA.CUSPARSE.CuSparseMatrixCOO, M2 <: CUDA.CUSPARSE.CuSparseMatrixCOO}
+  nvar_slack = meta.nvar + ns
+  Ti = (T == Float64) ? Int64 : Int32
+  return QuadraticModels.QPData(
+    copy(data.c0),
+    [data.c; fill!(similar(data.c, ns), zero(T))],
+    CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti}(
+      Ti.(data.H.rowInd),
+      Ti.(data.H.colInd),
+      data.H.nzVal,
+      (nvar_slack, nvar_slack),
+      length(data.H.nzVal),
+    ),
+    CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti}(
+      CuVector{Ti}([Vector(data.A.rowInd); meta.jlow; meta.jupp;meta.jrng]),
+      CuVector{Ti}([Vector(data.A.colInd); (meta.nvar + 1):(meta.nvar + ns)]),
+      CuVector([Vector(data.A.nzVal); fill!(Vector{T}(undef, ns), -one(T))]),
+      (meta.ncon, nvar_slack),
+      length(data.A.nzVal),
+    ),
+  )
+end
+
+function NLPModelsModifiers.SlackModel(
+  qp::AbstractQuadraticModel{T, S},
+  name = qp.meta.name * "-slack",
+) where {T, S <: CUDA.CuArray}
+  # qp.meta.ncon == length(qp.meta.jfix) && return qp
+  nfix = length(qp.meta.jfix)
+  ns = qp.meta.ncon - nfix
+
+  data = slackdata2(qp.data, qp.meta, ns)
+
+  meta = NLPModelsModifiers.slack_meta(qp.meta, name = qp.meta.name)
+
+  return QuadraticModel(meta, NLPModelsModifiers.Counters(), data)
 end

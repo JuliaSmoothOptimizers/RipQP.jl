@@ -37,6 +37,11 @@ include("scaling.jl")
 include("multi_precision.jl")
 include("utils.jl")
 
+using Requires
+function __init__()
+  @require CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba" include("gpu_utils.jl")
+end
+
 const to = TimerOutput()
 
 """
