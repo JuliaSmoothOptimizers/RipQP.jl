@@ -251,6 +251,32 @@ function mul_K_gpu!(res, K, deq, v, tmp)
   res .*= deq
 end
 
+function opK2eqprod!(
+  res::AbstractVector{T},
+  nvar::Int,
+  Q::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  D::AbstractVector{T},
+  A::Union{AbstractMatrix{T}, AbstractLinearOperator{T}},
+  δv::AbstractVector{T},
+  deq::AbstractVector{T},
+  v::AbstractVector{T},
+  vtmp::AbstractVector{T},
+  uplo::Symbol,
+) where {T}
+  vtmp .= deq .* v
+  @views mul!(res[1:nvar], Q, vtmp[1:nvar], -one(T), zero(T))
+  res[1:nvar] .+= D .* vtmp[1:nvar]
+  if uplo == :U
+    @views mul!(res[1:nvar], A, vtmp[(nvar + 1):end], one(T), one(T))
+    @views mul!(res[(nvar + 1):end], A', vtmp[1:nvar], one(T), zero(T))
+  else
+    @views mul!(res[1:nvar], A', vtmp[(nvar + 1):end], one(T), one(T))
+    @views mul!(res[(nvar + 1):end], A, vtmp[1:nvar], one(T), zero(T))
+  end
+  res[(nvar + 1):end] .+= @views δv[1] .* vtmp[(nvar + 1):end]
+  res .*= deq
+end
+
 function PreallocatedData(
   sp::K2KrylovGPUParams,
   fd::QM_FloatData{T},
@@ -275,7 +301,6 @@ function PreallocatedData(
   Acpu = SparseMatrixCSC(fd.A)
   diag_Q = get_diag_Q(Qcpu.colptr, Qcpu.rowval, Qcpu.nzval, id.nvar)
   Kcpu = Symmetric(create_K2(id, Vector(D), Qcpu, Acpu, diag_Q, regu), fd.uplo)
-  Kgpu = Symmetric(CUDA.CUSPARSE.CuSparseMatrixCSC(Kcpu.data), fd.uplo)
   diagind_K = get_diag_sparseCSC(Kcpu.data.colptr, id.ncon + id.nvar)
   if sp.equilibrate
     Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
@@ -286,18 +311,22 @@ function PreallocatedData(
     C_eq = Diagonal(Vector{T}(undef, 0))
   end
   mt = MatrixTools(diag_Q, diagind_K, Deq, C_eq)
-  deq = CuVector(Deq.diag)
   Dcpu = Vector(D)
-  diagQnz = similar(deq, length(diag_Q.nzind))
+  deq = CuVector(Deq.diag)
+  vtmp = similar(deq)
+  K = LinearOperator(
+    T,
+    id.nvar + id.ncon,
+    id.nvar + id.ncon,
+    true,
+    true,
+    (res, v, α, β) -> opK2eqprod!(res, id.nvar, fd.Q, D, fd.A, δv, deq, v, vtmp, fd.uplo),
+  )
+  diagQnz = similar(deq, length(diag_Q.nzval))
   copyto!(diagQnz, diag_Q.nzval)
 
-  display(Qcpu)
-  display(Acpu)
-  println(diag_Q)
-  println(diagind_K)
-
   rhs = similar(fd.c, id.nvar + id.ncon)
-  KS = @timeit_debug to "krylov solver setup" init_Ksolver(Kgpu, rhs, sp)
+  KS = @timeit_debug to "krylov solver setup" init_Ksolver(K, rhs, sp)
   pdat = @timeit_debug to "preconditioner setup" PreconditionerData(sp, id, fd, regu, D, Kcpu)
 
   return PreallocatedDataK2KrylovGPU(
@@ -309,7 +338,7 @@ function PreallocatedData(
     sp.equilibrate,
     regu,
     δv,
-    Kgpu, #K
+    K, #K
     Kcpu,
     diagQnz,
     mt,
@@ -351,10 +380,6 @@ function solver!(
       cnts,
     )
   end
-  copyto!(pad.K.data.nzVal, pad.Kcpu.data.nzval)
-  display(Matrix(pad.Kcpu))
-  println(pad.rhs)
-  println(typeof(pad.K))
   @timeit_debug to "Krylov solve" ksolve!(
     pad.KS,
     pad.K,
@@ -365,7 +390,6 @@ function solver!(
     rtol = pad.rtol,
     itmax = pad.itmax,
   )
-  println(pad.K * pad.KS.x - pad.rhs)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -374,7 +398,6 @@ function solver!(
     if typeof(pad.Kcpu) <: Symmetric{T, SparseMatrixCSC{T, Int}} && step !== :aff
       rdiv!(pad.Kcpu.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.Kcpu.data)
-      copyto!(pad.K.data.nzVal, pad.Kcpu.data.nzval)
     end
     pad.KS.x .*= pad.deq
   end
@@ -413,7 +436,6 @@ function update_pad!(
   copyto!(pad.Dcpu, pad.D)
   pad.Kcpu.data.nzval[view(pad.mt.diagind_K, 1:(id.nvar))] = pad.Dcpu
   pad.Kcpu.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
-  copyto!(pad.K.data.nzVal, pad.Kcpu.data.nzval)
   if pad.equilibrate
     pad.mt.Deq.diag .= one(T)
     @timeit_debug to "equilibration" equilibrate!(
