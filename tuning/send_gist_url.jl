@@ -67,7 +67,7 @@ end
 
 function get_comment_from_test_results()
     open(TEST_RESULTS_FILE, "r") do file
-        text_to_match = r"Best feasible solution"
+        text_to_match = r"Best feasible parameters"
         for line in readlines(file)
             if occursin(text_to_match, line)
                 return "$(strip(line)): "

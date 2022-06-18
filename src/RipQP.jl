@@ -2,8 +2,6 @@ module RipQP
 
 using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Statistics, TimerOutputs
 
-using SolverParameters
-
 using Krylov,
   LDLFactorizations,
   LinearOperators,
@@ -13,14 +11,12 @@ using Krylov,
   SolverCore,
   SparseMatricesCOO
 
-using JSOSolvers:AbstractOptSolver
-
 using Requires
 function __init__()
   @require CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba" include("gpu_utils.jl")
 end
 
-export ripqp, RipQPSolver
+export ripqp, RipQPSolver, default_parameters
 
 include("types_definition.jl")
 include("iterations/iterations.jl")
@@ -32,6 +28,14 @@ include("multi_precision.jl")
 include("utils.jl")
 
 const to = TimerOutput()
+
+function default_parameters(T::DataType)
+  return (
+    r=Float64(0.999),
+    γ=Float64(0.05),
+    kc=0
+  )
+end 
 
 """
     stats = ripqp(QM :: QuadraticModel{T0};
@@ -82,30 +86,9 @@ You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.git
                   sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
                   kwargs...) where {T0 <: Real}
 """
-function ripqp(QM0::QuadraticModel{T0}, params::Vector{AlgorithmicParameter};kwargs...) where {T0 <: Real}
-  solver = RipQPSolver(QM0)
-  solver.itol = InputTol(T0;max_time=120.0)
-  solver.parameters = Dict{String, AlgorithmicParameter}(name(p) => p for p in params)
-  ripqp(QM0, solver;kwargs...)
-end
-
-function ripqp(QM0::QuadraticModel{T0}, solver::RipQPSolver{T0, Int};kwargs...) where {T0 <: Real}
-  params = solver.parameters
-  solver_params = K2KrylovParams(:L, :minres, :Identity,
-    true, false,
-    1.0e-4, 1.0e-4, 
-    default(params["atol_min"]), 1.0e-10,
-    default(params["ρ0"]), default(params["δ0"]),
-    1e2 * sqrt(eps()), 1e2 * sqrt(eps()),
-    default(params["memory"])
-    )
-  solver.iconf = InputConfig(;
-  scaling=default(params["scaling"]),
-  kc=default(params["kc"]),
-  presolve=default(params["presolve"]),
-    sp=solver_params
-  )
-  return ripqp(QM0;iconf=solver.iconf, itol=solver.itol, kwargs...)
+function ripqp(QM0::QuadraticModel{T0}, params::NamedTuple;kwargs...) where {T0 <: Real}
+  params = merge(params, default_parameters(T0))
+  return ripqp(QM0;solve_method=IPF(r=params.r, γ=params.γ), kc=params.kc, kwargs...)
 end
 
 function ripqp(
