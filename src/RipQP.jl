@@ -301,10 +301,8 @@ function ripqp(
       get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 
     if iconf.presolve
-      x = similar(QM0.meta.x0)
-      multipliers = similar(QM0.meta.y0)
-      multipliers_L, multipliers_U = postsolve!(
-        QM0, QM, pt.x, x, multipliers_in, multipliers, multipliers_L, multipliers_U)
+      x, multipliers, multipliers_L, multipliers_U = postsolve(
+        QM0, QM, pt.x, multipliers_in, multipliers_L, multipliers_U)
       nrm = length(QM.psd.xrm)
     else
       x = pt.x[1:(idi.nvar)]
