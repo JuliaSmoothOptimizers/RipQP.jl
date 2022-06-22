@@ -297,17 +297,18 @@ function ripqp(
       status = :unknown
     end
 
+    multipliers_in, multipliers_L, multipliers_U =
+      get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
+
     if iconf.presolve
-      x = similar(QM0.meta.x0)
-      postsolve!(QM0, QM, pt.x, x)
-      nrm = length(QM.xrm)
+      x, multipliers, multipliers_L, multipliers_U = postsolve(
+        QM0, QM, pt.x, multipliers_in, multipliers_L, multipliers_U)
+      nrm = length(QM.psd.xrm)
     else
       x = pt.x[1:(idi.nvar)]
+      multipliers = pt.y
       nrm = 0
     end
-
-    multipliers, multipliers_L, multipliers_U =
-      get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi, nrm)
 
     if typeof(res) <: ResidualsHistory
       solver_specific = Dict(
