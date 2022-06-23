@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · RipQP.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/style.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="RipQP.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RipQP.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../API/">API</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Input"><span>Input</span></a></li><li><a class="tocitem" href="#Logging"><span>Logging</span></a></li><li><a class="tocitem" href="#Change-configuration-and-tolerances"><span>Change configuration and tolerances</span></a></li><li><a class="tocitem" href="#Save-the-Interior-Point-system"><span>Save the Interior-Point system</span></a></li><li><a class="tocitem" href="#Timers"><span>Timers</span></a></li></ul></li><li><a class="tocitem" href="../switch_solv/">Switching solvers</a></li><li><a class="tocitem" href="../multi_precision/">Multi-precision</a></li><li><a class="tocitem" href="../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaSmoothOptimizers/RipQP.jl/blob/master/docs/src/tutorial.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><h2 id="Input"><a class="docs-heading-anchor" href="#Input">Input</a><a id="Input-1"></a><a class="docs-heading-anchor-permalink" href="#Input" title="Permalink"></a></h2><p>RipQP uses the package <a href="https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl">QuadraticModels.jl</a> to model convex quadratic problems.</p><p>Here is a basic example:</p><pre><code class="language-julia">using QuadraticModels, LinearAlgebra, SparseMatricesCOO
+Q = [6. 2. 1.
+    2. 5. 2.
+    1. 2. 4.]
+c = [-8.; -3; -3]
+A = [1. 0. 1.
+    0. 2. 1.]
+b = [0.; 3]
+l = [0.;0;0]
+u = [Inf; Inf; Inf]
+QM = QuadraticModel(c, SparseMatrixCOO(tril(Q)), A=SparseMatrixCOO(A), lcon=b, ucon=b,
+                    lvar=l, uvar=u, c0=0., name=&quot;QM&quot;)</code></pre><pre class="documenter-example-output">QuadraticModels.QuadraticModel{Float64, Vector{Float64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}}
+  Problem name: QM
+   All variables: ████████████████████ 3      All constraints: ████████████████████ 2     
+            free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           lower: ████████████████████ 3                lower: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           upper: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                upper: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+         low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           fixed: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                fixed: ████████████████████ 2     
+          infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+            nnzh: (  0.00% sparsity)   6               linear: ████████████████████ 2     
+                                                    nonlinear: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+                                                         nnzj: ( 33.33% sparsity)   4     
+
+  Counters:
+             obj: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 grad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 cons: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+        cons_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0             cons_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 jcon: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jgrad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                  jac: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              jac_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+         jac_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                jprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0            jprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+       jprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jtprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0           jtprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+      jtprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 hess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                hprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jhess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jhprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+</pre><p>Once your <code>QuadraticModel</code> is loaded, you can simply solve it RipQP:</p><pre><code class="language-julia">using RipQP
+stats = ripqp(QM)
+println(stats)</code></pre><pre class="documenter-example-output">[ Info: Solving in Float64 using K2LDL
+[ Info:   iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ         ρ         δ
+[ Info:      0   1.6e+01   2.0e+00   4.6e+00   1.1e+00   0.0e+00   0.0e+00   8.7e+00   1.5e-03   1.5e-03
+[ Info:      1   1.1e+00   6.8e-01   1.2e-01   1.2e-01   9.8e-01   1.0e+00   4.7e-01   1.5e-03   1.5e-03
+[ Info:      2   1.1e+00   6.5e-04   1.2e-04   1.6e-04   1.0e+00   1.0e+00   4.6e-04   1.5e-04   1.5e-04
+[ Info:      3   1.1e+00   6.4e-07   1.2e-07   1.6e-07   1.0e+00   1.0e+00   4.6e-07   1.5e-05   1.5e-05
+[ Info:      4   1.1e+00   6.4e-10   1.2e-10   1.6e-10   1.0e+00   1.0e+00   4.6e-10   1.5e-06   1.5e-06
+Generic Execution stats
+  status: first-order stationary
+  objective value: 1.1249999997850777
+  primal feasibility: 6.138085685914678e-11
+  dual feasibility: 3.864633058014988e-10
+  solution: [5.6676609869371275e-11  1.5000000000152136  4.704246989775501e-12]
+  multipliers: [-9.305014036788608  2.2499999995728555]
+  multipliers_L: [4.305014036777336  7.44283917646875e-10  7.05501403716986]
+  multipliers_U: [0.0  0.0  0.0]
+  iterations: 16
+  elapsed time: 11.838839054107666
+  solver specific:
+    nvar_slack: 3
+    pdd: 6.42239516535383e-10
+    absolute_iter_cnt: 4</pre><p>The <code>stats</code> output is a <a href="https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats">GenericExecutionStats</a>.</p><p>It is also possible to use the package <a href="https://github.com/JuliaSmoothOptimizers/QPSReader.jl">QPSReader.jl</a> in order to read convex quadratic problems in MPS or SIF formats:</p><pre><code class="language-julia">using QPSReader, QuadraticModels
+QM = QuadraticModel(readqps(&quot;QAFIRO.SIF&quot;))</code></pre><h2 id="Logging"><a class="docs-heading-anchor" href="#Logging">Logging</a><a id="Logging-1"></a><a class="docs-heading-anchor-permalink" href="#Logging" title="Permalink"></a></h2><p>RipQP displays some logs at each iterate.</p><p>You can deactivate logging with</p><pre><code class="language-julia">stats = ripqp(QM, display = false)</code></pre><p>It is also possible to get a history of several quantities such as the primal and dual residuals and the relative primal-dual gap. These quantites are available in the dictionnary <code>solver_specific</code> of the <code>stats</code>.</p><pre><code class="language-julia">stats = ripqp(QM, history = true)
+pddH = stats.solver_specific[:pddH]</code></pre><h2 id="Change-configuration-and-tolerances"><a class="docs-heading-anchor" href="#Change-configuration-and-tolerances">Change configuration and tolerances</a><a id="Change-configuration-and-tolerances-1"></a><a class="docs-heading-anchor-permalink" href="#Change-configuration-and-tolerances" title="Permalink"></a></h2><p>You can use <code>RipQP</code> without scaling with:</p><pre><code class="language-julia">stats = ripqp(QM, scaling = false)</code></pre><p>You can also change the <a href="../API/#RipQP.InputTol"><code>RipQP.InputTol</code></a> type to change the tolerances for the stopping criteria:</p><pre><code class="language-julia">stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1.0e-4), scaling = false)</code></pre><h2 id="Save-the-Interior-Point-system"><a class="docs-heading-anchor" href="#Save-the-Interior-Point-system">Save the Interior-Point system</a><a id="Save-the-Interior-Point-system-1"></a><a class="docs-heading-anchor-permalink" href="#Save-the-Interior-Point-system" title="Permalink"></a></h2><p>At every iteration, RipQP solves two linear systems with the default Predictor-Corrector method (the affine system and the corrector-centering system), or one linear system with the Infeasible Path-Following method.</p><p>To save these systems, you can use:</p><pre><code class="language-julia">w = SystemWrite(write = true, name=&quot;test_&quot;, kfirst = 4, kgap=3) 
+stats1 = ripqp(QM, w = w)</code></pre><p>This will save one matrix and the associated two right-hand sides of the PC method every three iterations starting at iteration four. Then, you can read the saved files with:</p><pre><code class="language-julia">using DelimitedFiles, MatrixMarket
+K = MatrixMarket.mmread(&quot;test_K_iter4.mtx&quot;)
+rhs_aff = readdlm(&quot;test_rhs_iter4_aff.rhs&quot;, Float64)[:]
+rhs_cc = readdlm(&quot;test_rhs_iter4_cc.rhs&quot;, Float64)[:] </code></pre><h2 id="Timers"><a class="docs-heading-anchor" href="#Timers">Timers</a><a id="Timers-1"></a><a class="docs-heading-anchor-permalink" href="#Timers" title="Permalink"></a></h2><p>You can see the elapsed time with:</p><pre><code class="language-julia">stats1.elapsed_time</code></pre><p>For more advanced timers you can use <a href="https://github.com/KristofferC/TimerOutputs.jl"><code>TimerOutputs.jl</code></a>:</p><pre><code class="language-julia">using TimerOutputs
+TimerOutputs.enable_debug_timings(RipQP)
+reset_timer!(RipQP.to)
+stats = ripqp(QM)
+TimerOutputs.complement!(RipQP.to) # print complement of timed sections
+show(RipQP.to, sortby = :firstexec)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../switch_solv/">Switching solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 23 June 2022 00:03">Thursday 23 June 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
