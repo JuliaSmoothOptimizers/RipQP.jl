@@ -31,11 +31,11 @@ end
   @test stats3.status == :first_order
 end
 
-@testset "Float16, Float32, Float128" begin
-  qm128_1 = createQuadraticModelT(qps1, T = Float128)
+@testset "Float16, Float32, Float128, BigFloat" begin
+  qm128_1 = createQuadraticModelT(qps1, T = BigFloat)
   stats1 = ripqp(
     qm128_1,
-    itol = InputTol(Float128, ϵ_rb32 = Float128(0.1), ϵ_rb64 = Float128(0.01)),
+    itol = InputTol(BigFloat, ϵ_rb32 = BigFloat(0.1), ϵ_rb64 = BigFloat(0.01)),
     mode = :multi,
     normalize_rtol = false,
     display = false,

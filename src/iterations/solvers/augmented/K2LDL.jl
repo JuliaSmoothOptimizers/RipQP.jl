@@ -35,20 +35,13 @@ function K2LDLParams(regul::Symbol, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where 
   return K2LDLParams(uplo, regul, ρ0, δ0, ρ_min, δ_min)
 end
 
-K2LDLParams{Float64}(;
-  regul::Symbol = :classic,
-  ρ0::Float64 = sqrt(eps()) * 1e5,
-  δ0::Float64 = sqrt(eps()) * 1e5,
-  ρ_min::Float64 = 1e-5 * sqrt(eps()),
-  δ_min::Float64 = 1e0 * sqrt(eps()),
-) = K2LDLParams(regul, ρ0, δ0, ρ_min, δ_min)
 K2LDLParams{T}(;
   regul::Symbol = :classic,
-  ρ0::T = one(T),
-  δ0::T = one(T),
-  ρ_min::T = sqrt(eps(T)),
-  δ_min::T = sqrt(eps(T)),
-) where {T <: Union{Float16, Float32, Float128}} = K2LDLParams(regul, ρ0, δ0, ρ_min, δ_min)
+  ρ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
+  δ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
+  ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
+  δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
+) where {T} = K2LDLParams(regul, ρ0, δ0, ρ_min, δ_min)
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 

@@ -153,7 +153,7 @@ function ripqp(
       if iconf.Timulti == Float32
         fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
       end
-      if T0 == Float128
+      if T0 == Float128 || T0 == BigFloat
         fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
       end
     end
@@ -162,7 +162,7 @@ function ripqp(
     if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
       if iconf.Timulti == Float32
         pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
-        if T0 == Float128
+        if T0 == Float128 || T0 == BigFloat
           set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
           T = Float32
         end
@@ -210,7 +210,7 @@ function ripqp(
           display,
         )
       end
-      if T0 == Float128
+      if T0 == Float128 || T0 == BigFloat
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(
           (iconf.sp2 === nothing) ? iconf.sp : iconf.sp2,
