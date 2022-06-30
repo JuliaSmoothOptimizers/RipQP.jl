@@ -60,13 +60,7 @@ end
       preconditioner = Equilibration(),
       form_mat = true,
     ),
-    itol = InputTol(
-      max_iter = 50,
-      max_time = 40.0,
-      ϵ_rc = 1.0e-2,
-      ϵ_rb = 1.0e-2,
-      ϵ_pdd = 1.0e-2,
-    ),
+    itol = InputTol(max_iter = 50, max_time = 40.0, ϵ_rc = 1.0e-2, ϵ_rb = 1.0e-2, ϵ_pdd = 1.0e-2),
   )
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
   @test stats3.status == :first_order

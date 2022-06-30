@@ -61,13 +61,7 @@ function PreconditionerData(
     (res, v) -> ldivmem!(res, LLDLS, v),
   )
 
-  return LLDLData{T, Vector{T}, Tlow, typeof(P), typeof(K_fact)}(
-    K,
-    regu_precond,
-    LLDLS,
-    false,
-    P,
-  )
+  return LLDLData{T, Vector{T}, Tlow, typeof(P), typeof(K_fact)}(K, regu_precond, LLDLS, false, P)
 end
 
 function update_preconditioner!(
@@ -80,7 +74,8 @@ function update_preconditioner!(
   cnts::Counters,
 ) where {T <: Real}
   if itd.μ ≤ sqrt(eps(T))
-    pdat.LLDLS.Fact = lldl(pad.K.data, memory = pdat.LLDLS.mem, droptol = pdat.LLDLS.droptol * itd.μ)
+    pdat.LLDLS.Fact =
+      lldl(pad.K.data, memory = pdat.LLDLS.mem, droptol = pdat.LLDLS.droptol * itd.μ)
   else
     pdat.LLDLS.Fact = lldl(pad.K.data, memory = pdat.LLDLS.mem)
   end
