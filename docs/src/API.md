@@ -41,4 +41,5 @@ Identity
 Jacobi
 Equilibration
 LDL
+LLDL
 ```
