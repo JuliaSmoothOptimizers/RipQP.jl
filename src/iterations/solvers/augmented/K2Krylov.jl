@@ -52,9 +52,6 @@ function K2KrylovParams{T}(;
   itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
-  if uplo == :L && form_mat
-    error("matrix can only be created if uplo == :U")
-  end
   if equilibrate && !form_mat
     error("use form_mat = true to use equilibration")
   end
@@ -168,8 +165,14 @@ function PreallocatedData(
     @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
-    K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
-    diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
+    if fd.uplo == :L
+      K = Symmetric([.-fd.Q.data .+ Diagonal(D)     spzeros(T, id.nvar, id.ncon);
+                     fd.A                                 regu.δ * I               ], :L)
+      diagind_K = K.data.colptr[1:end-1]
+    else
+      K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
+      diagind_K = get_diag_sparseCSC(K.data.colptr, id.ncon + id.nvar)
+    end
     if sp.equilibrate
       Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
       Deq.diag .= one(T)

@@ -48,43 +48,29 @@ end
       )
       @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
       @test stats2.status == :first_order
-
-      stats3 = ripqp(
-        QuadraticModel(qps3),
-        display = false,
-        sp = K2KrylovParams(uplo = :U, kmethod = kmethod, preconditioner = precond),
-        itol = InputTol(
-          max_iter = 50,
-          max_time = 40.0,
-          ϵ_rc = 1.0e-2,
-          ϵ_rb = 1.0e-2,
-          ϵ_pdd = 1.0e-2,
-        ),
-      )
-      @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-      @test stats3.status == :first_order
-
-      stats3 = ripqp(
-        QuadraticModel(qps3),
-        display = false,
-        sp = K2KrylovParams(
-          uplo = :U,
-          kmethod = kmethod,
-          preconditioner = precond,
-          form_mat = true,
-        ),
-        itol = InputTol(
-          max_iter = 50,
-          max_time = 40.0,
-          ϵ_rc = 1.0e-2,
-          ϵ_rb = 1.0e-2,
-          ϵ_pdd = 1.0e-2,
-        ),
-      )
-      @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-      @test stats3.status == :first_order
     end
   end
+
+  stats3 = ripqp(
+    QuadraticModel(qps3),
+    display = false,
+    sp = K2KrylovParams(
+      uplo = :U,
+      kmethod = :minres_qlp,
+      preconditioner = Equilibration(),
+      form_mat = true,
+    ),
+    itol = InputTol(
+      max_iter = 50,
+      max_time = 40.0,
+      ϵ_rc = 1.0e-2,
+      ϵ_rb = 1.0e-2,
+      ϵ_pdd = 1.0e-2,
+    ),
+  )
+  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+  @test stats3.status == :first_order
+
   for precond in [LDL(pos = :C), LDL(pos = :L), LDL(pos = :R), LDL(warm_start = false)]
     stats2 = ripqp(
       QuadraticModel(qps2),
@@ -123,9 +109,9 @@ end
     QuadraticModel(qps3),
     display = false,
     sp = K2KrylovParams(
-      uplo = :U,
-      kmethod = :dqgmres,
-      preconditioner = LDL(),
+      uplo = :L,
+      kmethod = :minres,
+      preconditioner = LLDL(),
       rhs_scale = true,
       form_mat = true,
       equilibrate = true,
@@ -137,7 +123,7 @@ end
 end
 
 @testset "KrylovK2_5" begin
-  for kmethod in [:minres, :minres_qlp, :symmlq, :dqgmres, :diom]
+  for kmethod in [:minres, :dqgmres]
     stats1 = ripqp(
       QuadraticModel(qps1),
       display = false,

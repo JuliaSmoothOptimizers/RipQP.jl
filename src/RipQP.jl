@@ -4,6 +4,7 @@ using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, Stati
 
 using Krylov,
   LDLFactorizations,
+  LimitedLDLFactorizations,
   LinearOperators,
   LLSModels,
   NLPModelsModifiers,

@@ -174,7 +174,7 @@ ksolve!(
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
 ) where {T} =
-  dqgmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+  dqgmres!(KS, K, rhs, M = M, N = I, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::DqgmresSolver{T},
@@ -198,7 +198,7 @@ ksolve!(
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
 ) where {T} =
-  gmres!(KS, K, rhs, M = M, N = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
+  gmres!(KS, K, rhs, M = M, N = I, restart = true, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::GmresSolver{T},
