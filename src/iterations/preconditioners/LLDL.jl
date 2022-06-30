@@ -29,8 +29,6 @@ mutable struct LLDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecon
   P::Op
 end
 
-lowtype(pdat::LLDLData{T, S, Tlow}) where {T, S, Tlow} = Tlow
-
 ldivmem!(res, LLDLS::LLDLStor, x) = ldiv!(res, LLDLS.Fact, x)
 
 function PreconditionerData(
