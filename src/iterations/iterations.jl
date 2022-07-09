@@ -69,7 +69,7 @@ function update_pt!(x, y, s_l, s_u, α_pri, α_dual, Δxy, Δs_l, Δs_u, ncon, n
 end
 
 function safe_boundary(v::T) where {T <: Real}
-  if v == 0
+  if v == zero(T)
     v = eps(T)^2
   end
   return v

@@ -75,6 +75,7 @@ function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
   LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
 end
 
+  copyto!(res, tmp_res)
 function ld_div_stor!(
   res,
   K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int},
@@ -319,7 +320,6 @@ function update_preconditioner!(
     cnts,
     itd.qp,
   ) # update D and factorize K
-
   if out == 1
     pad.pdat.fact_fail = true
     return out

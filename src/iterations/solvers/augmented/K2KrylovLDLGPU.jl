@@ -21,8 +21,8 @@ mutable struct LDLGPUData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrec
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
   L::UnitLowerTriangular{Tlow, CUDA.CUSPARSE.CuSparseMatrixCSC{Tlow, Int32}} # T or Tlow?
   d::CUDA.CuVector{Tlow}
-  tmp::CUDA.CuVector{Tlow}
-  resp::CUDA.CuVector{Tlow}
+  tmp_res::CUDA.CuVector{Tlow}
+  tmp_v::CUDA.CuVector{Tlow}
   regu::Regularization{Tlow}
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
   fact_fail::Bool # true if factorization failed
@@ -35,12 +35,12 @@ precond_name(pdat::LDLGPUData{T, S, Tlow}) where {T, S, Tlow} =
 
 lowtype(pdat::LDLGPUData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
-function ldl_ldiv_gpu!(res, L, d, x, P, Pinv, tmp, resp)
-  @views copyto!(res, x[P])
-  ldiv!(tmp, L, res)
-  tmp ./= d
-  ldiv!(resp, L', tmp)
-  @views copyto!(res, resp[Pinv])
+function ldl_ldiv_gpu!(res, L, d, x, P, Pinv, tmp_res, tmp_v)
+  @views copyto!(tmp_res, x[P])
+  ldiv!(tmp_v, L, tmp_res)
+  tmp_v ./= d
+  ldiv!(tmp_res, L', tmp_v)
+  @views copyto!(res, tmp_res[Pinv])
 end
 
 function PreconditionerData(
@@ -54,16 +54,18 @@ function PreconditionerData(
   Tlow = sp.preconditioner.T
   @assert fd.uplo == :U
   regu_precond = Regularization(
-    -Tlow(1.0e0 / 2),
-    Tlow(max(regu.δ, sqrt(eps(Tlow)))),
+    -Tlow(eps(Tlow)^(3 / 4)),
+    Tlow(eps(Tlow)^(0.45)),
     sqrt(eps(Tlow)),
     sqrt(eps(Tlow)),
     :dynamic,
   )
 
   K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K, Tf = Tlow)
+  K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
+  K_fact.tol = Tlow(eps(Tlow))
+  K_fact.n_d = id.nvar
   ldl_factorize!(K, K_fact)
-  Tilow = (Tlow == Float64) ? Int64 : Int32
   L = UnitLowerTriangular(CUDA.CUSPARSE.CuSparseMatrixCSC(
     CuVector(K_fact.Lp),
     CuVector(K_fact.Li),
@@ -71,8 +73,8 @@ function PreconditionerData(
     size(K),
   ))
   d = abs.(CuVector(K_fact.d))
-  tmp = similar(d)
-  resp = similar(d)
+  tmp_res = similar(d)
+  tmp_v = similar(d)
 
   P = LinearOperator(
     Tlow,
@@ -80,15 +82,15 @@ function PreconditionerData(
     id.nvar + id.ncon,
     true,
     true,
-    (res, v, α, β) -> ldl_ldiv_gpu!(res, L, d, v, K_fact.P, K_fact.pinv, tmp, resp),
+    (res, v, α, β) -> ldl_ldiv_gpu!(res, L, d, v, K_fact.P, K_fact.pinv, tmp_res, tmp_v),
   )
 
   return LDLGPUData{T, typeof(fd.c), Tlow, typeof(P)}(
     K,
     L,
     d,
-    tmp,
-    resp,
+    tmp_res,
+    tmp_v,
     regu_precond,
     K_fact,
     false,
@@ -140,10 +142,10 @@ function update_preconditioner!(
     pad.pdat.fact_fail = true
     return out
   end
-  # if pad.pdat.warm_start
-  #   ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
-  #   warm_start!(pad.KS, pad.KS.x)
-  # end
+  if pad.pdat.warm_start
+    ldl_ldiv_gpu!(pad.KS.x, pdat.L, pdat.d, pad.rhs, pdat.K_fact.P, pdat.K_fact.pinv, pdat.tmp_res, pdat.tmp_v)
+    warm_start!(pad.KS, pad.KS.x)
+  end
 end
 
 mutable struct K2KrylovGPUParams{T, PT} <: AugmentedKrylovParams{PT}
@@ -162,6 +164,7 @@ mutable struct K2KrylovGPUParams{T, PT} <: AugmentedKrylovParams{PT}
   δ_min::T
   itmax::Int
   mem::Int
+  verbose::Int
 end
 
 function K2KrylovGPUParams{T}(;
@@ -180,6 +183,7 @@ function K2KrylovGPUParams{T}(;
   δ_min::T = 1e2 * sqrt(eps(T)),
   itmax::Int = 0,
   mem::Int = 20,
+  verbose::Int = 0,
 ) where {T <: Real}
   return K2KrylovGPUParams(
     uplo,
@@ -197,6 +201,7 @@ function K2KrylovGPUParams{T}(;
     δ_min,
     itmax,
     mem,
+    verbose,
   )
 end
 
@@ -243,12 +248,7 @@ mutable struct PreallocatedDataK2KrylovGPU{
   atol_min::T
   rtol_min::T
   itmax::Int
-end
-
-function mul_K_gpu!(res, K, deq, v, tmp)
-  tmp .= v .* deq
-  mul!(res, K, tmp)
-  res .*= deq
+  verbose::Int
 end
 
 function opK2eqprod!(
@@ -349,6 +349,7 @@ function PreallocatedData(
     T(sp.atol_min),
     T(sp.rtol_min),
     sp.itmax,
+    sp.verbose,
   )
 end
 
@@ -385,7 +386,7 @@ function solver!(
     pad.K,
     pad.rhs,
     pad.pdat.P,
-    verbose = 0,
+    verbose = pad.verbose,
     atol = pad.atol,
     rtol = pad.rtol,
     itmax = pad.itmax,
