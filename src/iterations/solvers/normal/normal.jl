@@ -12,7 +12,7 @@ include("K1CholDense.jl")
 
 abstract type PreallocatedDataNormalKrylov{T <: Real, S} <: PreallocatedDataNormal{T, S} end
 
-uses_krylov(pad::PreallocatedDataAugmentedKrylov) = true
+uses_krylov(pad::PreallocatedDataNormalKrylov) = true
 
 include("K1Krylov.jl")
 include("K1_1Structured.jl")

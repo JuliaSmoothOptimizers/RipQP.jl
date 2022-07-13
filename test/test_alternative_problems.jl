@@ -6,8 +6,8 @@
   nls = LLSModel(A, b)
   statsnls = ripqp(nls, itol = InputTol(ϵ_rb = sqrt(eps()), ϵ_rc = sqrt(eps())), display = false)
   x, r = statsnls.solution, statsnls.solver_specific[:r]
-  @test norm(x - A \ b) ≤ norm(b) * sqrt(eps())
-  @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps())
+  @test norm(x - A \ b) ≤ norm(b) * sqrt(eps()) * 100
+  @test norm(A * x - b - r) ≤ norm(b) * sqrt(eps()) * 100
 
   # least-square problem with constraints
   A = rand(m, n)

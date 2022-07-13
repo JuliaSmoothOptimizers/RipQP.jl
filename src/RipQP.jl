@@ -313,7 +313,7 @@ function ripqp(
 
     if typeof(res) <: ResidualsHistory
       solver_specific = Dict(
-        :absolute_iter_cnt => cnts.k,
+        :relative_iter_cnt => cnts.km,
         :pdd => itd.pdd,
         :nvar_slack => id.nvar,
         :rbNormH => res.rbNormH,
@@ -327,7 +327,7 @@ function ripqp(
         :KresDNormH => res.KresDNormH,
       )
     else
-      solver_specific = Dict(:absolute_iter_cnt => cnts.k, :pdd => itd.pdd, :nvar_slack => id.nvar)
+      solver_specific = Dict(:relative_iter_cnt => cnts.km, :pdd => itd.pdd, :nvar_slack => id.nvar)
     end
 
     if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLData
@@ -346,7 +346,7 @@ function ripqp(
       multipliers = multipliers,
       multipliers_L = multipliers_L,
       multipliers_U = multipliers_U,
-      iter = cnts.km,
+      iter = cnts.k,
       elapsed_time = elapsed_time,
       solver_specific = solver_specific,
     )
