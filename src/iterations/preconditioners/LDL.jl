@@ -1,26 +1,25 @@
 export LDL
 
 """
-    preconditioner = LDL(; T = Float32, pos = :C, warm_start = true)
+    preconditioner = LDL(; T = Float32, warm_start = true)
 
 Preconditioner for [`K2KrylovParams`](@ref) using a LDL factorization in precision `T`.
-The `pos` argument is used to choose the type of preconditioning with an unsymmetric Krylov method.
-It can be `:C` (center), `:L` (left) or `:R` (right).
 The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
 """
 mutable struct LDL{FloatType <: DataType} <: AbstractPreconditioner
   T::FloatType
-  pos::Symbol # :L (left), :R (right) or :C (center)
   warm_start::Bool
 end
 
-LDL(; T::DataType = Float32, pos = :C, warm_start = true) = LDL(T, pos, warm_start)
+LDL(; T::DataType = Float32, warm_start = true) = LDL(T, warm_start)
 
 mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
                PreconditionerData{T, S}
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
   regu::Regularization{Tlow}
   K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
+  tmp_res::Vector{Tlow}
+  tmp_v::Vector{Tlow}
   fact_fail::Bool # true if factorization failed
   warm_start::Bool
   P::Op
@@ -45,6 +44,18 @@ function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
   z = @views y[P]
   LDLFactorizations.ldl_dsolve!(n, z, D)
   LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
+end
+
+function ldiv_stor!(
+  res,
+  K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int},
+  v,
+  tmp_res::Vector{T},
+  tmp_v::Vector{T},
+) where {T}
+  copyto!(tmp_v, v)
+  ldiv!(tmp_res, K_fact, tmp_v)
+  copyto!(res, tmp_res)
 end
 
 function PreconditionerData(
@@ -79,56 +90,16 @@ function PreconditionerData(
   K,
 ) where {Tlow <: Real}
   regu_precond.regul = :dynamic
+  T = eltype(K)
   if regu_precond.regul == :dynamic
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
     K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
     K_fact.tol = Tlow(eps(Tlow))
     K_fact.n_d = nvar
   end
-  if sp.kmethod == :gmres || sp.kmethod == :dqgmres
-    if sp.preconditioner.pos == :C
-      M = LinearOperator(
-        Tlow,
-        nvar + ncon,
-        nvar + ncon,
-        false,
-        false,
-        (res, v) ->
-          ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-      )
-      N = LinearOperator(
-        Tlow,
-        nvar + ncon,
-        nvar + ncon,
-        false,
-        false,
-        (res, v) ->
-          dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
-      )
-    elseif sp.preconditioner.pos == :L
-      M = LinearOperator(
-        Tlow,
-        nvar + ncon,
-        nvar + ncon,
-        true,
-        true,
-        (res, v) -> ldiv!(res, K_fact, v),
-      )
-      N = I
-    elseif sp.preconditioner.pos == :R
-      M = I
-      N = LinearOperator(
-        Tlow,
-        nvar + ncon,
-        nvar + ncon,
-        true,
-        true,
-        (res, v) -> ldiv!(res, K_fact, v),
-      )
-    end
-    P = LRPrecond(M, N)
-  else
-    K_fact.d .= abs.(K_fact.d)
+
+  K_fact.d .= abs.(K_fact.d)
+  if T == Tlow
     P = LinearOperator(
       Tlow,
       nvar + ncon,
@@ -137,12 +108,24 @@ function PreconditionerData(
       true,
       (res, v, α, β) -> ldiv!(res, K_fact, v),
     )
+  else
+    tmp_res = Vector{Tlow}(undef, nvar + ncon)
+    tmp_v = Vector{Tlow}(undef, nvar + ncon)
+    P = LinearOperator(
+      Tlow,
+      nvar + ncon,
+      nvar + ncon,
+      true,
+      true,
+      (res, v, α, β) -> ldiv_stor!(res, K_fact, v, tmp_res, tmp_v),
+    )
   end
-  T = eltype(K)
   return LDLData{T, Vector{T}, Tlow, typeof(P)}(
     K,
     regu_precond,
     K_fact,
+    T == Tlow ? T[] : tmp_res,
+    T == Tlow ? T[] : tmp_v,
     false,
     sp.preconditioner.warm_start,
     P,
