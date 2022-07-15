@@ -58,8 +58,8 @@ function fd_refinement(
     else
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
     end
-    itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
-    itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
+    itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
+    itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
     α_pri, α_dual =
       compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
     update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
