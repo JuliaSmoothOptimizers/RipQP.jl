@@ -44,13 +44,9 @@ function fd_refinement(
     # dda.rxs_u .= itd.μ 
     # solve_augmented_system_cc!(pad.K_fact, itd.Δxy, itd.Δs_l, itd.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
     #                         pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
-    itd.Δxy[1:id.nvar] .= .-res.rc
-    itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
-    itd.Δxy[id.ilow] .+= pt.s_l .- itd.μ ./ itd.x_m_lvar
-    itd.Δxy[id.iupp] .-= pt.s_u .- itd.μ ./ itd.uvar_m_x
-    # itd.Δxy .= 0
-    # itd.Δxy[id.ilow] .-= itd.μ ./ itd.x_m_lvar
-    # itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
+    itd.Δxy .= 0
+    itd.Δxy[id.ilow] .-= itd.μ ./ itd.x_m_lvar
+    itd.Δxy[id.iupp] .+= itd.μ ./ itd.uvar_m_x
     padT = typeof(pad)
     if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) || (
       padT <: PreallocatedDataK2Krylov &&
@@ -62,8 +58,8 @@ function fd_refinement(
     else
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
     end
-    itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
-    itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
+    itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
+    itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
     α_pri, α_dual =
       compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
     update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
@@ -119,11 +115,7 @@ function fd_refinement(
     pt.s_l .* Δref,
     pt.s_u .* Δref,
   )
-  mul!(itd.Qx, fd_ref.Q, pt_z.x)
-  fd_ref.uplo == :U ? mul!(itd.ATy, fd_ref.A, pt_z.y) : mul!(itd.ATy, fd_ref.A', pt_z.y)
-  itd.x_m_lvar .= @views pt_z.x[id.ilow] .- fd_ref.lvar[id.ilow]
-  itd.uvar_m_x .= @views fd_ref.uvar[id.iupp] .- pt_z.x[id.iupp]
-  # starting_points!(pt_z, fd_ref, id, itd, spd)
+  starting_points!(pt_z, fd_ref, id, itd, spd)
 
   # update residuals
   res.rb .= itd.Ax .- fd_ref.b
