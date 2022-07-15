@@ -65,7 +65,7 @@ end
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
   @test stats3.status == :first_order
 
-  for precond in [LDL(warm_start = true), LDL(warm_start = false)]
+  for precond in [LDL(pos = :C), LDL(pos = :L), LDL(pos = :R), LDL(warm_start = false)]
     stats2 = ripqp(
       QuadraticModel(qps2),
       display = false,

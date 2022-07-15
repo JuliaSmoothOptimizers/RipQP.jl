@@ -47,10 +47,17 @@ function ldiv_stor!(
   copyto!(res, tmp_res)
 end
 
-function ld_div!(y, K_fact, b)
+function ld_div!(y, b, n, Lp, Li, Lx, D, P)
   y .= b
-  z = @views y[K_fact.P]
-  LDLFactorizations.ldl_lsolve!(K_fact.n, z, K_fact.Lp, K_fact.Li, K_fact.Lx)
+  z = @views y[P]
+  LDLFactorizations.ldl_lsolve!(n, z, Lp, Li, Lx)
+end
+
+function dlt_div!(y, b, n, Lp, Li, Lx, D, P)
+  y .= b
+  z = @views y[P]
+  LDLFactorizations.ldl_dsolve!(n, z, D)
+  LDLFactorizations.ldl_ltsolve!(n, z, Lp, Li, Lx)
 end
 
 function ld_div_stor!(
@@ -65,22 +72,15 @@ function ld_div_stor!(
   copyto!(res, tmp_res)
 end
 
-function dlt_div!(y, K_fact, b)
-  y .= b
-  z = @views y[K_fact.P]
-  LDLFactorizations.ldl_dsolve!(K_fact.n, z, K_fact.d)
-  LDLFactorizations.ldl_ltsolve!(K_fact.n, z, K_fact.Lp, K_fact.Li, K_fact.Lx)
+function ld_div_stor!(res, v, tmp_res::Vector{T}, tmp_v::Vector{T}, n, Lp, Li, Lx, D, P) where {T}
+  copyto!(tmp_v, v)
+  ld_div!(tmp_res, tmp_v, n, Lp, Li, Lx, D, P)
+  copyto!(res, tmp_res)
 end
 
-function dlt_div_stor!(
-  res,
-  K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int},
-  v,
-  tmp_res::Vector{T},
-  tmp_v::Vector{T},
-) where {T}
+function dlt_div_stor!(res, v, tmp_res::Vector{T}, tmp_v::Vector{T}, n, Lp, Li, Lx, D, P) where {T}
   copyto!(tmp_v, v)
-  dlt_div!(tmp_res, K_fact, tmp_v)
+  dlt_div!(tmp_res, tmp_v, n, Lp, Li, Lx, D, P)
   copyto!(res, tmp_res)
 end
 
@@ -124,7 +124,6 @@ function PreconditionerData(
     K_fact.n_d = nvar
   end
 
-  K_fact.d .= abs.(K_fact.d)
   if T == Tlow
     if sp.kmethod == :gmres || sp.kmethod == :dqgmres
       if sp.preconditioner.pos == :C
@@ -134,7 +133,7 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> ld_div!(res, K_fact, v),
+          (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
         N = LinearOperator(
           T,
@@ -142,7 +141,7 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> dlt_div!(res, K_fact, v),
+          (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
       elseif sp.preconditioner.pos == :L
         M = LinearOperator(
@@ -167,6 +166,7 @@ function PreconditionerData(
       end
       P = LRPrecond(M, N)
     else
+      K_fact.d .= abs.(K_fact.d)
       P = LinearOperator(
         Tlow,
         nvar + ncon,
@@ -187,7 +187,7 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> ld_div_stor!(res, K_fact, v, tmp_res, tmp_v),
+          (res, v) -> ld_div_stor!(res, v, tmp_res, tmp_v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
         N = LinearOperator(
           T,
@@ -195,7 +195,7 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> dlt_div_stor!(res, K_fact, v, tmp_res, tmp_v),
+          (res, v) -> dlt_div_stor!(res, v, tmp_res, tmp_v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
       elseif sp.preconditioner.pos == :L
         M = LinearOperator(
@@ -220,6 +220,7 @@ function PreconditionerData(
       end
       P = LRPrecond(M, N)
     else
+      K_fact.d .= abs.(K_fact.d)
       P = LinearOperator(
         T,
         nvar + ncon,

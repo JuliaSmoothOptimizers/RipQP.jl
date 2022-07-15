@@ -73,7 +73,7 @@ end
       QuadraticModel(qps1),
       mode = mode,
       solve_method = IPF(),
-      sp2 = K2KrylovParams(uplo = :U, preconditioner = LDL()),
+      sp2 = K2KrylovParams(uplo = :U, kmethod = :gmres, preconditioner = LDL()),
       display = false,
     )
     @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
