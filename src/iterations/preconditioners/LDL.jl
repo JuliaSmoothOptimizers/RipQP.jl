@@ -133,7 +133,8 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+          (res, v) ->
+            ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
         N = LinearOperator(
           T,
@@ -141,28 +142,17 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+          (res, v) ->
+            dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
         )
       elseif sp.preconditioner.pos == :L
-        M = LinearOperator(
-          T,
-          nvar + ncon,
-          nvar + ncon,
-          true,
-          true,
-          (res, v) -> ldiv!(res, K_fact, v),
-        )
+        M =
+          LinearOperator(T, nvar + ncon, nvar + ncon, true, true, (res, v) -> ldiv!(res, K_fact, v))
         N = I
       elseif sp.preconditioner.pos == :R
         M = I
-        N = LinearOperator(
-          T,
-          nvar + ncon,
-          nvar + ncon,
-          true,
-          true,
-          (res, v) -> ldiv!(res, K_fact, v),
-        )
+        N =
+          LinearOperator(T, nvar + ncon, nvar + ncon, true, true, (res, v) -> ldiv!(res, K_fact, v))
       end
       P = LRPrecond(M, N)
     else
@@ -187,7 +177,18 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> ld_div_stor!(res, v, tmp_res, tmp_v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+          (res, v) -> ld_div_stor!(
+            res,
+            v,
+            tmp_res,
+            tmp_v,
+            K_fact.n,
+            K_fact.Lp,
+            K_fact.Li,
+            K_fact.Lx,
+            K_fact.d,
+            K_fact.P,
+          ),
         )
         N = LinearOperator(
           T,
@@ -195,7 +196,18 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) -> dlt_div_stor!(res, v, tmp_res, tmp_v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+          (res, v) -> dlt_div_stor!(
+            res,
+            v,
+            tmp_res,
+            tmp_v,
+            K_fact.n,
+            K_fact.Lp,
+            K_fact.Li,
+            K_fact.Lx,
+            K_fact.d,
+            K_fact.P,
+          ),
         )
       elseif sp.preconditioner.pos == :L
         M = LinearOperator(
