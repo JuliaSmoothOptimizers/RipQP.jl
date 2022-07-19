@@ -65,22 +65,24 @@ end
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
   @test stats3.status == :first_order
 
-  for precond in [LDL(pos = :C), LDL(pos = :L), LDL(pos = :R), LDL(warm_start = false)]
-    stats2 = ripqp(
-      QuadraticModel(qps2),
-      display = false,
-      sp = K2KrylovParams(
-        uplo = :U,
-        kmethod = :gmres,
-        preconditioner = precond,
-        rhs_scale = true,
-        form_mat = true,
-        equilibrate = true,
-      ),
-      solve_method = IPF(),
-    )
-    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
-    @test stats2.status == :first_order
+  for T in [Float32, Float64]
+    for precond in [LDL(T = T, pos = :C), LDL(T = T, warm_start = false, pos = :L), LDL(T = T, pos = :R)]
+      stats2 = ripqp(
+        QuadraticModel(qps2),
+        display = false,
+        sp = K2KrylovParams(
+          uplo = :U,
+          kmethod = :gmres,
+          preconditioner = precond,
+          rhs_scale = true,
+          form_mat = true,
+          equilibrate = true,
+        ),
+        solve_method = IPF(),
+      )
+      @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
+      @test stats2.status == :first_order
+    end
   end
 
   stats3 = ripqp(

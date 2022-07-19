@@ -272,8 +272,8 @@ function update_dd!(
   itd.Δxy[1:(id.nvar)] .= .-res.rc
   itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
-    itd.Δxy[id.ilow] .+= pt.s_l - σ * itd.μ ./ itd.x_m_lvar
-    itd.Δxy[id.iupp] .-= pt.s_u - σ * itd.μ ./ itd.uvar_m_x
+    itd.Δxy[id.ilow] .+= pt.s_l .- (σ * itd.μ) ./ itd.x_m_lvar
+    itd.Δxy[id.iupp] .-= pt.s_u .- (σ * itd.μ) ./ itd.uvar_m_x
   elseif typeof(pad) <: PreallocatedDataNewton
     itd.Δs_l .= σ * itd.μ .- itd.x_m_lvar .* pt.s_l
     itd.Δs_u .= σ * itd.μ .- itd.uvar_m_x .* pt.s_u

@@ -154,7 +154,7 @@ function ripqp(
       if iconf.Timulti == Float32
         fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
       end
-      if T0 == Float128 || T0 == BigFloat
+      if T0 != Float64
         fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
       end
     end
@@ -211,7 +211,7 @@ function ripqp(
           display,
         )
       end
-      if T0 == Float128 || T0 == BigFloat
+      if T0 != Float64
         # iters in Float64 then convert data to Float128
         pt, itd, res, dda, pad = iter_and_update_T!(
           (iconf.sp2 === nothing) ? iconf.sp : iconf.sp2,
