@@ -44,7 +44,7 @@ function fd_refinement(
     # dda.rxs_u .= itd.μ 
     # solve_augmented_system_cc!(pad.K_fact, itd.Δxy, itd.Δs_l, itd.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
     #                         pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
-    itd.Δxy[1:id.nvar] .= .-res.rc
+    itd.Δxy[1:(id.nvar)] .= .-res.rc
     itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
     itd.Δxy[id.ilow] .+= pt.s_l .- itd.μ ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .-= pt.s_u .- itd.μ ./ itd.uvar_m_x

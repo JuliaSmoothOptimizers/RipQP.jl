@@ -66,7 +66,8 @@ end
   @test stats3.status == :first_order
 
   for T in [Float32, Float64]
-    for precond in [LDL(T = T, pos = :C), LDL(T = T, warm_start = false, pos = :L), LDL(T = T, pos = :R)]
+    for precond in
+        [LDL(T = T, pos = :C), LDL(T = T, warm_start = false, pos = :L), LDL(T = T, pos = :R)]
       stats2 = ripqp(
         QuadraticModel(qps2),
         display = false,
