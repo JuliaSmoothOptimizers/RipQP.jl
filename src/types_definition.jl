@@ -81,6 +81,7 @@ mutable struct InputConfig{
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
   perturb::Bool
+  minimize::Bool
 
   # Functions to choose formulations
   sp::SP

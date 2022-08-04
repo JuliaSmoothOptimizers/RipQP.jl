@@ -119,6 +119,7 @@ function ripqp(
       normalize_rtol,
       kc,
       perturb,
+      QM0.meta.minimize,
       sp,
       sp2,
       sp3,
@@ -302,15 +303,15 @@ function ripqp(
       get_multipliers(pt.s_l, pt.s_u, id.ilow, id.iupp, id.nvar, pt.y, idi)
 
     if iconf.presolve
-      x, multipliers, multipliers_L, multipliers_U =
-        postsolve(QM0, QM, pt.x, multipliers_in, multipliers_L, multipliers_U)
-      nrm = length(QM.psd.xrm)
+      sol_in = QMSolution(pt.x, multipliers_in, multipliers_L, multipliers_U)
+      sol = postsolve(QM0, QM, sol_in)
+      x, multipliers, multipliers_L, multipliers_U = sol.x, sol.y, sol.s_l, sol.s_u
     else
       x = pt.x[1:(idi.nvar)]
       multipliers = pt.y
-      nrm = 0
     end
 
+    psoperations = typeof(QM) <: QuadraticModels.PresolvedQuadraticModel ? QM.psd.operations : []
     if typeof(res) <: ResidualsHistory
       solver_specific = Dict(
         :relative_iter_cnt => cnts.km,
@@ -325,9 +326,15 @@ function ripqp(
         :KresNormH => res.KresNormH,
         :KresPNormH => res.KresPNormH,
         :KresDNormH => res.KresDNormH,
+        :psoperations => psoperations,
       )
     else
-      solver_specific = Dict(:relative_iter_cnt => cnts.km, :pdd => itd.pdd, :nvar_slack => id.nvar)
+      solver_specific = Dict(
+        :relative_iter_cnt => cnts.km,
+        :pdd => itd.pdd,
+        :nvar_slack => id.nvar,
+        :psoperations => psoperations,
+      )
     end
 
     if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLData

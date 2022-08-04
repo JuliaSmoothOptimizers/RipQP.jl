@@ -86,16 +86,6 @@ function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
   return fdA, Symmetric(H, :L)
 end
 
-function switch_H_to_max!(
-  data::QuadraticModels.QPData{T, S, M1, M2},
-) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
-  data.H.vals .= .-data.H.vals
-end
-
-function switch_H_to_max!(data::QuadraticModels.QPData)
-  data.H = -data.H
-end
-
 function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
   A, Q = get_mat_QPData(QM.data.A, QM.data.H, QM.meta.nvar, QM.meta.ncon, uplo)
@@ -140,16 +130,16 @@ function allocate_workspace(
     QM.meta.jfix,
   )
 
-  if !QM.meta.minimize
-    switch_H_to_max!(QM.data)
-    QM.data.c .= .-QM.data.c
-    QM.data.c0 = -QM.data.c0
-  end
-
   QM = SlackModel(QM)
 
   if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
     QM = deepcopy(QM) # if not modified by SlackModel and presolve
+  end
+
+  if !iconf.minimize && !iconf.presolve # switch to min problem if not modified by presolve
+    QuadraticModels.switch_H_to_max!(QM.data)
+    QM.data.c .= .-QM.data.c
+    QM.data.c0 = -QM.data.c0
   end
 
   uplo = iconf.sp.uplo
@@ -196,7 +186,7 @@ function allocate_workspace(
     zeros(T, 6), #l_pdd
     one(T), #mean_pdd
     typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
-    QM.meta.minimize,
+    iconf.minimize,
     iconf.perturb,
   )
 
