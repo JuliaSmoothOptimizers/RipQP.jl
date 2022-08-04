@@ -61,7 +61,7 @@ end
   @test isapprox(stats1.objective, 1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(QuadraticModelMaximize(qps2), display = false)
+  stats2 = ripqp(QuadraticModelMaximize(qps2), ps = false, display = false)
   @test isapprox(stats2.objective, 9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
