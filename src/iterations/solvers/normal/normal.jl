@@ -14,6 +14,8 @@ abstract type PreallocatedDataNormalKrylov{T <: Real, S} <: PreallocatedDataNorm
 
 uses_krylov(pad::PreallocatedDataNormalKrylov) = true
 
+abstract type PreallocatedDataNormalKrylovStructured{T <: Real, S} <: PreallocatedDataNormal{T, S} end
+
 include("K1Krylov.jl")
 include("K1_1Structured.jl")
 include("K1_2Structured.jl")

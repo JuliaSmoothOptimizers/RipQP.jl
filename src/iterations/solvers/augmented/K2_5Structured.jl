@@ -74,7 +74,7 @@ mutable struct PreallocatedDataK2_5Structured{
   S,
   Ksol <: KrylovSolver,
   L <: AbstractLinearOperator{T},
-} <: PreallocatedDataAugmentedKrylov{T, S}
+} <: PreallocatedDataAugmentedKrylovStructured{T, S}
   E::S                                  # temporary top-left diagonal
   invE::S
   sqrtX1X2::S # vector to scale K2 to K2.5

@@ -8,6 +8,8 @@ abstract type PreallocatedDataNewtonKrylov{T <: Real, S} <: PreallocatedDataNewt
 
 uses_krylov(pad::PreallocatedDataNewtonKrylov) = true
 
+abstract type PreallocatedDataNewtonKrylovStructured{T <: Real, S} <: PreallocatedDataNewton{T, S} end
+
 include("K3Krylov.jl")
 include("K3SKrylov.jl")
 include("K3_5Krylov.jl")
