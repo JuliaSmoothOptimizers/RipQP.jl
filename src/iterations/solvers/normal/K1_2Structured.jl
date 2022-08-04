@@ -62,7 +62,7 @@ function K1_2StructuredParams(;
 end
 
 mutable struct PreallocatedDataK1_2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
-               PreallocatedDataNormalKrylov{T, S}
+               PreallocatedDataNormalKrylovStructured{T, S}
   E::S  # temporary top-left diagonal
   invE::S
   ξ1::S

@@ -85,7 +85,7 @@ mutable struct PreallocatedDataK3_5Structured{
   L2 <: LinearOperator,
   L3 <: LinearOperator,
   Ksol <: KrylovSolver,
-} <: PreallocatedDataNewtonKrylov{T, S}
+} <: PreallocatedDataNewtonKrylovStructured{T, S}
   rhs1::S
   rhs2::S
   rhs_scale::Bool
