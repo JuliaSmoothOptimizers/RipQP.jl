@@ -115,7 +115,7 @@ function ripqp(
       mode,
       Timulti,
       scaling,
-      ps,
+      ps || (QM0.data.H isa SparseMatrixCOO && QM0.data.A isa SparseMatrixCOO),
       normalize_rtol,
       kc,
       perturb,
@@ -132,7 +132,7 @@ function ripqp(
     QM0 = convert_QM(QM0, iconf, display)
 
     if iconf.presolve
-      stats_ps = presolve(QM0)
+      stats_ps = presolve(QM0, fixed_vars_only = !ps)
       if stats_ps.status == :unknown
         QM = stats_ps.solver_specific[:presolvedQM]
       else

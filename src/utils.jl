@@ -63,21 +63,16 @@ function get_multipliers(
   njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
 
   S = typeof(y)
-  if S <: Vector
-    s_l_sp = SparseVector(nvar, ilow, s_l)
-    s_u_sp = SparseVector(nvar, iupp, s_u)
-  else
-    s_l_sp, s_u_sp = fill!(S(undef, nvar), zero(T)), fill!(S(undef, nvar), zero(T))
-    s_l_sp[ilow] .= s_l
-    s_u_sp[iupp] .= s_u
-  end
+  s_l_dense, s_u_dense = fill!(S(undef, nvar), zero(T)), fill!(S(undef, nvar), zero(T))
+  s_l_dense[ilow] .= s_l
+  s_u_dense[iupp] .= s_u
 
   if idi.nvar != nvar
-    multipliers_L = s_l_sp[1:(idi.nvar)]
-    multipliers_U = s_u_sp[1:(idi.nvar)]
+    multipliers_L = s_l_dense[1:(idi.nvar)]
+    multipliers_U = s_u_dense[1:(idi.nvar)]
   else
-    multipliers_L = s_l_sp
-    multipliers_U = s_u_sp
+    multipliers_L = s_l_dense
+    multipliers_U = s_u_dense
   end
 
   multipliers = fill!(S(undef, idi.ncon), zero(T))
