@@ -15,6 +15,7 @@ using Krylov,
 using Requires
 function __init__()
   @require CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba" include("gpu_utils.jl")
+  @require HSL = "34c5aeac-e683-54a6-a0e9-6e0fdc586c50" include("iterations/solvers/hslfact_utils.jl")
 end
 
 export ripqp
@@ -144,7 +145,7 @@ function ripqp(
 
     # allocate workspace
     sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
-      @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0)
+      @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0, sp)
 
     if iconf.scaling
       scaling!(fd_T0, id, sd, T0(1.0e-5))

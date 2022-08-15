@@ -42,7 +42,7 @@ mutable struct PreallocatedDataK2_5LDL{T <: Real, S} <: PreallocatedDataAugmente
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
-  K::SparseMatrixCSC{T, Int} # augmented matrix 
+  K::Symmetric{T, SparseMatrixCSC{T, Int}} # augmented matrix 
   K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int} # factorized matrix
   fact_fail::Bool # true if factorization failed 
   diagind_K::Vector{Int} # diagonal indices of J
@@ -68,13 +68,13 @@ function PreallocatedData(
       Regularization(T(sp.ρ0), T(sp.δ0), T(sqrt(eps(T)) * 1e0), T(sqrt(eps(T)) * 1e0), sp.regul)
     D .= -T(1.0e-2)
   end
-  diag_Q = get_diag_Q(fd.Q.data.colptr, fd.Q.data.rowval, fd.Q.data.nzval, id.nvar)
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu)
+  diag_Q = get_diag_Q(fd.Q)
+  K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), :U)
 
-  diagind_K = get_diag_sparseCSC(K.colptr, id.ncon + id.nvar)
-  K_fact = ldl_analyze(Symmetric(K, :U))
+  diagind_K = get_diagind_K(K)
+  K_fact = ldl_analyze(K)
   if regu.regul == :dynamic
-    Amax = @views norm(K.nzval[diagind_K], Inf)
+    Amax = @views norm(K.data.nzval[diagind_K], Inf)
     regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
     K_fact.r1, K_fact.r2 = -regu.ρ, regu.δ
     K_fact.tol = Amax * T(eps(T))
@@ -82,7 +82,7 @@ function PreallocatedData(
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
-  K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+  K_fact = ldl_factorize!(K, K_fact)
   K_fact.__factorized = true
 
   return PreallocatedDataK2_5LDL(
@@ -130,7 +130,7 @@ function solver!(
       pad.D .= one(T)
       pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
       pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
-      lrmultilply_J!(pad.K.colptr, pad.K.rowval, pad.K.nzval, pad.D, id.nvar)
+      lrmultilply_J!(pad.K.data.colptr, pad.K.data.rowval, pad.K.data.nzval, pad.D, id.nvar)
       pad.K_scaled = false
     end
     out == 1 && return out
@@ -201,7 +201,7 @@ end
 
 # iteration functions for the K2.5 system
 function factorize_K2_5!(
-  K,
+  K::Symmetric,
   K_fact,
   D,
   diag_Q,
@@ -222,7 +222,7 @@ function factorize_K2_5!(
 )
   if regu.regul == :classic
     D .= -regu.ρ
-    K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+    K.data.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
   else
     D .= zero(T)
   end
@@ -234,7 +234,7 @@ function factorize_K2_5!(
   D .= one(T)
   D[ilow] .*= sqrt.(x_m_lvar)
   D[iupp] .*= sqrt.(uvar_m_x)
-  lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
+  lrmultilply_J!(K.data.colptr, K.data.rowval, K.data.nzval, D, nvar)
 
   if regu.regul == :dynamic
     # Amax = @views norm(K.nzval[diagind_K], Inf)
@@ -245,7 +245,7 @@ function factorize_K2_5!(
         D .= one(T)
         D[ilow] ./= sqrt.(x_m_lvar)
         D[iupp] ./= sqrt.(uvar_m_x)
-        lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
+        lrmultilply_J!(K.data.colptr, K.data.rowval, K.data.nzval, D, nvar)
         return one(Int) # update to Float64
       elseif qp || cnts.c_pdd < 4
         cnts.c_pdd += 1
@@ -255,7 +255,7 @@ function factorize_K2_5!(
       end
     end
     K_fact.tol = min(Amax, T(eps(T)))
-    K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    K_fact = ldl_factorize!(K, K_fact)
 
   elseif regu.regul == :classic
     ldl_factorize!(Symmetric(K, :U), K_fact)
@@ -266,7 +266,7 @@ function factorize_K2_5!(
         D .= one(T)
         D[ilow] ./= sqrt.(x_m_lvar)
         D[iupp] ./= sqrt.(uvar_m_x)
-        lrmultilply_J!(K.colptr, K.rowval, K.nzval, D, nvar)
+        lrmultilply_J!(K.data.colptr, K.data.rowval, K.data.nzval, D, nvar)
         return out
       end
       cnts.c_catch += 1
@@ -275,18 +275,18 @@ function factorize_K2_5!(
       D[ilow] .-= s_l ./ x_m_lvar
       D[iupp] .-= s_u ./ uvar_m_x
       D[diag_Q.nzind] .-= diag_Q.nzval
-      K.nzval[view(diagind_K, 1:nvar)] = D
+      K.data.nzval[view(diagind_K, 1:nvar)] = D
 
       D .= one(T)
       D[ilow] .*= sqrt.(x_m_lvar)
       D[iupp] .*= sqrt.(uvar_m_x)
-      K.nzval[view(diagind_K, 1:nvar)] .*= D .^ 2
-      K.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
-      ldl_factorize!(Symmetric(K, :U), K_fact)
+      K.data.nzval[view(diagind_K, 1:nvar)] .*= D .^ 2
+      K.data.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= regu.δ
+      ldl_factorize!(K, K_fact)
     end
 
   else # no Regularization
-    K_fact = ldl_factorize!(Symmetric(K, :U), K_fact)
+    K_fact = ldl_factorize!(K, K_fact)
   end
 
   return 0 # factorization succeeded
@@ -306,7 +306,7 @@ function convertpad(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
-    convert(SparseMatrixCSC{T, Int}, pad.K),
+    Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), pad.K.uplo),
     convertldl(T, pad.K_fact),
     pad.fact_fail,
     pad.diagind_K,

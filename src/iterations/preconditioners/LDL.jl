@@ -256,7 +256,7 @@ function PreconditionerData(
 end
 
 function factorize_scale_K2!(
-  K,
+  K::Symmetric,
   K_fact,
   D,
   Deq,

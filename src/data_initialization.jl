@@ -69,26 +69,26 @@ function get_mat_QPData(
   H::SparseMatrixCOO{T, Int},
   nvar::Int,
   ncon::Int,
-  uplo::Symbol,
+  sp::SolverParams,
 ) where {T}
-  if uplo == :U # A is Aᵀ of QuadraticModel QM
+  if sp.uplo == :U # A is Aᵀ of QuadraticModel QM
     fdA = sparse_dropzeros(A.cols, A.rows, A.vals, ncon, nvar)
     fdQ = sparse_dropzeros(H.cols, H.rows, H.vals, nvar, nvar)
   else
     fdA = sparse_dropzeros(A.rows, A.cols, A.vals, nvar, ncon)
     fdQ = sparse_dropzeros(H.rows, H.cols, H.vals, nvar, nvar)
   end
-  return fdA, Symmetric(fdQ, uplo)
+  return fdA, Symmetric(fdQ, sp.uplo)
 end
 
-function get_mat_QPData(A, H, nvar::Int, ncon::Int, uplo::Symbol)
-  fdA = uplo == :U ? transpose(A) : A
+function get_mat_QPData(A, H, nvar::Int, ncon::Int, sp::SolverParams)
+  fdA = sp.uplo == :U ? transpose(A) : A
   return fdA, Symmetric(H, :L)
 end
 
-function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <: Real, S}
+function get_QM_data(QM::AbstractQuadraticModel{T, S}, sp::SolverParams) where {T <: Real, S}
   # constructs A and Q transposed so we can create K upper triangular. 
-  A, Q = get_mat_QPData(QM.data.A, QM.data.H, QM.meta.nvar, QM.meta.ncon, uplo)
+  A, Q = get_mat_QPData(QM.data.A, QM.data.H, QM.meta.nvar, QM.meta.ncon, sp)
   id = QM_IntData(
     vcatsort(QM.meta.ilow, QM.meta.irng),
     vcatsort(QM.meta.iupp, QM.meta.irng),
@@ -103,7 +103,7 @@ function get_QM_data(QM::AbstractQuadraticModel{T, S}, uplo::Symbol) where {T <:
   id.nlow, id.nupp = length(id.ilow), length(id.iupp) # number of finite constraints
   @assert QM.meta.lcon == QM.meta.ucon # equality constraint (Ax=b)
   @assert length(QM.meta.lvar) == length(QM.meta.uvar) == QM.meta.nvar
-  fd = QM_FloatData(Q, A, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar, uplo)
+  fd = QM_FloatData(Q, A, QM.meta.lcon, QM.data.c, QM.data.c0, QM.meta.lvar, QM.meta.uvar, sp.uplo)
   return fd, id
 end
 
@@ -113,6 +113,7 @@ function allocate_workspace(
   itol::InputTol,
   start_time,
   T0::DataType,
+  sp::SolverParams,
 )
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
@@ -143,7 +144,7 @@ function allocate_workspace(
   end
 
   uplo = iconf.sp.uplo
-  fd_T0, id = get_QM_data(QM, uplo) # apply presolve at the same time
+  fd_T0, id = get_QM_data(QM, sp) # apply presolve at the same time
 
   T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
   ϵ = Tolerances(
@@ -298,20 +299,33 @@ end
 
 ############ tools for sparse matrices ##############
 
-function get_diag_sparseCSC(M_colptr, n; tri = :U)
+function get_diagind_K(K::Symmetric{T, <:SparseMatrixCSC{T}}; tri = :U) where {T}
   # get diagonal index of M.nzval
   # we assume all columns of M are non empty, and M triangular (:L or :U)
+  K_colptr = K.data.colptr
   @assert tri == :U || tri == :L
   if tri == :U
-    diagind = M_colptr[2:end] .- one(Int)
+    diagind = K_colptr[2:end] .- one(Int)
   else
-    diagind = M_colptr[1:(end - 1)]
+    diagind = K_colptr[1:(end - 1)]
   end
   return diagind
 end
 
-function get_diag_Q(Q_colptr, Q_rowval, Q_nzval::Vector{T}, n) where {T <: Real}
-  diagval = spzeros(T, n)
+function get_diagind_K(K::Symmetric{T, <:SparseMatrixCOO{T}}; tri = :U) where {T}
+  # pb if regul = none / dynamic
+  Krows, Kcols = K.data.rows, K.data.cols
+  diagind = zeros(Int, size(K, 2))
+  for k=1:length(Krows)
+    i = Krows[k]
+    (Kcols[k] == i) && (diagind[i] = k)
+  end
+  return diagind
+end
+
+function fill_diag_Q!(diagval, Q::SparseMatrixCSC{T}) where {T <: Real}
+  n = size(Q, 2)
+  Q_colptr, Q_rowval, Q_nzval = Q.colptr, Q.rowval, Q.nzval
   @inbounds @simd for j = 1:n
     for k = Q_colptr[j]:(Q_colptr[j + 1] - 1)
       if j == Q_rowval[k]
@@ -319,6 +333,24 @@ function get_diag_Q(Q_colptr, Q_rowval, Q_nzval::Vector{T}, n) where {T <: Real}
       end
     end
   end
+  return diagval
+end
+
+function fill_diag_Q!(diagval, Q::SparseMatrixCOO{T}) where {T <: Real}
+  Qrows, Qcols, Qvals = Q.rows, Q.cols, Q.vals
+  @inbounds @simd for k = 1:length(Qrows)
+    i = Qrows[k]
+    if Qcols[k] == i
+      diagval[i] = Qvals[k]
+    end
+  end
+  return diagval
+end
+
+function get_diag_Q(Q::Symmetric{T, <:AbstractMatrix{T}}) where {T}
+  n = size(Q, 2)
+  diagval = spzeros(T, n)
+  fill_diag_Q!(diagval, Q.data)
   return diagval
 end
 
