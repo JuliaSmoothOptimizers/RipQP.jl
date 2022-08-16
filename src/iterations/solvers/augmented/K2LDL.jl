@@ -76,7 +76,7 @@ function PreallocatedData(
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
-  K_fact = generic_factorize!(K, K_fact)
+  generic_factorize!(K, K_fact)
 
   return PreallocatedDataK2LDL(
     D,
