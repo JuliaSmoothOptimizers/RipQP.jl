@@ -298,7 +298,7 @@ function create_K2(
   regu::Regularization;
   T = eltype(D),
 )
-  block_row1 = hcat((Q .+ Diagonal(D)),  coo_spzeros(T, id.nvar, id.ncon))
+  block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
   block_row1.nzval .= .-block_row1.nzval
   block_row2 = hcat(A, regu.δ * I)
   return vcat(block_row1, block_row2)
