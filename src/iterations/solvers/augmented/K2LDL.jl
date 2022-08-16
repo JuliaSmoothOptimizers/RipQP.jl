@@ -48,6 +48,13 @@ mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <:
   diagind_K::Vector{Int} # diagonal indices of J
 end
 
+solver_name(
+  pad::PreallocatedDataK2LDL,
+) = string(
+  string(typeof(pad).name.name)[17:end],
+  " with $(typeof(pad.K_fact).name.name)",
+)
+
 # outer constructor
 function PreallocatedData(
   sp::K2LDLParams,
