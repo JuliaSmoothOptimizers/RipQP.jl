@@ -18,7 +18,7 @@ function generic_factorize!(K::Symmetric{T, SparseMatrixCOO{T, Int}}, K_fact::Ma
   ma57_factorize(K_fact)
 end
 
-factorized(K_fact::Ma57) = true
+LDLFactorizations.factorized(K_fact::Ma57) = true
 
 import LinearAlgebra.ldiv!
 ldiv!(K_fact::Ma57, dd::AbstractVector) = ma57_solve!(K_fact, dd)
