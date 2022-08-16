@@ -77,7 +77,6 @@ function PreallocatedData(
     regu.ρ, regu.δ = zero(T), zero(T)
   end
   K_fact = generic_factorize!(K, K_fact)
-  K_fact.__factorized = true
 
   return PreallocatedDataK2LDL(
     D,
