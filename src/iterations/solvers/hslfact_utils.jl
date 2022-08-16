@@ -9,7 +9,7 @@ get_mat_QPData(
 get_uplo(fact_alg::HSLMA57Fact) = :L
 
 init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact) where {T} =
-  ma57_coord(K.data.rows, K.data.cols, K.data.vals, sqd = true)
+  ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = true)
 
 function generic_factorize!(K::Symmetric{T, SparseMatrixCOO{T, Int}}, K_fact::Ma57) where {T}
   K_fact.vals .= K.data.vals
