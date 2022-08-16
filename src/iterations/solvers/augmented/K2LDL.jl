@@ -298,8 +298,10 @@ function create_K2(
   regu::Regularization;
   T = eltype(D),
 )
-  return [.-(Q .+ Diagonal(D))  spzeros(T, id.nvar, id.ncon);
-                   A                   regu.δ * I]
+  block_row1 = hcat((Q .+ Diagonal(D)),  coo_spzeros(T, id.nvar, id.ncon))
+  block_row1.nzval .= .-block_row1.nzval
+  block_row2 = hcat(A, regu.δ * I)
+  return vcat(block_row1, block_row2)
 end
 
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}
