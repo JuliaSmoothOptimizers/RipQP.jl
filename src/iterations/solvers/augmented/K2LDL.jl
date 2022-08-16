@@ -38,11 +38,11 @@ K2LDLParams{T}(;
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK2LDL{T <: Real, S, F} <: PreallocatedDataAugmentedLDL{T, S}
+mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <: PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
-  K::Symmetric{T, SparseMatrixCSC{T, Int}} # augmented matrix 
+  K::Symmetric{T, M} # augmented matrix 
   K_fact::F # factorized matrix
   fact_fail::Bool # true if factorization failed 
   diagind_K::Vector{Int} # diagonal indices of J
