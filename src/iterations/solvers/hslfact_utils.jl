@@ -1,3 +1,5 @@
+using .HSL
+
 get_mat_QPData(
   A::SparseMatrixCOO{T, Int},
   H::SparseMatrixCOO{T, Int},
