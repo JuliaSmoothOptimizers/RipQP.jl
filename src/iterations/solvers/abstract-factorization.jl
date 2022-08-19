@@ -1,4 +1,4 @@
-export AbstractFactorization, LDLFact, HSLMA57Fact
+export AbstractFactorization, LDLFact, HSLMA57Fact, CholmodFact, QDLDLFact
 
 import LinearAlgebra.ldiv!
 
