@@ -1,5 +1,7 @@
 export AbstractFactorization, LDLFact, HSLMA57Fact
 
+import LinearAlgebra.ldiv!
+
 abstract type AbstractFactorization end
 
 struct LDLFact <: AbstractFactorization
@@ -12,18 +14,37 @@ struct LDLFact <: AbstractFactorization
     return new(regul)
   end
 end
-
 LDLFact(; regul::Symbol = :classic) = LDLFact(regul)
-
 include("ldlfact_utils.jl")
 
-struct HSLMA57Fact <: AbstractFactorization
+struct CholmodFact <: AbstractFactorization
   regul::Symbol
-  function HSLMA57Fact(regul::Symbol)
+  function CholmodFact(regul::Symbol)
     regul == :classic || regul == :none ||
-      error("regul should be :classic or :dynamic or :hybrid or :none")
+      error("regul should be :classic or :none")
     return new(regul)
   end
 end
+CholmodFact(; regul::Symbol = :classic) = CholmodFact(regul)
+include("cholmod_utils.jl")
 
-HSLMA57Fact(; regul::Symbol = :classic) = HSLMA57Fact(regul)
+struct QDLDLFact <: AbstractFactorization
+  regul::Symbol
+  function QDLDLFact(regul::Symbol)
+    regul == :classic || regul == :none ||
+      error("regul should be :classic or :none")
+    return new(regul)
+  end
+end
+QDLDLFact(; regul::Symbol = :classic) = QDLDLFact(regul)
+
+struct HSLMA57Fact <: AbstractFactorization
+  regul::Symbol
+  sqd::Bool
+  function HSLMA57Fact(regul::Symbol, sqd::Bool)
+    regul == :classic || regul == :none ||
+      error("regul should be :classic or :none")
+    return new(regul, sqd)
+  end
+end
+HSLMA57Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)

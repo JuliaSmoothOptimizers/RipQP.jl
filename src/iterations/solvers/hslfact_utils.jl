@@ -15,15 +15,21 @@ mutable struct Ma57Factorization{T}
   work::Vector{T}
 end
 
-init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact) where {T} =
-  Ma57Factorization(ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = true), Vector{T}(undef, size(K, 1)))
+function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact) where {T}
+  K_fact = Ma57Factorization(ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = fact_alg.sqd), Vector{T}(undef, size(K, 1)))
+  @assert K_fact.ma57.info.info[1] == 0
+  return K_fact
+end
 
 function generic_factorize!(K::Symmetric{T, SparseMatrixCOO{T, Int}}, K_fact::Ma57Factorization{T}) where {T}
   K_fact.ma57.vals .= K.data.vals
   ma57_factorize!(K_fact.ma57)
+  @assert K_fact.ma57.info.info[1] == 0
 end
 
 LDLFactorizations.factorized(K_fact::Ma57Factorization) = true
 
-import LinearAlgebra.ldiv!
-ldiv!(K_fact::Ma57Factorization, dd::AbstractVector) = ma57_solve!(K_fact.ma57, dd, K_fact.work)
+function ldiv!(K_fact::Ma57Factorization, dd::AbstractVector)
+  ma57_solve!(K_fact.ma57, dd, K_fact.work)
+  @assert K_fact.ma57.info.info[1] == 0
+end
