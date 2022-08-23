@@ -4,8 +4,9 @@
 export K2LDLParams
 
 """
-Type to use the K2 formulation with a LDLᵀ factorization, using the package 
-[`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
+Type to use the K2 formulation with a LDLᵀ factorization.
+The package [`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl)
+is used by default.
 The outer constructor 
 
     sp = K2LDLParams(; fact_alg = LDLFact(regul = :classic),
