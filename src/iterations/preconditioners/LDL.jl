@@ -326,7 +326,7 @@ function update_preconditioner!(
     max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
 
   out = factorize_scale_K2!(
-    pad.pdat.K.data,
+    pad.pdat.K,
     pad.pdat.K_fact,
     pad.D,
     pad.mt.Deq,

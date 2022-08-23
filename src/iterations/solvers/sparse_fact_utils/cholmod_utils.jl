@@ -1,4 +1,4 @@
-using SuiteSparse
+using .SuiteSparse
 
 get_uplo(fact_alg::CholmodFact) = :U
 

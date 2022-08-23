@@ -8,7 +8,8 @@ Type to use the K2 formulation with a LDLᵀ factorization, using the package
 [`LDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LDLFactorizations.jl). 
 The outer constructor 
 
-    sp = K2LDLParams(; regul = :classic, ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
+    sp = K2LDLParams(; fact_alg = LDLFact(regul = :classic),
+                     ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
 
 creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
@@ -442,7 +443,7 @@ function convertpad(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
-    Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), pad.K.uplo),
+    Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), Symbol(pad.K.uplo)),
     convertldl(T, pad.K_fact),
     pad.fact_fail,
     pad.diagind_K,

@@ -26,7 +26,6 @@ struct CholmodFact <: AbstractFactorization
   end
 end
 CholmodFact(; regul::Symbol = :classic) = CholmodFact(regul)
-include("cholmod_utils.jl")
 
 struct QDLDLFact <: AbstractFactorization
   regul::Symbol
