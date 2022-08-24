@@ -1,14 +1,14 @@
 @testset "dynamic_regularization" begin
   stats1 =
-    ripqp(QuadraticModel(qps1), sp = K2LDLParams(regul = :dynamic), history = true, display = false)
+    ripqp(QuadraticModel(qps1), sp = K2LDLParams(fact_alg = LDLFact(regul = :dynamic)), history = true, display = false)
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
 
-  stats2 = ripqp(QuadraticModel(qps2), sp = K2LDLParams(regul = :dynamic), display = false)
+  stats2 = ripqp(QuadraticModel(qps2), sp = K2LDLParams(fact_alg = LDLFact(regul = :dynamic)), display = false)
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
-  stats3 = ripqp(QuadraticModel(qps3), sp = K2LDLParams(regul = :dynamic), display = false)
+  stats3 = ripqp(QuadraticModel(qps3), sp = K2LDLParams(fact_alg = LDLFact(regul = :dynamic)), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
 end
@@ -89,7 +89,7 @@ end
     display = false,
     solve_method = IPF(),
     mode = :zoom,
-    sp = K2LDLParams(regul = :dynamic),
+    sp = K2LDLParams(fact_alg = LDLFact(regul = :dynamic)),
   )
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order

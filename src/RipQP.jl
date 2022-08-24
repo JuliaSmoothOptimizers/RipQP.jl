@@ -15,6 +15,9 @@ using Krylov,
 using Requires
 function __init__()
   @require CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba" include("gpu_utils.jl")
+  @require HSL = "34c5aeac-e683-54a6-a0e9-6e0fdc586c50" include("iterations/solvers/sparse_fact_utils/hslfact_utils.jl")
+  @require QDLDL = "bfc457fd-c171-5ab7-bd9e-d5dbfc242d63" include("iterations/solvers/sparse_fact_utils/qdldl_utils.jl")
+  @require SuiteSparse = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9" include("iterations/solvers/sparse_fact_utils/cholmod_utils.jl")
 end
 
 export ripqp
@@ -144,7 +147,7 @@ function ripqp(
 
     # allocate workspace
     sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
-      @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0)
+      @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0, sp)
 
     if iconf.scaling
       scaling!(fd_T0, id, sd, T0(1.0e-5))
