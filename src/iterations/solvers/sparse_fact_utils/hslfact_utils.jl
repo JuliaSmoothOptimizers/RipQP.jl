@@ -20,7 +20,6 @@ function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fa
     ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = fact_alg.sqd),
     Vector{T}(undef, size(K, 1)),
   )
-  @assert K_fact.ma57.info.info[1] == 0
   return K_fact
 end
 
@@ -30,7 +29,6 @@ function generic_factorize!(
 ) where {T}
   K_fact.ma57.vals .= K.data.vals
   ma57_factorize!(K_fact.ma57)
-  @assert K_fact.ma57.info.info[1] == 0
 end
 
 LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
