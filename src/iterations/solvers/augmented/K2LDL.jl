@@ -285,6 +285,21 @@ function create_K2(
   return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
 end
 
+# function create_K2(
+#   id::QM_IntData,
+#   D::AbstractVector,
+#   Q::SparseMatrixCOO,
+#   A::SparseMatrixCOO,
+#   diag_Q::SparseVector,
+#   regu::Regularization;
+#   T = eltype(D),
+# )
+#   block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
+#   block_row1.vals .= .-block_row1.vals
+#   block_row2 = hcat(A, regu.δ * I)
+#   return vcat(block_row1, block_row2)
+# end
+
 function create_K2(
   id::QM_IntData,
   D::AbstractVector,
@@ -294,10 +309,51 @@ function create_K2(
   regu::Regularization;
   T = eltype(D),
 )
-  block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
-  block_row1.vals .= .-block_row1.vals
-  block_row2 = hcat(A, regu.δ * I)
-  return vcat(block_row1, block_row2)
+  nvar, ncon = id.nvar, id.ncon
+  δ = regu.δ
+  nnz_Q, nnz_A = nnz(Q), nnz(A)
+  Qrows, Qcols, Qvals = Q.rows, Q.cols, Q.vals
+  Arows, Acols, Avals = A.rows, A.cols, A.vals
+  nnz_tot = nnz_A + nnz_Q + nvar + id.ncon - length(diag_Q.nzind)
+  rows = Vector{Int}(undef, nnz_tot)
+  cols = Vector{Int}(undef, nnz_tot)
+  vals = Vector{T}(undef, nnz_tot)
+  kQ, kA = 1, 1
+  current_col = 1
+  added_diag_col = false # true if K[j, j] has been filled
+  
+  for k = 1:nnz_tot
+    if current_col > nvar
+      rows[k] = current_col
+      cols[k] = current_col
+      vals[k] = δ
+    elseif !added_diag_col # add diagonal
+      rows[k] = current_col
+      cols[k] = current_col
+      if kQ ≤ nnz_Q && Qrows[kQ] == Qcols[kQ] == current_col
+        vals[k] = -Qvals[kQ] + D[current_col]
+        kQ += 1
+      else
+        vals[k] = D[current_col]
+      end
+      added_diag_col = true
+    elseif kQ ≤ nnz_Q && Qcols[kQ] == current_col
+      rows[k] = Qrows[kQ]
+      cols[k] = Qcols[kQ]
+      vals[k] = -Qvals[kQ]
+      kQ += 1
+    elseif kA ≤ nnz_A && Acols[kA] == current_col
+      rows[k] = Arows[kA] + nvar
+      cols[k] = Acols[kA]
+      vals[k] = Avals[kA]
+      kA += 1
+    end
+    if (kQ > nnz_Q || Qcols[kQ] != current_col) && (kA > nnz_A || Acols[kA] != current_col) 
+      current_col += 1
+      added_diag_col = false
+    end
+  end
+  return SparseMatrixCOO(nvar + ncon, nvar + ncon, rows, cols, vals)
 end
 
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}
