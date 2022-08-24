@@ -431,7 +431,7 @@ function convertpad(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
-    Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), Symbol(pad.K.uplo)),
+    Symmetric(convert_mat(pad.K.data, T), Symbol(pad.K.uplo)),
     convertldl(T, pad.K_fact),
     pad.fact_fail,
     pad.diagind_K,
