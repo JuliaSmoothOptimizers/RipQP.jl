@@ -33,12 +33,9 @@ function generic_factorize!(
   @assert K_fact.ma57.info.info[1] == 0
 end
 
-LDLFactorizations.factorized(K_fact::Ma57Factorization) = true
+LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
 
-function ldiv!(K_fact::Ma57Factorization, dd::AbstractVector)
-  ma57_solve!(K_fact.ma57, dd, K_fact.work)
-  @assert K_fact.ma57.info.info[1] == 0
-end
+ldiv!(K_fact::Ma57Factorization, dd::AbstractVector) = ma57_solve!(K_fact.ma57, dd, K_fact.work)
 
 convertldl(T::DataType, K_fact::Ma57Factorization) = Ma57Factorization(
   Ma57(
