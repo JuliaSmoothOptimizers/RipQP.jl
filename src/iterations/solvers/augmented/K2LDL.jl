@@ -40,7 +40,8 @@ K2LDLParams{T}(;
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <: PreallocatedDataAugmentedLDL{T, S}
+mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <:
+               PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
@@ -50,12 +51,8 @@ mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <:
   diagind_K::Vector{Int} # diagonal indices of J
 end
 
-solver_name(
-  pad::PreallocatedDataK2LDL,
-) = string(
-  string(typeof(pad).name.name)[17:end],
-  " with $(typeof(pad.K_fact).name.name)",
-)
+solver_name(pad::PreallocatedDataK2LDL) =
+  string(string(typeof(pad).name.name)[17:end], " with $(typeof(pad.K_fact).name.name)")
 
 # outer constructor
 function PreallocatedData(
@@ -130,16 +127,7 @@ function update_pad!(
 ) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(
-      pad.regu,
-      pad.K,
-      pad.diagind_K,
-      id.nvar,
-      itd,
-      cnts,
-      T,
-      T0,
-    )
+    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts, T, T0)
     out == 1 && return out
   end
 
@@ -319,7 +307,6 @@ end
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCOO}, D, diagind_K, nvar) where {T}
   K.data.vals[view(diagind_K, 1:nvar)] = D
 end
-
 
 function update_diag_K22!(K::Symmetric{T, <:SparseMatrixCSC}, δ, diagind_K, nvar, ncon) where {T}
   K.data.nzval[view(diagind_K, (nvar + 1):(ncon + nvar))] .= δ

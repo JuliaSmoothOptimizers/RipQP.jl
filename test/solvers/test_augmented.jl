@@ -25,7 +25,11 @@ end
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats2.status == :first_order
 
-  stats3 = ripqp(QuadraticModel(qps3), display = false, sp = K2_5LDLParams(fact_alg = LDLFact(regul = :dynamic)))
+  stats3 = ripqp(
+    QuadraticModel(qps3),
+    display = false,
+    sp = K2_5LDLParams(fact_alg = LDLFact(regul = :dynamic)),
+  )
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
 end

@@ -7,7 +7,8 @@ abstract type AbstractFactorization end
 struct LDLFact <: AbstractFactorization
   regul::Symbol
   function LDLFact(regul::Symbol)
-    regul == :classic || regul == :dynamic ||
+    regul == :classic ||
+      regul == :dynamic ||
       regul == :hybrid ||
       regul == :none ||
       error("regul should be :classic or :dynamic or :hybrid or :none")
@@ -20,8 +21,7 @@ include("ldlfact_utils.jl")
 struct CholmodFact <: AbstractFactorization
   regul::Symbol
   function CholmodFact(regul::Symbol)
-    regul == :classic || regul == :none ||
-      error("regul should be :classic or :none")
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
     return new(regul)
   end
 end
@@ -30,8 +30,7 @@ CholmodFact(; regul::Symbol = :classic) = CholmodFact(regul)
 struct QDLDLFact <: AbstractFactorization
   regul::Symbol
   function QDLDLFact(regul::Symbol)
-    regul == :classic || regul == :none ||
-      error("regul should be :classic or :none")
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
     return new(regul)
   end
 end
@@ -41,8 +40,7 @@ struct HSLMA57Fact <: AbstractFactorization
   regul::Symbol
   sqd::Bool
   function HSLMA57Fact(regul::Symbol, sqd::Bool)
-    regul == :classic || regul == :none ||
-      error("regul should be :classic or :none")
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
     return new(regul, sqd)
   end
 end

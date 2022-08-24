@@ -26,7 +26,13 @@ mutable struct K2_5LDLParams{T, Fact} <: AugmentedParams
   δ0::T
   ρ_min::T
   δ_min::T
-  function K2_5LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where {T}
+  function K2_5LDLParams(
+    fact_alg::AbstractFactorization,
+    ρ0::T,
+    δ0::T,
+    ρ_min::T,
+    δ_min::T,
+  ) where {T}
     return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min)
   end
 end
@@ -52,12 +58,8 @@ mutable struct PreallocatedDataK2_5LDL{T <: Real, S, M} <: PreallocatedDataAugme
   K_scaled::Bool # true if K is scaled with X1X2
 end
 
-solver_name(
-  pad::PreallocatedDataK2_5LDL,
-) = string(
-  string(typeof(pad).name.name)[17:end],
-  " with $(typeof(pad.K_fact).name.name)",
-)
+solver_name(pad::PreallocatedDataK2_5LDL) =
+  string(string(typeof(pad).name.name)[17:end], " with $(typeof(pad.K_fact).name.name)")
 
 function PreallocatedData(
   sp::K2_5LDLParams,
@@ -212,7 +214,7 @@ function lrmultilply_K_CSC!(K_colptr, K_rowval, K_nzval::Vector{T}, v::Vector{T}
   end
 end
 
-lrmultilply_K!(K::Symmetric{T, SparseMatrixCSC{T, Int}}, v::Vector{T}, nvar) where {T} = 
+lrmultilply_K!(K::Symmetric{T, SparseMatrixCSC{T, Int}}, v::Vector{T}, nvar) where {T} =
   lrmultilply_K_CSC!(K.data.colptr, K.data.rowval, K.data.nzval, v, nvar)
 
 function lrmultilply_K!(K::Symmetric{T, SparseMatrixCOO{T, Int}}, v::Vector{T}, nvar) where {T}

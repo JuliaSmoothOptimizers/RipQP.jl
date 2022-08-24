@@ -11,8 +11,11 @@ end
 init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::CholmodFact) where {T} =
   CholmodFactorization(ldlt(K), false, true)
 
-function generic_factorize!(K::Symmetric{T, SparseMatrixCSC{T, Int}}, K_fact::CholmodFactorization{T}) where {T}
-  if K_fact.initialized 
+function generic_factorize!(
+  K::Symmetric{T, SparseMatrixCSC{T, Int}},
+  K_fact::CholmodFactorization{T},
+) where {T}
+  if K_fact.initialized
     K_fact.factorized = false
     try
       ldlt!(K_fact.F, K)
