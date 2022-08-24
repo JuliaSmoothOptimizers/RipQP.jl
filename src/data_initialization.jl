@@ -316,7 +316,7 @@ function get_diagind_K(K::Symmetric{T, <:SparseMatrixCOO{T}}; tri = :U) where {T
   # pb if regul = none / dynamic
   Krows, Kcols = K.data.rows, K.data.cols
   diagind = zeros(Int, size(K, 2))
-  for k=1:length(Krows)
+  for k = 1:length(Krows)
     i = Krows[k]
     (Kcols[k] == i) && (diagind[i] = k)
   end

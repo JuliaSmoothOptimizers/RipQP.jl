@@ -48,7 +48,18 @@ function update_regu_diagK2!(
   T,
   T0,
 )
-  update_regu_diagK2!(regu, K.data.nzval, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0)
+  update_regu_diagK2!(
+    regu,
+    K.data.nzval,
+    diagind_K,
+    nvar,
+    itd.pdd,
+    itd.l_pdd,
+    itd.mean_pdd,
+    cnts,
+    T,
+    T0,
+  )
 end
 
 function update_regu_diagK2!(
@@ -61,7 +72,18 @@ function update_regu_diagK2!(
   T,
   T0,
 )
-  update_regu_diagK2!(regu, K.data.vals, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0)
+  update_regu_diagK2!(
+    regu,
+    K.data.vals,
+    diagind_K,
+    nvar,
+    itd.pdd,
+    itd.l_pdd,
+    itd.mean_pdd,
+    cnts,
+    T,
+    T0,
+  )
 end
 
 function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pdd, cnts, T, T0)
