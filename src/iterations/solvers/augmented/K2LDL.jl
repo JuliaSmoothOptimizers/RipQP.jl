@@ -32,8 +32,8 @@ end
 
 K2LDLParams{T}(;
   fact_alg::AbstractFactorization = LDLFact(:classic),
-  ρ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
-  δ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
+  ρ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
+  δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
 ) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
@@ -499,7 +499,8 @@ function convertpad(
 
   if pad.regu.regul == :classic
     if T == Float64 && typeof(sp_new) == Nothing
-      pad.regu.ρ_min, pad.regu.δ_min = T(sp_old.ρ_min), T(sp_old.δ_min)
+      pad.regu.ρ_min = 1e-5 * sqrt(eps())
+      pad.regu.δ_min = 1e0 * sqrt(eps())
     else
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
     end
