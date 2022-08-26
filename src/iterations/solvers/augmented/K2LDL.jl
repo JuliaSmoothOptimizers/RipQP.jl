@@ -67,7 +67,11 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
-  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
+  if iconf.mode == :mono
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
+  elseif iconf.mode == :multi
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
+  end
   diag_Q = get_diag_Q(fd.Q)
   K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), sp.uplo)
 
@@ -494,8 +498,8 @@ function convertpad(
   )
 
   if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
+    if T == Float64 && typeof(sp_new) == Nothing
+      pad.regu.ρ_min, pad.regu.δ_min = T(sp_old.ρ_min), T(sp_old.δ_min)
     else
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
     end
