@@ -70,3 +70,5 @@ function iter_and_update_T!(
   display && setup_log_header(pad)
   return pt, itd, res, dda, pad
 end
+
+small_αs(α_pri::T, α_dual::T, cnts::Counters) where {T} = (cnts.k ≥ 5) && ((α_pri < T(1.0e-1)) || (α_pri < T(1.0e-1)))

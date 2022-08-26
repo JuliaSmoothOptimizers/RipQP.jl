@@ -260,6 +260,9 @@ function iter!(
       )
     end
 
+    # check alpha values in multi-precision
+    (T != T0) && small_αs(α_pri, α_dual, cnts) && break 
+
     if cnts.kc > 0   # centrality corrections
       α_pri, α_dual =
         multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
