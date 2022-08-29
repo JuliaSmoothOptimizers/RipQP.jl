@@ -68,6 +68,8 @@ containing information about the solved problem.
     to use the QP refinement procedure with multi_precision
 - `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
     it should be lower than the QP precision
+- `early_multi_stop :: Bool` : stop the iterations in lower precision systems earlier in multi-precision mode,
+based on some quantities of the algorithm
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
 - `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
@@ -98,6 +100,7 @@ function ripqp(
   perturb::Bool = false,
   mode::Symbol = :mono,
   Timulti::DataType = Float32,
+  early_multi_stop::Bool = true,
   sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
@@ -123,6 +126,7 @@ function ripqp(
     iconf = InputConfig(
       mode,
       Timulti,
+      early_multi_stop,
       scaling,
       ps || (QM0.data.H isa SparseMatrixCOO && QM0.data.A isa SparseMatrixCOO),
       normalize_rtol,
@@ -217,6 +221,7 @@ function ripqp(
           ϵ32,
           ϵ,
           cnts,
+          iconf,
           itol.max_iter32,
           display,
         )
@@ -238,6 +243,7 @@ function ripqp(
           ϵ64,
           ϵ,
           cnts,
+          iconf,
           itol.max_iter64,
           display,
         )
@@ -259,12 +265,12 @@ function ripqp(
           T(itol.ϵ_Δx),
           iconf.normalize_rtol,
         )
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, T0, display)
+        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, iconf, T0, display)
         sc.optimal = false
 
         fd_ref, pt_ref =
           fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
       elseif iconf.mode == :multizoom || iconf.mode == :multiref
@@ -285,12 +291,12 @@ function ripqp(
           iconf.mode,
           centering = true,
         )
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
         update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
 
       elseif iconf.mode == :mono || iconf.mode == :multi
         # iters T0, no refinement
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, T0, display)
+        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
       end
     end
 
@@ -346,8 +352,8 @@ function ripqp(
       )
     end
 
-    if typeof(pad) <: PreallocatedDataK2Krylov && typeof(pad.pdat) <: LDLData
-      solver_specific[:nnzLDL] = length(pad.pdat.K_fact.Lx) + length(pad.pdat.K_fact.d)
+    if pad isa PreallocatedDataK2Krylov && pad.pdat isa LDLData && pad.pdat.K_fact isa LDLFactorizationData
+      solver_specific[:nnzLDL] = length(pad.pdat.K_fact.LDL.Lx) + length(pad.pdat.K_fact.LDL.d)
     end
 
     elapsed_time = time() - sc.start_time

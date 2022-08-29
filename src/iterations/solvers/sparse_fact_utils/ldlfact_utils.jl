@@ -1,31 +1,47 @@
 get_uplo(fact_alg::LDLFact) = :U
 
-init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LDLFact) where {T} = ldl_analyze(K)
+mutable struct LDLFactorizationData{T} <: FactorizationData{T}
+  LDL::LDLFactorizations.LDLFactorization{T, Int, Int, Int}
+end
 
-generic_factorize!(K::Symmetric, K_fact::LDLFactorizations.LDLFactorization) =
-  ldl_factorize!(K, K_fact)
+init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LDLFact; Tf = T) where {T} =
+  LDLFactorizationData(ldl_analyze(K, Tf = Tf))
+
+generic_factorize!(K::Symmetric, K_fact::LDLFactorizationData) =
+  ldl_factorize!(K, K_fact.LDL)
+
+LDLFactorizations.factorized(K_fact::LDLFactorizationData) = factorized(K_fact.LDL)
+
+ldiv!(K_fact::LDLFactorizationData, dd::AbstractVector) = ldiv!(K_fact.LDL, dd)
+
+# used only for preconditioner
+function abs_diagonal!(K_fact::LDLFactorizationData)
+  K_fact.LDL.d .= abs.(K_fact.LDL.d)
+end
 
   # LDLFactorization conversion function
-convertldl(T::DataType, K_fact::LDLFactorizations.LDLFactorization) = LDLFactorizations.LDLFactorization(
-  K_fact.__analyzed,
-  K_fact.__factorized,
-  K_fact.__upper,
-  K_fact.n,
-  K_fact.parent,
-  K_fact.Lnz,
-  K_fact.flag,
-  K_fact.P,
-  K_fact.pinv,
-  K_fact.Lp,
-  K_fact.Cp,
-  K_fact.Ci,
-  K_fact.Li,
-  convert(Array{T}, K_fact.Lx),
-  convert(Array{T}, K_fact.d),
-  convert(Array{T}, K_fact.Y),
-  K_fact.pattern,
-  T(K_fact.r1),
-  T(K_fact.r2),
-  T(K_fact.tol),
-  K_fact.n_d,
+convertldl(T::DataType, K_fact::LDLFactorizationData) = LDLFactorizationData(
+    LDLFactorizations.LDLFactorization(
+    K_fact.LDL.__analyzed,
+    K_fact.LDL.__factorized,
+    K_fact.LDL.__upper,
+    K_fact.LDL.n,
+    K_fact.LDL.parent,
+    K_fact.LDL.Lnz,
+    K_fact.LDL.flag,
+    K_fact.LDL.P,
+    K_fact.LDL.pinv,
+    K_fact.LDL.Lp,
+    K_fact.LDL.Cp,
+    K_fact.LDL.Ci,
+    K_fact.LDL.Li,
+    convert(Array{T}, K_fact.LDL.Lx),
+    convert(Array{T}, K_fact.LDL.d),
+    convert(Array{T}, K_fact.LDL.Y),
+    K_fact.LDL.pattern,
+    T(K_fact.LDL.r1),
+    T(K_fact.LDL.r2),
+    T(K_fact.LDL.tol),
+    K_fact.LDL.n_d,
+  ),
 )

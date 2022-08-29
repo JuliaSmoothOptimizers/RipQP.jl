@@ -381,7 +381,6 @@ function convertpad(
   fd::Abstract_QM_FloatData,
   T0::DataType,
 ) where {T <: Real, T_old <: Real}
-  @assert sp_new.uplo == :U
   D = convert(Array{T}, pad.D)
   regu = convert(Regularization{T}, pad.regu)
   regu.ρ_min = T(sp_new.ρ_min)

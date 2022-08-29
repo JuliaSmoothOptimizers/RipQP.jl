@@ -10,15 +10,15 @@ get_mat_QPData(
 
 get_uplo(fact_alg::HSLMA57Fact) = :L
 
-mutable struct Ma57Factorization{T}
+mutable struct Ma57Factorization{T} <: FactorizationData{T}
   ma57::Ma57{T}
   work::Vector{T}
 end
 
-function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact) where {T}
+function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact; Tf = T) where {T}
   K_fact = Ma57Factorization(
-    ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = fact_alg.sqd),
-    Vector{T}(undef, size(K, 1)),
+    ma57_coord(size(K, 1), K.data.rows, K.data.cols, Tf.(K.data.vals), sqd = fact_alg.sqd),
+    Vector{Tf}(undef, size(K, 1)),
   )
   return K_fact
 end
@@ -34,6 +34,10 @@ end
 LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
 
 ldiv!(K_fact::Ma57Factorization, dd::AbstractVector) = ma57_solve!(K_fact.ma57, dd, K_fact.work)
+
+function abs_diagonal!(K_fact::Ma57Factorization)
+  K_fact.LDL.d .= abs.(K_fact.LDL.d)
+end
 
 convertldl(T::DataType, K_fact::Ma57Factorization) = Ma57Factorization(
   Ma57(

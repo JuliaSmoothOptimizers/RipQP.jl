@@ -76,6 +76,7 @@ mutable struct InputConfig{
 }
   mode::Symbol
   Timulti::D
+  early_multi_stop::Bool # stop earlier in multi-precision, based on some quantities of the algorithm
   scaling::Bool
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals

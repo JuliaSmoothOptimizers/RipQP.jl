@@ -7,19 +7,20 @@ The `pos` argument is used to choose the type of preconditioning with an unsymme
 It can be `:C` (center), `:L` (left) or `:R` (right).
 The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
 """
-mutable struct LDL{FloatType <: DataType} <: AbstractPreconditioner
+mutable struct LDL{FloatType <: DataType, F <: AbstractFactorization} <: AbstractPreconditioner
   T::FloatType
   pos::Symbol # :L (left), :R (right) or :C (center)
   warm_start::Bool
+  fact_alg::F
 end
 
-LDL(; T::DataType = Float32, pos = :C, warm_start = true) = LDL(T, pos, warm_start)
+LDL(; T::DataType = Float32, pos = :C, warm_start = true, fact_alg = LDLFact()) = LDL(T, pos, warm_start, fact_alg)
 
-mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
+mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}, F <: FactorizationData{Tlow}} <:
                PreconditionerData{T, S}
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
   regu::Regularization{Tlow}
-  K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
+  K_fact::F # factorized matrix
   tmp_res::Vector{Tlow}
   tmp_v::Vector{Tlow}
   fact_fail::Bool # true if factorization failed
@@ -37,7 +38,7 @@ lowtype(pdat::LDLData{T, S, Tlow}) where {T, S, Tlow} = Tlow
 
 function ldiv_stor!(
   res,
-  K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int},
+  K_fact::FactorizationData{T},
   v,
   tmp_res::Vector{T},
   tmp_v::Vector{T},
@@ -102,31 +103,32 @@ function PreconditionerData(
     sqrt(eps(Tlow)),
     regu.δ != 0 ? :classic : :dynamic,
   )
-  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K, Tf = Tlow)
+  K_fact = @timeit_debug to "init factorization" init_fact(K, sp.preconditioner.fact_alg, Tf = Tlow)
 
   return PreconditionerData(sp, K_fact, id.nvar, id.ncon, regu_precond, K)
 end
 
 function PreconditionerData(
   sp::AugmentedKrylovParams{<:LDL},
-  K_fact::LDLFactorizations.LDLFactorization{Tlow},
+  K_fact::FactorizationData{Tlow},
   nvar::Int,
   ncon::Int,
   regu_precond::Regularization{Tlow},
   K,
 ) where {Tlow <: Real}
-  regu_precond.regul = :dynamic
+  regu_precond.regul = (K_fact isa LDLFactorizationData) ? :dynamic : :classic
   T = eltype(K)
-  if regu_precond.regul == :dynamic
+  if regu_precond.regul == :dynamic && K_fact isa LDLFactorizationData
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
-    K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
-    K_fact.tol = Tlow(eps(Tlow))
-    K_fact.n_d = nvar
+    K_fact.LDL.r1, K_fact.LDL.r2 = regu_precond.ρ, regu_precond.δ
+    K_fact.LDL.tol = Tlow(eps(Tlow))
+    K_fact.LDL.n_d = nvar
   end
 
   if T == Tlow
     if sp.kmethod == :gmres || sp.kmethod == :dqgmres
       if sp.preconditioner.pos == :C
+        @assert typeof(K_fact) <: LDLFactorizationData
         M = LinearOperator(
           T,
           nvar + ncon,
@@ -134,7 +136,7 @@ function PreconditionerData(
           false,
           false,
           (res, v) ->
-            ld_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+            ld_div!(res, v, K_fact.LDL.n, K_fact.LDL.Lp, K_fact.LDL.Li, K_fact.LDL.Lx, K_fact.LDL.d, K_fact.LDL.P),
         )
         N = LinearOperator(
           T,
@@ -143,7 +145,7 @@ function PreconditionerData(
           false,
           false,
           (res, v) ->
-            dlt_div!(res, v, K_fact.n, K_fact.Lp, K_fact.Li, K_fact.Lx, K_fact.d, K_fact.P),
+            dlt_div!(res, v, K_fact.LDL.n, K_fact.LDL.Lp, K_fact.LDL.Li, K_fact.LDL.Lx, K_fact.LDL.d, K_fact.LDL.P),
         )
       elseif sp.preconditioner.pos == :L
         M =
@@ -156,7 +158,7 @@ function PreconditionerData(
       end
       P = LRPrecond(M, N)
     else
-      K_fact.d .= abs.(K_fact.d)
+      abs_diagonal!(K_fact)
       P = LinearOperator(
         Tlow,
         nvar + ncon,
@@ -182,12 +184,12 @@ function PreconditionerData(
             v,
             tmp_res,
             tmp_v,
-            K_fact.n,
-            K_fact.Lp,
-            K_fact.Li,
-            K_fact.Lx,
-            K_fact.d,
-            K_fact.P,
+            K_fact.LDL.n,
+            K_fact.LDL.Lp,
+            K_fact.LDL.Li,
+            K_fact.LDL.Lx,
+            K_fact.LDL.d,
+            K_fact.LDL.P,
           ),
         )
         N = LinearOperator(
@@ -201,12 +203,12 @@ function PreconditionerData(
             v,
             tmp_res,
             tmp_v,
-            K_fact.n,
-            K_fact.Lp,
-            K_fact.Li,
-            K_fact.Lx,
-            K_fact.d,
-            K_fact.P,
+            K_fact.LDL.n,
+            K_fact.LDL.Lp,
+            K_fact.LDL.Li,
+            K_fact.LDL.Lx,
+            K_fact.LDL.d,
+            K_fact.LDL.P,
           ),
         )
       elseif sp.preconditioner.pos == :L
@@ -232,7 +234,7 @@ function PreconditionerData(
       end
       P = LRPrecond(M, N)
     else
-      K_fact.d .= abs.(K_fact.d)
+      abs_diagonal!(K_fact)
       P = LinearOperator(
         T,
         nvar + ncon,
@@ -243,7 +245,7 @@ function PreconditionerData(
       )
     end
   end
-  return LDLData{T, Vector{T}, Tlow, typeof(P)}(
+  return LDLData{T, Vector{T}, Tlow, typeof(P), typeof(K_fact)}(
     K,
     regu_precond,
     K_fact,
@@ -277,10 +279,10 @@ function factorize_scale_K2!(
   T0,
 )
   if regu.regul == :dynamic
-    update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
-    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, T, qp)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
-    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     while !factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts, T, T0)
       out == 1 && return out
@@ -302,11 +304,11 @@ function factorize_scale_K2!(
         ncon,
         T,
       )
-      @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+      @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
 
   else # no Regularization
-    @timeit_debug to "LDL factorize" ldl_factorize!(Symmetric(K, :U), K_fact)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   end
 
   return 0 # factorization succeeded
@@ -352,10 +354,14 @@ function update_preconditioner!(
     return out
   end
   if pad.pdat.warm_start
-    ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+    if T == Tlow
+      ldiv!(pad.KS.x, pad.pdat.K_fact, pad.rhs)
+    else
+      ldiv_stor!(pad.KS.x, pad.pdat.K_fact, pad.rhs, pad.pdat.tmp_res, pad.pdat.tmp_v)
+    end
     warm_start!(pad.KS, pad.KS.x)
   end
   if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver)
-    pad.pdat.K_fact.d .= abs.(pad.pdat.K_fact.d)
+    abs_diagonal!(pad.pdat.K_fact)
   end
 end

@@ -4,6 +4,13 @@ import LinearAlgebra.ldiv!
 
 abstract type AbstractFactorization end
 
+abstract type FactorizationData{T} end
+
+function ldiv!(res::AbstractVector, K_fact::FactorizationData, v::AbstractVector)
+  res .= v
+  ldiv!(K_fact, res)
+end
+
 struct LDLFact <: AbstractFactorization
   regul::Symbol
   function LDLFact(regul::Symbol)

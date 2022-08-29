@@ -69,7 +69,7 @@ function PreallocatedData(
   D .= -T(1.0e0) / 2
   if iconf.mode == :mono
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
-  elseif iconf.mode == :multi
+  else
     regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
   end
   diag_Q = get_diag_Q(fd.Q)
@@ -80,9 +80,9 @@ function PreallocatedData(
   if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
     # regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.tol = Amax * T(eps(T))
-    K_fact.n_d = id.nvar
+    K_fact.LDL.r1, K_fact.LDL.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    K_fact.LDL.tol = Amax * T(eps(T))
+    K_fact.LDL.n_d = id.nvar
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
@@ -441,8 +441,8 @@ function factorize_K2!(
   T,
   T0,
 )
-  if regu.regul == :dynamic || regu.regul == :hybrid
-    update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
+  if (regu.regul == :dynamic || regu.regul == :hybrid) && K_fact isa LDLFactorizationData
+    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, T, qp)
     generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
@@ -506,7 +506,7 @@ function convertpad(
     end
   elseif pad.regu.regul == :dynamic
     pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
+    pad.K_fact.LDL.r1, pad.K_fact.LDL.r2 = -pad.regu.ρ, pad.regu.δ
   end
 
   return pad
