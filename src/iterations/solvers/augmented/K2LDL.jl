@@ -32,8 +32,8 @@ end
 
 K2LDLParams{T}(;
   fact_alg::AbstractFactorization = LDLFact(:classic),
-  ρ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
-  δ0::T = (T == Float64) ? sqrt(eps()) * 1e5 : one(T),
+  ρ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
+  δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
 ) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
@@ -67,7 +67,11 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
-  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
+  if iconf.mode == :mono
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
+  else
+    regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
+  end
   diag_Q = get_diag_Q(fd.Q)
   K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), sp.uplo)
 
@@ -76,9 +80,9 @@ function PreallocatedData(
   if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
     # regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.tol = Amax * T(eps(T))
-    K_fact.n_d = id.nvar
+    K_fact.LDL.r1, K_fact.LDL.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    K_fact.LDL.tol = Amax * T(eps(T))
+    K_fact.LDL.n_d = id.nvar
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
@@ -285,6 +289,21 @@ function create_K2(
   return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
 end
 
+# function create_K2(
+#   id::QM_IntData,
+#   D::AbstractVector,
+#   Q::SparseMatrixCOO,
+#   A::SparseMatrixCOO,
+#   diag_Q::SparseVector,
+#   regu::Regularization;
+#   T = eltype(D),
+# )
+#   block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
+#   block_row1.vals .= .-block_row1.vals
+#   block_row2 = hcat(A, regu.δ * I)
+#   return vcat(block_row1, block_row2)
+# end
+
 function create_K2(
   id::QM_IntData,
   D::AbstractVector,
@@ -294,10 +313,51 @@ function create_K2(
   regu::Regularization;
   T = eltype(D),
 )
-  block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
-  block_row1.vals .= .-block_row1.vals
-  block_row2 = hcat(A, regu.δ * I)
-  return vcat(block_row1, block_row2)
+  nvar, ncon = id.nvar, id.ncon
+  δ = regu.δ
+  nnz_Q, nnz_A = nnz(Q), nnz(A)
+  Qrows, Qcols, Qvals = Q.rows, Q.cols, Q.vals
+  Arows, Acols, Avals = A.rows, A.cols, A.vals
+  nnz_tot = nnz_A + nnz_Q + nvar + id.ncon - length(diag_Q.nzind)
+  rows = Vector{Int}(undef, nnz_tot)
+  cols = Vector{Int}(undef, nnz_tot)
+  vals = Vector{T}(undef, nnz_tot)
+  kQ, kA = 1, 1
+  current_col = 1
+  added_diag_col = false # true if K[j, j] has been filled
+  
+  for k = 1:nnz_tot
+    if current_col > nvar
+      rows[k] = current_col
+      cols[k] = current_col
+      vals[k] = δ
+    elseif !added_diag_col # add diagonal
+      rows[k] = current_col
+      cols[k] = current_col
+      if kQ ≤ nnz_Q && Qrows[kQ] == Qcols[kQ] == current_col
+        vals[k] = -Qvals[kQ] + D[current_col]
+        kQ += 1
+      else
+        vals[k] = D[current_col]
+      end
+      added_diag_col = true
+    elseif kQ ≤ nnz_Q && Qcols[kQ] == current_col
+      rows[k] = Qrows[kQ]
+      cols[k] = Qcols[kQ]
+      vals[k] = -Qvals[kQ]
+      kQ += 1
+    elseif kA ≤ nnz_A && Acols[kA] == current_col
+      rows[k] = Arows[kA] + nvar
+      cols[k] = Acols[kA]
+      vals[k] = Avals[kA]
+      kA += 1
+    end
+    if (kQ > nnz_Q || Qcols[kQ] != current_col) && (kA > nnz_A || Acols[kA] != current_col) 
+      current_col += 1
+      added_diag_col = false
+    end
+  end
+  return SparseMatrixCOO(nvar + ncon, nvar + ncon, rows, cols, vals)
 end
 
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}
@@ -381,8 +441,8 @@ function factorize_K2!(
   T,
   T0,
 )
-  if regu.regul == :dynamic || regu.regul == :hybrid
-    update_K_dynamic!(K, K_fact, regu, diagind_K, cnts, T, qp)
+  if (regu.regul == :dynamic || regu.regul == :hybrid) && K_fact isa LDLFactorizationData
+    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, T, qp)
     generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
@@ -431,21 +491,22 @@ function convertpad(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
     convert(SparseVector{T, Int}, pad.diag_Q),
-    Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), Symbol(pad.K.uplo)),
+    Symmetric(convert_mat(pad.K.data, T), Symbol(pad.K.uplo)),
     convertldl(T, pad.K_fact),
     pad.fact_fail,
     pad.diagind_K,
   )
 
   if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
-      pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
+    if T == Float64 && typeof(sp_new) == Nothing
+      pad.regu.ρ_min = 1e-5 * sqrt(eps())
+      pad.regu.δ_min = 1e0 * sqrt(eps())
     else
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)
     end
   elseif pad.regu.regul == :dynamic
     pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
+    pad.K_fact.LDL.r1, pad.K_fact.LDL.r2 = -pad.regu.ρ, pad.regu.δ
   end
 
   return pad

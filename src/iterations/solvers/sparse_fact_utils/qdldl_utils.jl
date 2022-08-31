@@ -2,7 +2,7 @@ using .QDLDL
 
 get_uplo(fact_alg::QDLDLFact) = :U
 
-mutable struct QDLDLFactorization{T}
+mutable struct QDLDLFactorization{T} <: FactorizationData{T}
   F::QDLDL.QDLDLFactorisation{T, Int}
   initialized::Bool
   diagindK::Vector{Int}

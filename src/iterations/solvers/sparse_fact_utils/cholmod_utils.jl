@@ -2,7 +2,7 @@ using .SuiteSparse
 
 get_uplo(fact_alg::CholmodFact) = :U
 
-mutable struct CholmodFactorization{T}
+mutable struct CholmodFactorization{T} <: FactorizationData{T}
   F::SuiteSparse.CHOLMOD.Factor{T}
   initialized::Bool
   factorized::Bool

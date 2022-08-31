@@ -76,6 +76,7 @@ mutable struct InputConfig{
 }
   mode::Symbol
   Timulti::D
+  early_multi_stop::Bool # stop earlier in multi-precision, based on some quantities of the algorithm
   scaling::Bool
   presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
@@ -321,31 +322,6 @@ function init_residuals(
     return Residuals{T, S}(rb, rc, rbNorm, rcNorm)
   end
 end
-
-# LDLFactorization conversion function
-convertldl(T::DataType, K_fact) = LDLFactorizations.LDLFactorization(
-  K_fact.__analyzed,
-  K_fact.__factorized,
-  K_fact.__upper,
-  K_fact.n,
-  K_fact.parent,
-  K_fact.Lnz,
-  K_fact.flag,
-  K_fact.P,
-  K_fact.pinv,
-  K_fact.Lp,
-  K_fact.Cp,
-  K_fact.Ci,
-  K_fact.Li,
-  convert(Array{T}, K_fact.Lx),
-  convert(Array{T}, K_fact.d),
-  convert(Array{T}, K_fact.Y),
-  K_fact.pattern,
-  T(K_fact.r1),
-  T(K_fact.r2),
-  T(K_fact.tol),
-  K_fact.n_d,
-)
 
 mutable struct Regularization{T <: Real}
   ρ::T       # curent top-left regularization parameter

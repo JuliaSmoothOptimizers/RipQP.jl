@@ -47,12 +47,12 @@ K2_5LDLParams{T}(;
 
 K2_5LDLParams(; kwargs...) = K2_5LDLParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK2_5LDL{T <: Real, S, M} <: PreallocatedDataAugmentedLDL{T, S}
+mutable struct PreallocatedDataK2_5LDL{T <: Real, S, M, F <: FactorizationData{T}} <: PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal
   K::Symmetric{T, M} # augmented matrix 
-  K_fact::LDLFactorizations.LDLFactorization{T, Int, Int, Int} # factorized matrix
+  K_fact::F # factorized matrix
   fact_fail::Bool # true if factorization failed 
   diagind_K::Vector{Int} # diagonal indices of J
   K_scaled::Bool # true if K is scaled with X1X2
@@ -82,9 +82,9 @@ function PreallocatedData(
   if regu.regul == :dynamic
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
     regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    K_fact.r1, K_fact.r2 = -regu.ρ, regu.δ
-    K_fact.tol = Amax * T(eps(T))
-    K_fact.n_d = id.nvar
+    K_fact.LDL.r1, K_fact.LDL.r2 = -regu.ρ, regu.δ
+    K_fact.LDL.tol = Amax * T(eps(T))
+    K_fact.LDL.n_d = id.nvar
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
@@ -277,12 +277,12 @@ function factorize_K2_5!(
       elseif qp || cnts.c_pdd < 4
         cnts.c_pdd += 1
         regu.δ /= 10
-        K_fact.r2 = max(sqrt(Amax), regu.δ)
+        K_fact.LDL.r2 = max(sqrt(Amax), regu.δ)
         # regu.ρ /= 10
       end
     end
-    K_fact.tol = min(Amax, T(eps(T)))
-    K_fact = ldl_factorize!(K, K_fact)
+    K_fact.LDL.tol = min(Amax, T(eps(T)))
+    generic_factorize!(K, K_fact)
 
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
@@ -320,7 +320,7 @@ function factorize_K2_5!(
     end
 
   else # no Regularization
-    K_fact = generic_factorize!(K, K_fact)
+    generic_factorize!(K, K_fact)
   end
 
   return 0 # factorization succeeded
@@ -357,7 +357,7 @@ function convertpad(
     pad.regu.δ /= 10
   elseif pad.regu.regul == :dynamic
     pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
-    pad.K_fact.r1, pad.K_fact.r2 = -pad.regu.ρ, pad.regu.δ
+    pad.K_fact.LDL.r1, pad.K_fact.LDL.r2 = -pad.regu.ρ, pad.regu.δ
   end
 
   return pad

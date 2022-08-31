@@ -54,12 +54,13 @@ function iter_and_update_T!(
   ϵ_T::Tolerances{T},
   ϵ::Tolerances{T0},
   cnts::Counters,
+  iconf::InputConfig,
   max_iter_T::Int,
   display::Bool,
 ) where {T <: Real, Tnew <: Real, T0 <: Real, Tsc <: Real}
   # iters T
   sc.max_iter = max_iter_T
-  iter!(pt, itd, fd_T, id, res, sc, dda, pad, ϵ_T, cnts, T0, display)
+  iter!(pt, itd, fd_T, id, res, sc, dda, pad, ϵ_T, cnts, iconf, T0, display)
 
   # convert to T_next
   pt, itd, res, dda, pad =
@@ -70,3 +71,5 @@ function iter_and_update_T!(
   display && setup_log_header(pad)
   return pt, itd, res, dda, pad
 end
+
+small_αs(α_pri::T, α_dual::T, cnts::Counters) where {T} = (cnts.k ≥ 5) && ((α_pri < T(1.0e-1)) || (α_pri < T(1.0e-1)))

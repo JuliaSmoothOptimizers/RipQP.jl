@@ -97,12 +97,15 @@ end
     sp3 = K2KrylovParams{Float128}(
       uplo = :U,
       form_mat = true,
-      equilibrate = true,
+      equilibrate = false,
       preconditioner = LDL(),
+      atol_min = Float128(1.0e-18),
+      rtol_min = Float128(1.0e-18),
       ρ_min = sqrt(eps(Float128)),
       δ_min = sqrt(eps(Float128)),
     ),
     display = true,
+    itol = InputTol(Float128, ϵ_rb = Float128(1.0e-12), ϵ_rc = Float128(1.0e-12)),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
