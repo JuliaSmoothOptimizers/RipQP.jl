@@ -43,7 +43,7 @@ const to = TimerOutput()
     stats = ripqp(QM :: QuadraticModel{T0};
                   itol = InputTol(T0), scaling = true, ps = true,
                   normalize_rtol = true, kc = 0, mode = :mono, perturb = false,
-                  Timulti = Float32, 
+                  Timulti = Float32, early_multi_stop = true,
                   sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
                   sp2 = nothing, sp3 = nothing, 
                   solve_method = PC(), 
@@ -69,7 +69,7 @@ containing information about the solved problem.
 - `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
     it should be lower than the QP precision
 - `early_multi_stop :: Bool` : stop the iterations in lower precision systems earlier in multi-precision mode,
-based on some quantities of the algorithm
+    based on some quantities of the algorithm
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
 - `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
