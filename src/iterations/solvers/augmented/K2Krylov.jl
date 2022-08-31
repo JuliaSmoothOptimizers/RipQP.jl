@@ -303,10 +303,10 @@ function update_pad!(
   pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
   pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
   pad.δv[1] = pad.regu.δ
-  if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}}
+  if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}}
     pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval
-    pad.K.data.nzval[view(pad.mt.diagind_K, 1:(id.nvar))] = pad.D
-    pad.K.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
+    update_diag_K11!(pad.K, pad.D, pad.mt.diagind_K, id.nvar)
+    update_diag_K22!(pad.K, pad.regu.δ, pad.mt.diagind_K, id.nvar, id.ncon)
     if pad.equilibrate
       pad.mt.Deq.diag .= one(T)
       @timeit_debug to "equilibration" equilibrate!(
