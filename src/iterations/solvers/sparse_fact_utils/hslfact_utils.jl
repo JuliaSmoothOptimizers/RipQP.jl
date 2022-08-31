@@ -5,7 +5,7 @@ get_mat_QPData(
   H::SparseMatrixCOO{T, Int},
   nvar::Int,
   ncon::Int,
-  sp::Union{K2LDLParams{T0, F}, K2_5LDLParams{T0, F}, K2KrylovParams{T0, F}},
+  sp::Union{K2LDLParams{T0, F}, K2_5LDLParams{T0, F}, K2KrylovParams{T0, LDL{<:Real, F}}},
 ) where {T, T0, F <: HSLMA57Fact} = A, Symmetric(H, sp.uplo)
 
 get_uplo(fact_alg::HSLMA57Fact) = :L
