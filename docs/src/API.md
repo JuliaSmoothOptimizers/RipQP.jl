@@ -43,3 +43,13 @@ Equilibration
 LDL
 LLDL
 ```
+
+## Factorizations
+
+```@docs
+AbstractFactorization
+LDLFact
+CholmodFact
+QDLDLFact
+HSLMA57Fact
+```

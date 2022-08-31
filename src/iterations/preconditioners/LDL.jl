@@ -1,11 +1,13 @@
 export LDL
 
 """
-    preconditioner = LDL(; T = Float32, pos = :C, warm_start = true)
+    preconditioner = LDL(; T = Float32, pos = :C, warm_start = true, fact_alg = LDLFact())
+
 Preconditioner for [`K2KrylovParams`](@ref) using a LDL factorization in precision `T`.
 The `pos` argument is used to choose the type of preconditioning with an unsymmetric Krylov method.
 It can be `:C` (center), `:L` (left) or `:R` (right).
 The `warm_start` argument tells RipQP to solve the system with the LDL factorization before using the Krylov method with the LDLFactorization as a preconditioner.
+`fact_alg` should be a [`RipQP.AbstractFactorization`](@ref).
 """
 mutable struct LDL{FloatType <: DataType, F <: AbstractFactorization} <: AbstractPreconditioner
   T::FloatType
@@ -36,7 +38,7 @@ mutable struct LDLData{
 end
 
 precond_name(pdat::LDLData{T, S, Tlow}) where {T, S, Tlow} =
-  string(Tlow, " ", string(typeof(pdat).name.name)[1:(end - 4)])
+  string(Tlow, " ", string(typeof(pdat).name.name)[1:(end - 4)], " ", string(typeof(pdat.K_fact).name.name))
 
 types_linop(op::LinearOperator{T, I, F, Ftu, Faw, S}) where {T, I, F, Ftu, Faw, S} =
   T, I, F, Ftu, Faw, S
