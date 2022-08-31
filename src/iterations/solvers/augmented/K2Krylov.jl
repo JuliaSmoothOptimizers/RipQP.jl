@@ -175,7 +175,6 @@ function PreallocatedData(
       )
       diagind_K = K.data.colptr[1:(end - 1)]
     else
-      println(typeof(fd.A))
       K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), fd.uplo)
       diagind_K = get_diagind_K(K)
     end

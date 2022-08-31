@@ -14,7 +14,7 @@ mutable struct LDL{FloatType <: DataType, F <: AbstractFactorization} <: Abstrac
   fact_alg::F
 end
 
-LDL(; T::DataType = Float32, pos = :C, warm_start = true, fact_alg = LDLFact()) = LDL(T, pos, warm_start, fact_alg)
+LDL(; T::DataType = Float32, pos = :R, warm_start = true, fact_alg = LDLFact()) = LDL(T, pos, warm_start, fact_alg)
 
 mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond},
     M <: Union{LinearOperator{T}, AbstractMatrix{T}}, F <: FactorizationData{Tlow}} <: PreconditionerData{T, S}
@@ -128,7 +128,7 @@ function PreconditionerData(
   if T == Tlow
     if sp.kmethod == :gmres || sp.kmethod == :dqgmres
       if sp.preconditioner.pos == :C
-        @assert typeof(K_fact) <: LDLFactorizationData
+        @assert K_fact isa LDLFactorizationData
         M = LinearOperator(
           T,
           nvar + ncon,
@@ -173,6 +173,7 @@ function PreconditionerData(
     tmp_v = Vector{Tlow}(undef, nvar + ncon)
     if sp.kmethod == :gmres || sp.kmethod == :dqgmres
       if sp.preconditioner.pos == :C
+        @assert K_fact isa LDLFactorizationData
         M = LinearOperator(
           T,
           nvar + ncon,
