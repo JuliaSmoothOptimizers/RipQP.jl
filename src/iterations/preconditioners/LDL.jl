@@ -245,7 +245,7 @@ function PreconditionerData(
       )
     end
   end
-  return LDLData{T, Vector{T}, Tlow, typeof(P), typeof(K_fact)}(
+  return LDLData{T, Vector{T}, Tlow, typeof(P), typeof(K), typeof(K_fact)}(
     K,
     regu_precond,
     K_fact,
