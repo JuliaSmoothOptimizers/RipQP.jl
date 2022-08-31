@@ -25,9 +25,9 @@ end
 
 function generic_factorize!(
   K::Symmetric{T, SparseMatrixCOO{T, Int}},
-  K_fact::Ma57Factorization{T},
+  K_fact::Ma57Factorization,
 ) where {T}
-  K_fact.ma57.vals .= K.data.vals
+  copyto!(K_fact.ma57.vals, K.data.vals)
   ma57_factorize!(K_fact.ma57)
 end
 
