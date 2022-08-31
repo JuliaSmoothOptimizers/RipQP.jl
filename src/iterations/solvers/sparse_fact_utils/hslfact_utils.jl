@@ -36,7 +36,7 @@ LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info
 ldiv!(K_fact::Ma57Factorization, dd::AbstractVector) = ma57_solve!(K_fact.ma57, dd, K_fact.work)
 
 function abs_diagonal!(K_fact::Ma57Factorization)
-  K_fact.LDL.d .= abs.(K_fact.LDL.d)
+  K_fact
 end
 
 convertldl(T::DataType, K_fact::Ma57Factorization) = Ma57Factorization(
