@@ -94,7 +94,7 @@ function PreconditionerData(
   K,
 ) where {T <: Real}
   Tlow = sp.preconditioner.T
-  @assert fd.uplo == :U
+  @assert get_uplo(sp.preconditioner.fact_alg) == fd.uplo
   sp.form_mat = true
   regu_precond = Regularization(
     -Tlow(D[1]),

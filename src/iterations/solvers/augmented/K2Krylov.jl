@@ -165,7 +165,7 @@ function PreallocatedData(
     @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q)
-    if fd.uplo == :L
+    if fd.uplo == :L && fd.A isa SparseMatrixCSC
       K = Symmetric(
         [
           .-fd.Q.data.+Diagonal(D) spzeros(T, id.nvar, id.ncon)
