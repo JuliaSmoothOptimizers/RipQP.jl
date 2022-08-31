@@ -15,7 +15,11 @@ mutable struct Ma57Factorization{T} <: FactorizationData{T}
   work::Vector{T}
 end
 
-function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact; Tf = T) where {T}
+function init_fact(
+  K::Symmetric{T, SparseMatrixCOO{T, Int}},
+  fact_alg::HSLMA57Fact;
+  Tf = T,
+) where {T}
   K_fact = Ma57Factorization(
     ma57_coord(size(K, 1), K.data.rows, K.data.cols, Tf.(K.data.vals), sqd = fact_alg.sqd),
     Vector{Tf}(undef, size(K, 1)),
@@ -33,7 +37,8 @@ end
 
 LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
 
-ldiv!(K_fact::Ma57Factorization{T}, dd::AbstractVector{T}) where {T} = ma57_solve!(K_fact.ma57, dd, K_fact.work)
+ldiv!(K_fact::Ma57Factorization{T}, dd::AbstractVector{T}) where {T} =
+  ma57_solve!(K_fact.ma57, dd, K_fact.work)
 
 function abs_diagonal!(K_fact::Ma57Factorization)
   K_fact

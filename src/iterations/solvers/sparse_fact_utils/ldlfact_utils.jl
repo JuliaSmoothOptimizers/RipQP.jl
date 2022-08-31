@@ -7,8 +7,7 @@ end
 init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LDLFact; Tf = T) where {T} =
   LDLFactorizationData(ldl_analyze(K, Tf = Tf))
 
-generic_factorize!(K::Symmetric, K_fact::LDLFactorizationData) =
-  ldl_factorize!(K, K_fact.LDL)
+generic_factorize!(K::Symmetric, K_fact::LDLFactorizationData) = ldl_factorize!(K, K_fact.LDL)
 
 LDLFactorizations.factorized(K_fact::LDLFactorizationData) = factorized(K_fact.LDL)
 
@@ -19,9 +18,9 @@ function abs_diagonal!(K_fact::LDLFactorizationData)
   K_fact.LDL.d .= abs.(K_fact.LDL.d)
 end
 
-  # LDLFactorization conversion function
+# LDLFactorization conversion function
 convertldl(T::DataType, K_fact::LDLFactorizationData) = LDLFactorizationData(
-    LDLFactorizations.LDLFactorization(
+  LDLFactorizations.LDLFactorization(
     K_fact.LDL.__analyzed,
     K_fact.LDL.__factorized,
     K_fact.LDL.__upper,

@@ -352,7 +352,9 @@ function ripqp(
       )
     end
 
-    if pad isa PreallocatedDataK2Krylov && pad.pdat isa LDLData && pad.pdat.K_fact isa LDLFactorizationData
+    if pad isa PreallocatedDataK2Krylov &&
+       pad.pdat isa LDLData &&
+       pad.pdat.K_fact isa LDLFactorizationData
       solver_specific[:nnzLDL] = length(pad.pdat.K_fact.LDL.Lx) + length(pad.pdat.K_fact.LDL.d)
     end
 
