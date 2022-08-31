@@ -32,8 +32,8 @@ end
 
 K2LDLParams{T}(;
   fact_alg::AbstractFactorization = LDLFact(:classic),
-  ρ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
-  δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5) ,
+  ρ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
+  δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
 ) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
@@ -325,7 +325,7 @@ function create_K2(
   kQ, kA = 1, 1
   current_col = 1
   added_diag_col = false # true if K[j, j] has been filled
-  
+
   for k = 1:nnz_tot
     if current_col > nvar
       rows[k] = current_col
@@ -352,7 +352,7 @@ function create_K2(
       vals[k] = Avals[kA]
       kA += 1
     end
-    if (kQ > nnz_Q || Qcols[kQ] != current_col) && (kA > nnz_A || Acols[kA] != current_col) 
+    if (kQ > nnz_Q || Qcols[kQ] != current_col) && (kA > nnz_A || Acols[kA] != current_col)
       current_col += 1
       added_diag_col = false
     end

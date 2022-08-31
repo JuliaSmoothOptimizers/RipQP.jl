@@ -262,7 +262,7 @@ function iter!(
     end
 
     # check alpha values in multi-precision
-    (T != T0) && iconf.early_multi_stop && small_αs(α_pri, α_dual, cnts) && break 
+    (T != T0) && iconf.early_multi_stop && small_αs(α_pri, α_dual, cnts) && break
 
     if cnts.kc > 0   # centrality corrections
       α_pri, α_dual =

@@ -47,7 +47,8 @@ K2_5LDLParams{T}(;
 
 K2_5LDLParams(; kwargs...) = K2_5LDLParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK2_5LDL{T <: Real, S, M, F <: FactorizationData{T}} <: PreallocatedDataAugmentedLDL{T, S}
+mutable struct PreallocatedDataK2_5LDL{T <: Real, S, M, F <: FactorizationData{T}} <:
+               PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
   diag_Q::SparseVector{T, Int} # Q diagonal

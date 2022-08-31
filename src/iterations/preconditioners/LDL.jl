@@ -14,10 +14,17 @@ mutable struct LDL{FloatType <: DataType, F <: AbstractFactorization} <: Abstrac
   fact_alg::F
 end
 
-LDL(; T::DataType = Float32, pos = :R, warm_start = true, fact_alg = LDLFact()) = LDL(T, pos, warm_start, fact_alg)
+LDL(; T::DataType = Float32, pos = :R, warm_start = true, fact_alg = LDLFact()) =
+  LDL(T, pos, warm_start, fact_alg)
 
-mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond},
-    M <: Union{LinearOperator{T}, AbstractMatrix{T}}, F <: FactorizationData{Tlow}} <: PreconditionerData{T, S}
+mutable struct LDLData{
+  T <: Real,
+  S,
+  Tlow,
+  Op <: Union{LinearOperator, LRPrecond},
+  M <: Union{LinearOperator{T}, AbstractMatrix{T}},
+  F <: FactorizationData{Tlow},
+} <: PreconditionerData{T, S}
   K::M
   regu::Regularization{Tlow}
   K_fact::F # factorized matrix
@@ -135,8 +142,16 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) ->
-            ld_div!(res, v, K_fact.LDL.n, K_fact.LDL.Lp, K_fact.LDL.Li, K_fact.LDL.Lx, K_fact.LDL.d, K_fact.LDL.P),
+          (res, v) -> ld_div!(
+            res,
+            v,
+            K_fact.LDL.n,
+            K_fact.LDL.Lp,
+            K_fact.LDL.Li,
+            K_fact.LDL.Lx,
+            K_fact.LDL.d,
+            K_fact.LDL.P,
+          ),
         )
         N = LinearOperator(
           T,
@@ -144,8 +159,16 @@ function PreconditionerData(
           nvar + ncon,
           false,
           false,
-          (res, v) ->
-            dlt_div!(res, v, K_fact.LDL.n, K_fact.LDL.Lp, K_fact.LDL.Li, K_fact.LDL.Lx, K_fact.LDL.d, K_fact.LDL.P),
+          (res, v) -> dlt_div!(
+            res,
+            v,
+            K_fact.LDL.n,
+            K_fact.LDL.Lp,
+            K_fact.LDL.Li,
+            K_fact.LDL.Lx,
+            K_fact.LDL.d,
+            K_fact.LDL.P,
+          ),
         )
       elseif sp.preconditioner.pos == :L
         M =
