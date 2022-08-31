@@ -16,9 +16,10 @@ end
 
 LDL(; T::DataType = Float32, pos = :C, warm_start = true, fact_alg = LDLFact()) = LDL(T, pos, warm_start, fact_alg)
 
-mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}, F <: FactorizationData{Tlow}} <:
+mutable struct LDLData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond},
+  M <: Union{LinearOperator{T} AbstractMatrix{T}}, F <: FactorizationData{Tlow}} <:
                PreconditionerData{T, S}
-  K::Symmetric{T, SparseMatrixCSC{T, Int}}
+  K::M
   regu::Regularization{Tlow}
   K_fact::F # factorized matrix
   tmp_res::Vector{Tlow}
