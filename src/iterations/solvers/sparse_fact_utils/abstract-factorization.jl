@@ -87,10 +87,9 @@ Choose [`HSL.jl`](https://github.com/JuliaSmoothOptimizers/HSL.jl) MA57 to compu
 """
 struct HSLMA97Fact <: AbstractFactorization
   regul::Symbol
-  sqd::Bool
-  function HSLMA97Fact(regul::Symbol, sqd::Bool)
+  function HSLMA97Fact(regul::Symbol)
     regul == :classic || regul == :none || error("regul should be :classic or :none")
-    return new(regul, sqd)
+    return new(regul)
   end
 end
-HSLMA97Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)
+HSLMA97Fact(; regul::Symbol = :classic) = HSLMA97Fact(regul)
