@@ -168,6 +168,6 @@ function convertldl(T::DataType, K_fact::Ma97Factorization)
       ),
     ),
   )
-  ma97_finalize(K_fact2.ma97)
+  HSL.ma97_finalize(K_fact2.ma97)
   return K_fact2
 end
