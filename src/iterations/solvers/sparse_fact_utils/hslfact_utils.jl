@@ -103,7 +103,7 @@ function generic_factorize!(
   K::Symmetric{T, SparseMatrixCSC{T, Int}},
   K_fact::Ma97Factorization,
 ) where {T}
-  copyto!(K_fact.ma97.nzvals, K.data.nzvals)
+  copyto!(K_fact.ma97.nzval, K.data.nzval)
   ma97_factorize!(K_fact.ma97)
 end
 
