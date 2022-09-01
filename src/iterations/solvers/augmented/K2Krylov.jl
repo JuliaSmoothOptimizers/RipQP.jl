@@ -165,19 +165,8 @@ function PreallocatedData(
     @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q)
-    if fd.uplo == :L && fd.A isa SparseMatrixCSC
-      K = Symmetric(
-        [
-          .-fd.Q.data.+Diagonal(D) spzeros(T, id.nvar, id.ncon)
-          fd.A regu.δ*I
-        ],
-        :L,
-      )
-      diagind_K = K.data.colptr[1:(end - 1)]
-    else
-      K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo)
-      diagind_K = get_diagind_K(K)
-    end
+    K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo)
+    diagind_K = get_diagind_K(K, sp.uplo)
     if sp.equilibrate
       Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
       Deq.diag .= one(T)

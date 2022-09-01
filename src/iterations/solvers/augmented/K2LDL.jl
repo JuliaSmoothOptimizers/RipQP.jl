@@ -76,7 +76,7 @@ function PreallocatedData(
   diag_Q = get_diag_Q(fd.Q)
   K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo)
 
-  diagind_K = get_diagind_K(K)
+  diagind_K = get_diagind_K(K, sp.uplo)
   K_fact = init_fact(K, sp.fact_alg)
   if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
@@ -193,7 +193,6 @@ function fill_K2_U!(
   A_colptr,
   A_rowval,
   A_nzval,
-  diag_Q_nzind,
   δ,
   ncon,
   nvar,
@@ -212,7 +211,7 @@ function fill_K2_U!(
     if k ≤ nnz_Q && Q_rowval[k] == j
       nz_idx = K_colptr[j + 1] - 1
       K_rowval[nz_idx] = j
-      K_nzval[nz_idx] = D[j] - Q_nzval[Q_colptr[j + 1] - 1]
+      K_nzval[nz_idx] = D[j] - Q_nzval[k]
     else
       added_coeffs_diag += 1
       K_colptr[j + 1] += 1
@@ -257,57 +256,50 @@ function fill_K2_L!(
   A_colptr,
   A_rowval,
   A_nzval,
-  diag_Q_nzind,
   δ,
   ncon,
   nvar,
   regul,
 )
   added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
-  n_nz = length(diag_Q_nzind)
-  c_nz = n_nz > 0 ? 1 : 0
-  @inbounds for j = 1:nvar  # Q coeffs, tmp diag coefs. 
-    K_colptr[j + 1] = Q_colptr[j + 1] + added_coeffs_diag
-    for k = Q_colptr[j]:(Q_colptr[j + 1] - 2)
-      nz_idx = k + added_coeffs_diag
+  nnz_Q = length(Q_rowval)
+  for j = 1:nvar  # Q coeffs, tmp diag coefs. 
+    k = Q_colptr[j]
+    K_deb_ptr = K_colptr[j]
+    if k ≤ nnz_Q && Q_rowval[k] == j
+      added_diagj = false
+      K_rowval[K_deb_ptr] = j
+      K_nzval[K_deb_ptr] = D[j] - Q_nzval[k]
+    else
+      added_diagj = true
+      added_coeffs_diag += 1
+      K_rowval[K_deb_ptr] = j
+      K_nzval[K_deb_ptr] = D[j]
+    end
+    nb_col_elements = 1
+    deb = added_diagj ? Q_colptr[j] : (Q_colptr[j] + 1) # if already addded a new Kjj, do not add Qjj
+    for k = deb:(Q_colptr[j + 1] - 1)
+      nz_idx = K_deb_ptr + nb_col_elements
+      nb_col_elements += 1
       K_rowval[nz_idx] = Q_rowval[k]
       K_nzval[nz_idx] = -Q_nzval[k]
     end
-    if c_nz == 0 || c_nz > n_nz || diag_Q_nzind[c_nz] != j
-      added_coeffs_diag += 1
-      K_colptr[j + 1] += 1
-      nz_idx = K_colptr[j + 1] - 1
-      K_rowval[nz_idx] = j
-      K_nzval[nz_idx] = D[j]
-    else
-      if c_nz != 0
-        c_nz += 1
-      end
-      nz_idx = K_colptr[j + 1] - 1
-      K_rowval[nz_idx] = j
-      K_nzval[nz_idx] = D[j] - Q_nzval[Q_colptr[j + 1] - 1]
-    end
-  end
-
-  countsum = K_colptr[nvar + 1] # current value of K_colptr[Q.n+j+1]
-  nnz_top_left = countsum # number of coefficients + 1 already added
-  @inbounds for j = 1:ncon
-    countsum += A_colptr[j + 1] - A_colptr[j]
-    if (regul == :classic || regul == :hybrid) && δ > 0
-      countsum += 1
-    end
-    K_colptr[nvar + j + 1] = countsum
+    # nb_elemsj_bloc11 = nb_col_elements
     for k = A_colptr[j]:(A_colptr[j + 1] - 1)
-      nz_idx =
-        ((regul == :classic || regul == :hybrid) && δ > 0) ? k + nnz_top_left + j - 2 :
-        k + nnz_top_left - 1
-      K_rowval[nz_idx] = A_rowval[k]
+      nz_idx = K_deb_ptr + nb_col_elements
+      nb_col_elements += 1
+      K_rowval[nz_idx] = A_rowval[k] + nvar
       K_nzval[nz_idx] = A_nzval[k]
     end
-    if (regul == :classic || regul == :hybrid) && δ > 0
-      nz_idx = K_colptr[nvar + j + 1] - 1
-      K_rowval[nz_idx] = nvar + j
-      K_nzval[nz_idx] = δ
+    K_colptr[j + 1] = K_colptr[j] + nb_col_elements
+  end
+  
+  if (regul == :classic || regul == :hybrid) && δ > 0
+    for j = 1:ncon
+      K_prevptr = K_colptr[nvar + j]
+      K_colptr[nvar + j + 1] = K_prevptr + 1
+      K_rowval[K_prevptr] = nvar + j
+      K_nzval[K_prevptr] = δ
     end
   end
 end
@@ -331,18 +323,29 @@ function create_K2(
   K_colptr[1] = 1
   K_rowval = Vector{Int}(undef, n_nz)
   K_nzval = Vector{T}(undef, n_nz)
-  # [-Q -D    A]
-  # [0       δI]
 
   if uplo == :L
-    K = Symmetric(
-      [
-        .-Q.data.+Diagonal(D) spzeros(T, id.nvar, id.ncon)
-        A regu.δ*I
-      ],
-      :L,
+    # [-Q -D    0]
+    # [  A     δI]
+    fill_K2_L!(
+      K_colptr,
+      K_rowval,
+      K_nzval,
+      D,
+      Q.colptr,
+      Q.rowval,
+      Q.nzval,
+      A.colptr,
+      A.rowval,
+      A.nzval,
+      regu.δ,
+      id.ncon,
+      id.nvar,
+      regu.regul,
     )
   else
+    # [-Q -D    A]
+    # [0       δI]
     fill_K2_U!(
       K_colptr,
       K_rowval,
@@ -354,31 +357,14 @@ function create_K2(
       A.colptr,
       A.rowval,
       A.nzval,
-      diag_Q.nzind,
       regu.δ,
       id.ncon,
       id.nvar,
       regu.regul,
     )
-    K = Symmetric(SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval), uplo)
   end
-  return K
+  return Symmetric(SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval), uplo)
 end
-
-# function create_K2(
-#   id::QM_IntData,
-#   D::AbstractVector,
-#   Q::SparseMatrixCOO,
-#   A::SparseMatrixCOO,
-#   diag_Q::SparseVector,
-#   regu::Regularization;
-#   T = eltype(D),
-# )
-#   block_row1 = hcat((Q + Diagonal(D)), coo_spzeros(T, id.nvar, id.ncon))
-#   block_row1.vals .= .-block_row1.vals
-#   block_row2 = hcat(A, regu.δ * I)
-#   return vcat(block_row1, block_row2)
-# end
 
 function create_K2(
   id::QM_IntData,

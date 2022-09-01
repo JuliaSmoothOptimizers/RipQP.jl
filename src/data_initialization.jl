@@ -299,7 +299,7 @@ end
 
 ############ tools for sparse matrices ##############
 
-function get_diagind_K(K::Symmetric{T, <:SparseMatrixCSC{T}}; tri = :U) where {T}
+function get_diagind_K(K::Symmetric{T, <:SparseMatrixCSC{T}}, tri::Symbol) where {T}
   # get diagonal index of M.nzval
   # we assume all columns of M are non empty, and M triangular (:L or :U)
   K_colptr = K.data.colptr
@@ -312,7 +312,7 @@ function get_diagind_K(K::Symmetric{T, <:SparseMatrixCSC{T}}; tri = :U) where {T
   return diagind
 end
 
-function get_diagind_K(K::Symmetric{T, <:SparseMatrixCOO{T}}; tri = :U) where {T}
+function get_diagind_K(K::Symmetric{T, <:SparseMatrixCOO{T}}, tri::Symbol) where {T}
   # pb if regul = none / dynamic
   Krows, Kcols = K.data.rows, K.data.cols
   diagind = zeros(Int, size(K, 2))
