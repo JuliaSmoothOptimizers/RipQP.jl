@@ -85,29 +85,32 @@ convertldl(T::DataType, K_fact::Ma57Factorization) = Ma57Factorization(
 )
 
 # MA97
-get_mat_QPData(
-  A::SparseMatrixCOO{T, Int},
-  H::SparseMatrixCOO{T, Int},
-  nvar::Int,
-  ncon::Int,
-  sp::Union{K2LDLParams{T0, F}, K2_5LDLParams{T0, F}, K2KrylovParams{T0, LDL{DataType, F}}},
-) where {T, T0, F <: HSLMA97Fact} = A, Symmetric(H, sp.uplo)
-
 get_uplo(fact_alg::HSLMA97Fact) = :L
 
 mutable struct Ma97Factorization{T} <: FactorizationData{T}
   ma97::Ma97{T}
-  work::Vector{T}
 end
 
 function init_fact(
-  K::Symmetric{T, SparseMatrixCOO{T, Int}},
+  K::Symmetric{T, SparseMatrixCSC{T, Int}},
   fact_alg::HSLMA97Fact;
   Tf = T,
 ) where {T}
-  K_fact = Ma97Factorization(
-    ma97_coord(size(K, 1), K.data.cols, K.data.rows, Tf.(K.data.vals), sqd = fact_alg.sqd),
-    Vector{Tf}(undef, size(K, 1)),
-  )
-  return K_fact
+  return Ma97Factorization(ma97_csc(size(K, 1), K.data.colptr, K.data.rowval, K.data.nzval))
+end
+
+function generic_factorize!(
+  K::Symmetric{T, SparseMatrixCSC{T, Int}},
+  K_fact::Ma97Factorization,
+) where {T}
+  copyto!(K_fact.ma97.nzvals, K.data.nzvals)
+  ma97_factorize!(K_fact.ma97)
+end
+
+LDLFactorizations.factorized(K_fact::Ma97Factorization) = (K_fact.ma97.info.flag == 0)
+
+ldiv!(K_fact::Ma97Factorization{T}, dd::AbstractVector{T}) where {T} = ma97_solve!(K_fact.ma97, dd)
+
+function abs_diagonal!(K_fact::Ma97Factorization)
+  K_fact
 end
