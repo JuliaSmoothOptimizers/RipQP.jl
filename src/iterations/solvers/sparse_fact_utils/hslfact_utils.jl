@@ -116,7 +116,7 @@ function abs_diagonal!(K_fact::Ma97Factorization)
 end
 
 convertldl(T::DataType, K_fact::Ma97Factorization) = Ma97Factorization(
-  Ma97(
+  Ma97{T, T}(
     K_fact.ma97.__akeep,
     K_fact.ma97.__fkeep,
     K_fact.ma97.n,
