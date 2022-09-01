@@ -1,5 +1,6 @@
 using .HSL
 
+# MA57
 get_mat_QPData(
   A::SparseMatrixCOO{T, Int},
   H::SparseMatrixCOO{T, Int},
@@ -82,3 +83,31 @@ convertldl(T::DataType, K_fact::Ma57Factorization) = Ma57Factorization(
   ),
   convert(Array{T}, K_fact.work),
 )
+
+# MA97
+get_mat_QPData(
+  A::SparseMatrixCOO{T, Int},
+  H::SparseMatrixCOO{T, Int},
+  nvar::Int,
+  ncon::Int,
+  sp::Union{K2LDLParams{T0, F}, K2_5LDLParams{T0, F}, K2KrylovParams{T0, LDL{DataType, F}}},
+) where {T, T0, F <: HSLMA97Fact} = A, Symmetric(H, sp.uplo)
+
+get_uplo(fact_alg::HSLMA97Fact) = :L
+
+mutable struct Ma97Factorization{T} <: FactorizationData{T}
+  ma97::Ma97{T}
+  work::Vector{T}
+end
+
+function init_fact(
+  K::Symmetric{T, SparseMatrixCOO{T, Int}},
+  fact_alg::HSLMA97Fact;
+  Tf = T,
+) where {T}
+  K_fact = Ma97Factorization(
+    ma97_coord(size(K, 1), K.data.cols, K.data.rows, Tf.(K.data.vals), sqd = fact_alg.sqd),
+    Vector{Tf}(undef, size(K, 1)),
+  )
+  return K_fact
+end

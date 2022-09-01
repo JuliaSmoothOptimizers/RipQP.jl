@@ -77,7 +77,7 @@ function PreallocatedData(
   D .= -T(1.0e0) / 2
   regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
   diag_Q = get_diag_Q(fd.Q)
-  K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), sp.uplo)
+  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo)
 
   diagind_K = get_diagind_K(K)
   K_fact = init_fact(K, sp.fact_alg)

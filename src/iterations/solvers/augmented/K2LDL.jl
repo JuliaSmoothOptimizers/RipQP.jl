@@ -74,7 +74,7 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
   end
   diag_Q = get_diag_Q(fd.Q)
-  K = Symmetric(create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu), sp.uplo)
+  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo)
 
   diagind_K = get_diagind_K(K)
   K_fact = init_fact(K, sp.fact_alg)
@@ -181,8 +181,72 @@ function update_pad!(
   return 0
 end
 
-# Init functions for the K2 system
-function fill_K2!(
+# Init functions for the K2 system when uplo = U
+function fill_K2_U!(
+  K_colptr,
+  K_rowval,
+  K_nzval,
+  D,
+  Q_colptr,
+  Q_rowval,
+  Q_nzval,
+  A_colptr,
+  A_rowval,
+  A_nzval,
+  diag_Q_nzind,
+  δ,
+  ncon,
+  nvar,
+  regul,
+)
+  added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
+  nnz_Q = length(Q_rowval)
+  @inbounds for j = 1:nvar  # Q coeffs, tmp diag coefs. 
+    K_colptr[j + 1] = Q_colptr[j + 1] + added_coeffs_diag # add previously added diagonal elements
+    for k = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+      nz_idx = k + added_coeffs_diag
+      K_rowval[nz_idx] = Q_rowval[k]
+      K_nzval[nz_idx] = -Q_nzval[k]
+    end
+    k = Q_colptr[j + 1] - 1
+    if k ≤ nnz_Q && Q_rowval[k] == j
+      nz_idx = K_colptr[j + 1] - 1
+      K_rowval[nz_idx] = j
+      K_nzval[nz_idx] = D[j] - Q_nzval[Q_colptr[j + 1] - 1]
+    else
+      added_coeffs_diag += 1
+      K_colptr[j + 1] += 1
+      nz_idx = K_colptr[j + 1] - 1
+      K_rowval[nz_idx] = j
+      K_nzval[nz_idx] = D[j]
+    end
+  end
+
+  countsum = K_colptr[nvar + 1] # current value of K_colptr[Q.n+j+1]
+  nnz_top_left = countsum # number of coefficients + 1 already added
+  @inbounds for j = 1:ncon
+    countsum += A_colptr[j + 1] - A_colptr[j]
+    if (regul == :classic || regul == :hybrid) && δ > 0
+      countsum += 1
+    end
+    K_colptr[nvar + j + 1] = countsum
+    for k = A_colptr[j]:(A_colptr[j + 1] - 1)
+      nz_idx =
+        ((regul == :classic || regul == :hybrid) && δ > 0) ? k + nnz_top_left + j - 2 :
+        k + nnz_top_left - 1
+      K_rowval[nz_idx] = A_rowval[k]
+      K_nzval[nz_idx] = A_nzval[k]
+    end
+    if (regul == :classic || regul == :hybrid) && δ > 0
+      nz_idx = K_colptr[nvar + j + 1] - 1
+      K_rowval[nz_idx] = nvar + j
+      K_nzval[nz_idx] = δ
+    end
+  end
+end
+
+# Init functions for the K2 system when uplo = U
+function fill_K2_L!(
   K_colptr,
   K_rowval,
   K_nzval,
@@ -254,7 +318,8 @@ function create_K2(
   Q::SparseMatrixCSC,
   A::SparseMatrixCSC,
   diag_Q::SparseVector,
-  regu::Regularization;
+  regu::Regularization,
+  uplo::Symbol;
   T = eltype(D),
 )
   # for classic regul only
@@ -269,25 +334,35 @@ function create_K2(
   # [-Q -D    A]
   # [0       δI]
 
-  fill_K2!(
-    K_colptr,
-    K_rowval,
-    K_nzval,
-    D,
-    Q.colptr,
-    Q.rowval,
-    Q.nzval,
-    A.colptr,
-    A.rowval,
-    A.nzval,
-    diag_Q.nzind,
-    regu.δ,
-    id.ncon,
-    id.nvar,
-    regu.regul,
-  )
-
-  return SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval)
+  if uplo == :L
+    K = Symmetric(
+      [
+        .-Q.data.+Diagonal(D) spzeros(T, id.nvar, id.ncon)
+        A regu.δ*I
+      ],
+      :L,
+    )
+  else
+    fill_K2_U!(
+      K_colptr,
+      K_rowval,
+      K_nzval,
+      D,
+      Q.colptr,
+      Q.rowval,
+      Q.nzval,
+      A.colptr,
+      A.rowval,
+      A.nzval,
+      diag_Q.nzind,
+      regu.δ,
+      id.ncon,
+      id.nvar,
+      regu.regul,
+    )
+    K = Symmetric(SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval), uplo)
+  end
+  return K
 end
 
 # function create_K2(
@@ -311,7 +386,8 @@ function create_K2(
   Q::SparseMatrixCOO,
   A::SparseMatrixCOO,
   diag_Q::SparseVector,
-  regu::Regularization;
+  regu::Regularization,
+  uplo::Symbol;
   T = eltype(D),
 )
   nvar, ncon = id.nvar, id.ncon
@@ -358,7 +434,7 @@ function create_K2(
       added_diag_col = false
     end
   end
-  return SparseMatrixCOO(nvar + ncon, nvar + ncon, rows, cols, vals)
+  return Symmetric(SparseMatrixCOO(nvar + ncon, nvar + ncon, rows, cols, vals), uplo)
 end
 
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}

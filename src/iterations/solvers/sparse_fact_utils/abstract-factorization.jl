@@ -78,3 +78,19 @@ struct HSLMA57Fact <: AbstractFactorization
   end
 end
 HSLMA57Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)
+
+"""
+    fact_alg = HSLMA97Fact(; regul = :classic)
+
+Choose [`HSL.jl`](https://github.com/JuliaSmoothOptimizers/HSL.jl) MA57 to compute factorizations.
+`using HSL` should be used before `using RipQP`.
+"""
+struct HSLMA97Fact <: AbstractFactorization
+  regul::Symbol
+  sqd::Bool
+  function HSLMA97Fact(regul::Symbol, sqd::Bool)
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
+    return new(regul, sqd)
+  end
+end
+HSLMA97Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)
