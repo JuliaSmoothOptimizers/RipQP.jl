@@ -80,7 +80,7 @@ function PreallocatedData(
   K_fact = init_fact(K, sp.fact_alg)
   if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
-    # regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
+    # regu.ρ, regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45)) # ρ and δ kept for hybrid mode
     K_fact.LDL.r1, K_fact.LDL.r2 = -T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
     K_fact.LDL.tol = Amax * T(eps(T))
     K_fact.LDL.n_d = id.nvar
