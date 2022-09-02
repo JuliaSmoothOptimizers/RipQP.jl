@@ -208,7 +208,7 @@ function fill_K2_U!(
       K_nzval[nz_idx] = -Q_nzval[k]
     end
     k = Q_colptr[j + 1] - 1
-    if k ≤ nnz_Q && Q_rowval[k] == j
+    if k ≤ nnz_Q && k != 0 && Q_rowval[k] == j
       nz_idx = K_colptr[j + 1] - 1
       K_rowval[nz_idx] = j
       K_nzval[nz_idx] = D[j] - Q_nzval[k]
@@ -266,7 +266,7 @@ function fill_K2_L!(
   for j = 1:nvar  # Q coeffs, tmp diag coefs. 
     k = Q_colptr[j]
     K_deb_ptr = K_colptr[j]
-    if k ≤ nnz_Q && Q_rowval[k] == j
+    if k ≤ nnz_Q && k != 0 && Q_rowval[k] == j
       added_diagj = false
       K_rowval[K_deb_ptr] = j
       K_nzval[K_deb_ptr] = D[j] - Q_nzval[k]
