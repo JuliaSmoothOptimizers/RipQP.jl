@@ -52,4 +52,5 @@ LDLFact
 CholmodFact
 QDLDLFact
 HSLMA57Fact
+HSLMA97Fact
 ```
