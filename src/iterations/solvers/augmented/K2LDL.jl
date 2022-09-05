@@ -263,7 +263,7 @@ function fill_K2_L!(
 )
   added_coeffs_diag = 0 # we add coefficients that do not appear in Q in position i,i if Q[i,i] = 0
   nnz_Q = length(Q_rowval)
-  for j = 1:nvar  # Q coeffs, tmp diag coefs. 
+  @inbounds for j = 1:nvar  # Q coeffs, tmp diag coefs. 
     k = Q_colptr[j]
     K_deb_ptr = K_colptr[j]
     if k ≤ nnz_Q && k != 0 && Q_rowval[k] == j
@@ -295,7 +295,7 @@ function fill_K2_L!(
   end
   
   if (regul == :classic || regul == :hybrid) && δ > 0
-    for j = 1:ncon
+    @inbounds for j = 1:ncon
       K_prevptr = K_colptr[nvar + j]
       K_colptr[nvar + j + 1] = K_prevptr + 1
       K_rowval[K_prevptr] = nvar + j
