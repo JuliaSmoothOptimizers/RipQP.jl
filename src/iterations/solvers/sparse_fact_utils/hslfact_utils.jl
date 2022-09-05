@@ -96,7 +96,9 @@ function init_fact(
   fact_alg::HSLMA97Fact;
   Tf = T,
 ) where {T}
-  return Ma97Factorization(ma97_csc(size(K, 1), Int32.(K.data.colptr), Int32.(K.data.rowval), K.data.nzval))
+  return Ma97Factorization(
+    ma97_csc(size(K, 1), Int32.(K.data.colptr), Int32.(K.data.rowval), K.data.nzval),
+  )
 end
 
 function generic_factorize!(

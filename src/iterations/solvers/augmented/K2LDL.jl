@@ -293,7 +293,7 @@ function fill_K2_L!(
     end
     K_colptr[j + 1] = K_colptr[j] + nb_col_elements
   end
-  
+
   if (regul == :classic || regul == :hybrid) && δ > 0
     @inbounds for j = 1:ncon
       K_prevptr = K_colptr[nvar + j]
@@ -363,7 +363,10 @@ function create_K2(
       regu.regul,
     )
   end
-  return Symmetric(SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval), uplo)
+  return Symmetric(
+    SparseMatrixCSC{T, Int}(id.ncon + id.nvar, id.ncon + id.nvar, K_colptr, K_rowval, K_nzval),
+    uplo,
+  )
 end
 
 function create_K2(
