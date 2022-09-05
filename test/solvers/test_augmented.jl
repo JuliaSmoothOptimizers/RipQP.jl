@@ -173,7 +173,7 @@ end
           ϵ_pdd = 1.0e-4,
         ),
       )
-      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
       @test stats4.status == :first_order
     end
   end
@@ -184,7 +184,7 @@ end
     solve_method = IPF(),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
-  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
   @test stats4.status == :first_order
 end
 
@@ -204,7 +204,7 @@ end
           ϵ_pdd = 1.0e-4,
         ),
       )
-      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+      @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
       @test stats4.status == :first_order
     end
   end
@@ -215,6 +215,6 @@ end
     solve_method = IPF(),
     itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
   )
-  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-2)
+  @test isapprox(stats4.objective, -4.6475314286e02, atol = 1e-1)
   @test stats4.status == :first_order
 end
