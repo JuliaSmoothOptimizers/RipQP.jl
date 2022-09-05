@@ -1,4 +1,4 @@
-export AbstractFactorization, LDLFact, HSLMA57Fact, CholmodFact, QDLDLFact
+export AbstractFactorization, LDLFact, HSLMA57Fact, HSLMA97Fact, CholmodFact, QDLDLFact
 
 import LinearAlgebra.ldiv!
 
@@ -78,3 +78,18 @@ struct HSLMA57Fact <: AbstractFactorization
   end
 end
 HSLMA57Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)
+
+"""
+    fact_alg = HSLMA97Fact(; regul = :classic)
+
+Choose [`HSL.jl`](https://github.com/JuliaSmoothOptimizers/HSL.jl) MA57 to compute factorizations.
+`using HSL` should be used before `using RipQP`.
+"""
+struct HSLMA97Fact <: AbstractFactorization
+  regul::Symbol
+  function HSLMA97Fact(regul::Symbol)
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
+    return new(regul)
+  end
+end
+HSLMA97Fact(; regul::Symbol = :classic) = HSLMA97Fact(regul)
