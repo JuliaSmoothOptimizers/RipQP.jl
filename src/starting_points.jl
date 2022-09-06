@@ -17,14 +17,14 @@ function starting_points!(
   if id.nlow == 0
     δx_l1, δs_l1 = zero(T), zero(T)
   else
-    δx_l1 = max(-T(1.5) * minimum(itd.x_m_lvar), eps(T)^(1/4))
-    δs_l1 = max(-T(1.5) * minimum(pt0.s_l), eps(T)^(1/4))
+    δx_l1 = max(-T(1.5) * minimum(itd.x_m_lvar), eps(T)^(1 / 4))
+    δs_l1 = max(-T(1.5) * minimum(pt0.s_l), eps(T)^(1 / 4))
   end
   if id.nupp == 0
     δx_u1, δs_u1 = zero(T), zero(T)
   else
-    δx_u1 = max(-T(1.5) * minimum(itd.uvar_m_x), eps(T)^(1/4))
-    δs_u1 = max(-T(1.5) * minimum(pt0.s_u), eps(T)^(1/4))
+    δx_u1 = max(-T(1.5) * minimum(itd.uvar_m_x), eps(T)^(1 / 4))
+    δs_u1 = max(-T(1.5) * minimum(pt0.s_u), eps(T)^(1 / 4))
   end
   # correct components that to not respect the bounds 
   itd.x_m_lvar .+= δx_l1
@@ -52,7 +52,7 @@ function starting_points!(
   pt0.s_u .= pt0.s_u .+ δs
 
   # deal with the compensation phaenomenon in x if irng != []
-  update_rngbounds!(pt0.x, id.irng, fd.lvar, fd.uvar, eps(T)^(1/4))
+  update_rngbounds!(pt0.x, id.irng, fd.lvar, fd.uvar, eps(T)^(1 / 4))
 
   # verify bounds
   @assert all(pt0.x .> fd.lvar) && all(pt0.x .< fd.uvar)
