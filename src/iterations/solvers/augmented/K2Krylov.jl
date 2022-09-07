@@ -374,7 +374,7 @@ function convertpad(
   regu = convert(Regularization{T}, pad.regu)
   regu.ρ_min = T(sp_new.ρ_min)
   regu.δ_min = T(sp_new.δ_min)
-  K = Symmetric(convert(SparseMatrixCSC{T, Int}, pad.K.data), sp_new.uplo)
+  K = Symmetric(convert(eval(typeof(pad).name.name){T, Int}, pad.K.data), sp_new.uplo)
   rhs = similar(D, id.nvar + id.ncon)
   δv = [regu.δ]
   if !(sp_old.equilibrate) && sp_new.equilibrate
