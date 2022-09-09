@@ -109,6 +109,7 @@ mutable struct PreallocatedDataK2Krylov{
   K::M # augmented matrix
   mt::MT
   KS::Ksol
+  kiter::Int
   atol::T
   rtol::T
   atol_min::T
@@ -203,6 +204,7 @@ function PreallocatedData(
     K, #K
     mt,
     KS,
+    0,
     T(sp.atol0),
     T(sp.rtol0),
     T(sp.atol_min),
@@ -238,6 +240,7 @@ function solver!(
       fd,
       cnts,
     )
+    pad.kiter = 0
   end
   @timeit_debug to "Krylov solve" ksolve!(
     pad.KS,
@@ -249,6 +252,7 @@ function solver!(
     rtol = pad.rtol,
     itmax = pad.itmax,
   )
+  pad.kiter += niterations(pad.KS)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -353,6 +357,7 @@ function convertpad(
     K, #K
     mt,
     KS,
+    0,
     T(sp_new.atol0),
     T(sp_new.rtol0),
     T(sp_new.atol_min),
@@ -402,6 +407,7 @@ function convertpad(
     K, #K
     mt,
     KS,
+    0,
     T(sp_new.atol0),
     T(sp_new.rtol0),
     T(sp_new.atol_min),

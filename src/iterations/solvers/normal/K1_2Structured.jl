@@ -72,6 +72,7 @@ mutable struct PreallocatedDataK1_2Structured{T <: Real, S, Ksol <: KrylovSolver
   rhs_scale::Bool
   regu::Regularization{T}
   KS::Ksol
+  kiter::Int
   atol::T
   rtol::T
   atol_min::T
@@ -128,6 +129,7 @@ function PreallocatedData(
     sp.rhs_scale,
     regu,
     KS,
+    0,
     T(sp.atol0),
     T(sp.rtol0),
     T(sp.atol_min),
@@ -163,6 +165,7 @@ function solver!(
   if pad.rhs_scale
     ξ22Norm = kscale!(pad.ξ22)
   end
+  (step !== :cc) && (pad.kiter = 0)
   ksolve!(
     pad.KS,
     fd.uplo == :U ? fd.A' : fd.A,
@@ -191,6 +194,7 @@ function solver!(
     :K1_2,
   )
   # kunscale!(pad.KS.x, rhsNorm)
+  pad.kiter += niterations(pad.KS)
 
   return 0
 end

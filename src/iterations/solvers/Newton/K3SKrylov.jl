@@ -94,6 +94,7 @@ mutable struct PreallocatedDataK3SKrylov{
   uvar_m_x_div_s_u::S
   K::L # augmented matrix (LinearOperator)         
   KS::Ksol
+  kiter::Int
   atol::T
   rtol::T
   atol_min::T
@@ -207,6 +208,7 @@ function PreallocatedData(
     uvar_m_x_div_s_u,
     K, #K
     KS,
+    0,
     T(sp.atol0),
     T(sp.rtol0),
     T(sp.atol_min),
@@ -241,7 +243,7 @@ function solver!(
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
-  pad.K.nprod = 0
+  (step !== :cc) && (pad.kiter = 0)
   ksolve!(
     pad.KS,
     pad.K,
@@ -253,6 +255,7 @@ function solver!(
     itmax = pad.itmax,
   )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
+  pad.kiter += niterations(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end
