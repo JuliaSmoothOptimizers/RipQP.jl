@@ -97,6 +97,7 @@ mutable struct PreallocatedDataK3_5Structured{
   Qregop::L2 # factorized matrix Qreg
   opBR::L3
   KS::Ksol
+  kiter::Int
   atol::T
   rtol::T
   atol_min::T
@@ -328,6 +329,7 @@ function PreallocatedData(
     Qregop,
     opBR,
     KS,
+    0,
     T(sp.atol0),
     T(sp.rtol0),
     T(sp.atol_min),
@@ -365,6 +367,7 @@ function solver!(
     pad.rhs1 ./= rhsNorm
     pad.rhs2 ./= rhsNorm
   end
+  (step !== :cc) && (pad.kiter = 0)
   ksolve!(
     pad.KS,
     pad.As',
@@ -396,7 +399,7 @@ function solver!(
     id.ilow,
     id.iupp,
   )
-
+  pad.kiter += niterations(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
     kunscale!(pad.KS.y, rhsNorm)
