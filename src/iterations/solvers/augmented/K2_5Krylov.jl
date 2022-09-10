@@ -19,24 +19,24 @@ The available methods are:
 - `:minres_qlp`
 - `:symmlq`
 """
-mutable struct K2_5KrylovParams{PT} <: AugmentedKrylovParams{PT}
+mutable struct K2_5KrylovParams{T, PT} <: AugmentedKrylovParams{T, PT}
   uplo::Symbol
   kmethod::Symbol
   preconditioner::PT
   rhs_scale::Bool
-  atol0::Float64
-  rtol0::Float64
-  atol_min::Float64
-  rtol_min::Float64
-  ρ0::Float64
-  δ0::Float64
-  ρ_min::Float64
-  δ_min::Float64
+  atol0::T
+  rtol0::T
+  atol_min::T
+  rtol_min::T
+  ρ0::T
+  δ0::T
+  ρ_min::T
+  δ_min::T
   itmax::Int
   mem::Int
 end
 
-function K2_5KrylovParams(;
+function K2_5KrylovParams{T}(;
   uplo::Symbol = :L,
   kmethod::Symbol = :minres,
   preconditioner::AbstractPreconditioner = Identity(),
@@ -69,6 +69,8 @@ function K2_5KrylovParams(;
     mem,
   )
 end
+
+K2_5KrylovParams(; kwargs...) = K2_5KrylovParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK2_5Krylov{
   T <: Real,

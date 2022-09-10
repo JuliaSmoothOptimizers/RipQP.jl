@@ -1,6 +1,6 @@
-abstract type NewtonParams <: SolverParams end
+abstract type NewtonParams{T} <: SolverParams{T} end
 
-abstract type NewtonKrylovParams{PT <: AbstractPreconditioner} <: NewtonParams end
+abstract type NewtonKrylovParams{T, PT <: AbstractPreconditioner} <: NewtonParams{T} end
 
 abstract type PreallocatedDataNewton{T <: Real, S} <: PreallocatedData{T, S} end
 

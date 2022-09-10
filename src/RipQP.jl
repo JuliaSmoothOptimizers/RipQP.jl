@@ -156,39 +156,52 @@ function ripqp(
     end
 
     # allocate workspace
-    sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
+    sc, idi, fd_T0, id, ϵ_T0, res, itd, dda, pt, sd, spd, cnts, T =
       @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0, sp)
 
     if iconf.scaling
       scaling!(fd_T0, id, sd, T0(1.0e-5))
     end
 
-    # extra workspace for multi mode
-    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      if iconf.Timulti == Float32
+    # extra workspace for multi mode (several floating-point systems)
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
+      if Timulti == Float32
         fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
+        # if the 2nd solver is nothing:
+        isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){Float64}())
+        fd, ϵ = fd32, ϵ32
       end
       if T0 != Float64
         fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
+        # if the 3nd solver is nothing:
+        isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
       end
+      if Timulti == Float64
+        fd, ϵ = fd64, ϵ64
+      end
+    elseif iconf.mode == :ref || iconf.mode == :zoom
+      fd = fd_T0
+      ϵ = Tolerances(
+        T(1),
+        T(itol.ϵ_rbz),
+        T(itol.ϵ_rbz),
+        T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
+        one(T),
+        T(itol.ϵ_μ),
+        T(itol.ϵ_Δx),
+        iconf.normalize_rtol,
+      )
+    else
+      fd, ϵ = fd_T0, ϵ_T0
     end
 
-    # initialize
-    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      if iconf.Timulti == Float32
-        pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
-        if T0 == Float128 || T0 == BigFloat
-          set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
-          T = Float32
-        end
-      elseif iconf.Timulti == Float64
-        pad = initialize!(fd64, id, res, itd, dda, pt, spd, ϵ64, sc, iconf, cnts, T0)
-      else
-        error("not a valid Timulti")
+    pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
+      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm)) # set final tolerances
+      if (T0 != Float64 && T0 != Float32 && Timulti == Float32)
+        set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm)) # set intermediate tolerances
+        T = Float32
       end
-      set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
-    elseif iconf.mode == :mono || iconf.mode == :zoom || iconf.mode == :ref
-      pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     end
 
     Δt = time() - start_time
@@ -203,101 +216,70 @@ function ripqp(
       end
     end
 
-    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-      if iconf.Timulti == Float32
-        # iter in Float32 then convert data to Float64
-        pt, itd, res, dda, pad = iter_and_update_T!(
-          iconf.sp,
-          iconf.sp2,
-          pt,
-          itd,
-          fd32,
-          (T0 == Float64) ? fd_T0 : fd64,
-          id,
-          res,
-          sc,
-          dda,
-          pad,
-          ϵ32,
-          ϵ,
-          cnts,
-          iconf,
-          itol.max_iter32,
-          display,
-        )
-      end
-      if T0 != Float64
-        # iters in Float64 then convert data to Float128
-        pt, itd, res, dda, pad = iter_and_update_T!(
-          (iconf.sp2 === nothing) ? iconf.sp : iconf.sp2,
-          iconf.sp3,
-          pt,
-          itd,
-          fd64,
-          fd_T0,
-          id,
-          res,
-          sc,
-          dda,
-          pad,
-          ϵ64,
-          ϵ,
-          cnts,
-          iconf,
-          itol.max_iter64,
-          display,
-        )
-      end
-      sc.max_iter = itol.max_iter
+    !isnothing(sp2) && (sc.max_iter = itol.max_iter1) # set max_iter for 1st solver
+    # iterations 1st solver (mono mode: only this call to the iter! function)
+    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+
+    if !isnothing(sp2) # setup data for 2nd solver
+      T2 = solver_type(sp2)
+      fd = (T2 == T0) ? fd_T0 : fd64
+      ϵ = (T2 == T0) ? ϵ_T0 : ϵ64
+      pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
+      sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
+      sc.small_μ = itd.μ < ϵ_T0.μ
+      display && show_used_solver(pad)
+      display && setup_log_header(pad)
+
+      # set max_iter for 2nd solver
+      sc.max_iter = isnothing(sp3) ? itol.max_iter : itol.max_iter2 
     end
 
-    ## iter T0
-    # refinement
-    if !sc.optimal
-      if iconf.mode == :zoom || iconf.mode == :ref
-        ϵz = Tolerances(
-          T(1),
-          T(itol.ϵ_rbz),
-          T(itol.ϵ_rbz),
-          T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
-          one(T),
-          T(itol.ϵ_μ),
-          T(itol.ϵ_Δx),
-          iconf.normalize_rtol,
-        )
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, iconf, T0, display)
-        sc.optimal = false
+    if !isnothing(sp3) # iter! with 2nd solver, setup data 3rd solver
+      # iterations 2nd solver
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
 
-        fd_ref, pt_ref =
-          fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      T3 = solver_type(sp3)
+      fd = fd_T0
+      ϵ = ϵ_T0
+      pt, itd, res, dda, pad = convert_types(T3, pt, itd, res, dda, pad, sp2, sp3, id, fd, T0)
+      sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
+      sc.small_μ = itd.μ < ϵ_T0.μ
+      display && show_used_solver(pad)
+      display && setup_log_header(pad)
 
-      elseif iconf.mode == :multizoom || iconf.mode == :multiref
-        spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
-        fd_ref, pt_ref = fd_refinement(
-          fd_T0,
-          id,
-          res,
-          itd.Δxy,
-          pt,
-          itd,
-          ϵ,
-          dda,
-          pad,
-          spd,
-          cnts,
-          T0,
-          iconf.mode,
-          centering = true,
-        )
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      # set max_iter for 3rd solver
+      sc.max_iter = itol.max_iter 
+    end
 
-      elseif iconf.mode == :mono || iconf.mode == :multi
-        # iters T0, no refinement
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-      end
+    # iterations 3rd solver: different following the use of mode multi, multizoom, multiref
+    if !sc.optimal && mode == :multi
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+    elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
+      spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
+      fd_ref, pt_ref = fd_refinement(
+        fd,
+        id,
+        res,
+        itd.Δxy,
+        pt,
+        itd,
+        ϵ,
+        dda,
+        pad,
+        spd,
+        cnts,
+        T0,
+        iconf.mode,
+        centering = true,
+      )
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+    elseif iconf.mode == :zoom || iconf.mode == :ref
+      sc.optimal = false
+      fd_ref, pt_ref =
+        fd_refinement(fd, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     end
 
     if iconf.scaling

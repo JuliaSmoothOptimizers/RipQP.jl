@@ -17,7 +17,7 @@ mutable struct JacobiData{T <: Real, S, L <: LinearOperator} <: PreconditionerDa
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{Jacobi},
+  sp::AugmentedKrylovParams{T, Jacobi},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

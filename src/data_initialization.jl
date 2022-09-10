@@ -207,9 +207,9 @@ end
 function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
   T = Float32
   ϵ32 = Tolerances(
-    T(itol.ϵ_pdd32),
-    T(itol.ϵ_rb32),
-    T(itol.ϵ_rc32),
+    T(itol.ϵ_pdd1),
+    T(itol.ϵ_rb1),
+    T(itol.ϵ_rc1),
     one(T),
     one(T),
     T(itol.ϵ_μ),
@@ -224,9 +224,9 @@ function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::
   T = Float64
   fd64 = convert_FloatData(T, fd_T0)
   ϵ64 = Tolerances(
-    T(itol.ϵ_pdd64),
-    T(itol.ϵ_rb64),
-    T(itol.ϵ_rc64),
+    T(itol.ϵ_pdd2),
+    T(itol.ϵ_rb2),
+    T(itol.ϵ_rc2),
     one(T),
     one(T),
     T(itol.ϵ_μ),

@@ -19,30 +19,30 @@ The available methods are:
 - `:lsmr`
 
 """
-mutable struct K1_1StructuredParams <: NormalParams
+mutable struct K1_1StructuredParams{T} <: NormalParams{T}
   uplo::Symbol
   kmethod::Symbol
   rhs_scale::Bool
-  atol0::Float64
-  rtol0::Float64
-  atol_min::Float64
-  rtol_min::Float64
-  ρ_min::Float64
-  δ_min::Float64
+  atol0::T
+  rtol0::T
+  atol_min::T
+  rtol_min::T
+  ρ_min::T
+  δ_min::T
   itmax::Int
   mem::Int
 end
 
-function K1_1StructuredParams(;
+function K1_1StructuredParams{T}(;
   uplo::Symbol = :L,
   kmethod::Symbol = :lsqr,
   rhs_scale::Bool = true,
-  atol0::T = 1.0e-4,
-  rtol0::T = 1.0e-4,
-  atol_min::T = 1.0e-10,
-  rtol_min::T = 1.0e-10,
-  ρ_min::T = 1e3 * sqrt(eps()),
-  δ_min::T = 1e4 * sqrt(eps()),
+  atol0::T = eps(T)^(1/4),
+  rtol0::T = eps(T)^(1/4),
+  atol_min::T = sqrt(eps(T)) / 100,
+  rtol_min::T = sqrt(eps(T)) / 100,
+  ρ_min::T = T(1e3 * sqrt(eps())),
+  δ_min::T = T(1e4 * sqrt(eps())),
   itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
@@ -60,6 +60,8 @@ function K1_1StructuredParams(;
     mem,
   )
 end
+
+K1_1StructuredParams(; kwargs...) = K1_1StructuredParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver} <:
                PreallocatedDataNormalKrylovStructured{T, S}

@@ -58,9 +58,6 @@ function iter_and_update_T!(
   max_iter_T::Int,
   display::Bool,
 ) where {T <: Real, Tnew <: Real, T0 <: Real, Tsc <: Real}
-  # iters T
-  sc.max_iter = max_iter_T
-  iter!(pt, itd, fd_T, id, res, sc, dda, pad, ϵ_T, cnts, iconf, T0, display)
 
   # convert to T_next
   pt, itd, res, dda, pad =

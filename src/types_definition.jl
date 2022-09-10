@@ -37,7 +37,7 @@ end
 Abstract type for tuning the parameters of the different solvers. 
 Each solver has its own `SolverParams` type.
 """
-abstract type SolverParams end
+abstract type SolverParams{T} end
 
 """
 Type to write the matrix (.mtx format) and the right hand side (.rhs format) of the system to solve at each iteration.
@@ -102,12 +102,12 @@ Type to specify the tolerances used by RipQP.
 - `ϵ_pdd`: relative primal-dual difference tolerance
 - `ϵ_rb`: primal tolerance
 - `ϵ_rc`: dual tolerance
-- `max_iter32`, `ϵ_pdd32`, `ϵ_rb32`, `ϵ_rc32`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from single precision to double precision. They are
-    only usefull when `mode=:multi`
-- `max_iter64`, `ϵ_pdd64`, `ϵ_rb64`, `ϵ_rc64`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from double precision to quadruple precision. They
-    are only usefull when `mode=:multi` and `T0=Float128`
+- `max_iter1`, `ϵ_pdd1`, `ϵ_rb1`, `ϵ_rc1`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
+    `ϵ_rc`, but used for switching from `sp1` to `sp2` (or from single to double precision if `isnothing(sp2) == true`).
+    They are only usefull when `mode=:multi`
+- `max_iter2`, `ϵ_pdd2`, `ϵ_rb2`, `ϵ_rc2`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
+    `ϵ_rc`, but used for switching from `sp2` to `sp3` (or from double to quadruple precision if `isnothing(sp3) == true`).
+    They are only usefull when `mode=:multi` and `T0=Float128`
 - `ϵ_rbz` : primal transition tolerance for the zoom procedure, (used only if `refinement=:zoom`)
 - `ϵ_Δx`: step tolerance for the current point estimate (note: this criterion
     is currently disabled)
@@ -117,39 +117,40 @@ Type to specify the tolerances used by RipQP.
 The constructor
 
     itol = InputTol(::Type{T};
-                    max_iter :: I = 200, max_iter32 :: I = 40, max_iter64 :: I = 180, 
-                    ϵ_pdd :: T = 1e-8, ϵ_pdd32 :: T = 1e-2, ϵ_pdd64 :: T = 1e-4, 
-                    ϵ_rb :: T = 1e-6, ϵ_rb32 :: T = 1e-4, ϵ_rb64 :: T = 1e-5, ϵ_rbz :: T = 1e-3,
-                    ϵ_rc :: T = 1e-6, ϵ_rc32 :: T = 1e-4, ϵ_rc64 :: T = 1e-5,
+                    max_iter :: I = 200, max_iter1 :: I = 40, max_iter2 :: I = 180, 
+                    ϵ_pdd :: T = 1e-8, ϵ_pdd1 :: T = 1e-2, ϵ_pdd2 :: T = 1e-4, 
+                    ϵ_rb :: T = 1e-6, ϵ_rb1 :: T = 1e-4, ϵ_rb2 :: T = 1e-5, ϵ_rbz :: T = 1e-3,
+                    ϵ_rc :: T = 1e-6, ϵ_rc1 :: T = 1e-4, ϵ_rc2 :: T = 1e-5,
                     ϵ_Δx :: T = 1e-16, ϵ_μ :: T = 1e-9) where {T<:Real, I<:Integer}
 
     InputTol(; kwargs...) = InputTol(Float64; kwargs...) 
 
 returns a `InputTol` struct that initializes the stopping criteria for RipQP. 
-The 32 and 64 characters refer to the stopping criteria in `:multi` mode for the transitions from `Float32` to `Float64` 
-and `Float64` to `Float128` (if the input `QuadraticModel` is in `Float128`) respectively.
+The 1 and 2 characters refer to the transitions between the chosen solvers in `:multi`.
+If `sp2` and `sp3` are not precised when calling [`RipQP.ripqp`](@ref),
+they refer to transitions between floating-point systems.
 """
 struct InputTol{T <: Real, I <: Integer}
   # maximum number of iterations
   max_iter::I
-  max_iter32::I # only in multi mode
-  max_iter64::I # only in multi mode with T0 = Float128
+  max_iter1::I # only in multi mode
+  max_iter2::I # only in multi mode with T0 = Float128
 
   # relative primal-dual gap tolerance
   ϵ_pdd::T
-  ϵ_pdd32::T # only in multi mode 
-  ϵ_pdd64::T # only in multi mode with T0 = Float128
+  ϵ_pdd1::T # only in multi mode 
+  ϵ_pdd2::T # only in multi mode with T0 = Float128
 
   # primal residual
   ϵ_rb::T
-  ϵ_rb32::T # only in multi mode 
-  ϵ_rb64::T # only in multi mode with T0 = Float128
+  ϵ_rb1::T # only in multi mode 
+  ϵ_rb2::T # only in multi mode with T0 = Float128
   ϵ_rbz::T # only when using zoom refinement
 
   # dual residual
   ϵ_rc::T
-  ϵ_rc32::T # only in multi mode 
-  ϵ_rc64::T # only in multi mode with T0 = Float128
+  ϵ_rc1::T # only in multi mode 
+  ϵ_rc2::T # only in multi mode with T0 = Float128
 
   # unused residuals (for now)
   ϵ_μ::T
@@ -162,36 +163,36 @@ end
 function InputTol(
   ::Type{T};
   max_iter::I = 200,
-  max_iter32::I = 40,
-  max_iter64::I = 180,
+  max_iter1::I = 40,
+  max_iter2::I = 180,
   ϵ_pdd::T = (T == Float64) ? 1e-8 : sqrt(eps(T)),
-  ϵ_pdd32::T = T(1e-2),
-  ϵ_pdd64::T = T(1e-4),
+  ϵ_pdd1::T = T(1e-2),
+  ϵ_pdd2::T = T(1e-4),
   ϵ_rb::T = (T == Float64) ? 1e-6 : sqrt(eps(T)),
-  ϵ_rb32::T = T(1e-4),
-  ϵ_rb64::T = T(1e-5),
+  ϵ_rb1::T = T(1e-4),
+  ϵ_rb2::T = T(1e-5),
   ϵ_rbz::T = T(1e-5),
   ϵ_rc::T = (T == Float64) ? 1e-6 : sqrt(eps(T)),
-  ϵ_rc32::T = T(1e-4),
-  ϵ_rc64::T = T(1e-5),
+  ϵ_rc1::T = T(1e-4),
+  ϵ_rc2::T = T(1e-5),
   ϵ_Δx::T = eps(T),
   ϵ_μ::T = sqrt(eps(T)),
   max_time::Float64 = 1200.0,
 ) where {T <: Real, I <: Integer}
   return InputTol{T, I}(
     max_iter,
-    max_iter32,
-    max_iter64,
+    max_iter1,
+    max_iter2,
     ϵ_pdd,
-    ϵ_pdd32,
-    ϵ_pdd64,
+    ϵ_pdd1,
+    ϵ_pdd2,
     ϵ_rb,
-    ϵ_rb32,
-    ϵ_rb64,
+    ϵ_rb1,
+    ϵ_rb2,
     ϵ_rbz,
     ϵ_rc,
-    ϵ_rc32,
-    ϵ_rc64,
+    ϵ_rc1,
+    ϵ_rc2,
     ϵ_μ,
     ϵ_Δx,
     max_time,

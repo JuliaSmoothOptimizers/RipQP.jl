@@ -186,3 +186,5 @@ function show_used_solver(pad::PreallocatedData{T}) where {T}
   slv_name = solver_name(pad)
   @info "Solving in $T using $slv_name"
 end
+
+solver_type(sp::SolverParams{T}) where {T} = T
