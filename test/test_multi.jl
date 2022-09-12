@@ -35,7 +35,7 @@ end
   qm128_1 = createQuadraticModelT(qps1, T = BigFloat)
   stats1 = ripqp(
     qm128_1,
-    itol = InputTol(BigFloat, ϵ_rb32 = BigFloat(0.1), ϵ_rb64 = BigFloat(0.01)),
+    itol = InputTol(BigFloat, ϵ_rb1 = BigFloat(0.1), ϵ_rb2 = BigFloat(0.01)),
     mode = :multi,
     normalize_rtol = false,
     display = false,
@@ -94,7 +94,7 @@ end
       ρ_min = sqrt(eps()),
       δ_min = sqrt(eps()),
     ),
-    sp3 = K2KrylovParams{Float128}(
+    sp2 = K2KrylovParams{Float128}(
       uplo = :U,
       form_mat = true,
       equilibrate = false,

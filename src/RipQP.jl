@@ -170,13 +170,15 @@ function ripqp(
         # if the 2nd solver is nothing:
         isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){Float64}())
         fd, ϵ = fd32, ϵ32
-      end
-      if T0 != Float64
+        if T0 != Float64
+          fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
+          # if the 3nd solver is nothing:
+          isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
+        end
+      elseif Timulti == Float64
         fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
         # if the 3nd solver is nothing:
-        isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
-      end
-      if Timulti == Float64
+        isnothing(sp2) && (sp2 = eval(typeof(sp2).name.name){T0}())
         fd, ϵ = fd64, ϵ64
       end
     elseif iconf.mode == :ref || iconf.mode == :zoom
@@ -185,7 +187,7 @@ function ripqp(
         T(1),
         T(itol.ϵ_rbz),
         T(itol.ϵ_rbz),
-        T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
+        T(ϵ_T0.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
         one(T),
         T(itol.ϵ_μ),
         T(itol.ϵ_Δx),
@@ -275,6 +277,7 @@ function ripqp(
       iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     elseif iconf.mode == :zoom || iconf.mode == :ref
+      ϵ = ϵ_T0
       sc.optimal = false
       fd_ref, pt_ref =
         fd_refinement(fd, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
