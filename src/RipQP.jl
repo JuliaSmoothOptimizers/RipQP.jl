@@ -218,9 +218,11 @@ function ripqp(
       end
     end
 
+    last_iter = iconf.mode == :mono
     !isnothing(sp2) && (sc.max_iter = itol.max_iter1) # set max_iter for 1st solver
     # iterations 1st solver (mono mode: only this call to the iter! function)
-    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = last_iter)
+    iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
 
     if !isnothing(sp2) # setup data for 2nd solver
       T2 = solver_type(sp2)
@@ -238,7 +240,8 @@ function ripqp(
 
     if !isnothing(sp3) # iter! with 2nd solver, setup data 3rd solver
       # iterations 2nd solver
-      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = !isnothing(sp3))
+      iters_sp2 = cnts.k - iters_sp
 
       T3 = solver_type(sp3)
       fd = fd_T0
@@ -285,6 +288,13 @@ function ripqp(
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     end
 
+    # update iter number
+    if isnothing(sp3) && !isnothing(sp2)
+      iters_sp2 = cnts.k - iters_sp
+    elseif !isnothing(sp3)
+      iters_sp3 = cnts.k - iters_sp2
+    end
+
     if iconf.scaling
       post_scale!(sd, pt, res, fd_T0, id, itd)
     end
@@ -315,6 +325,9 @@ function ripqp(
     if typeof(res) <: ResidualsHistory
       solver_specific = Dict(
         :relative_iter_cnt => cnts.km,
+        :iters_sp => iters_sp,
+        :iters_sp2 => iters_sp2,
+        :iters_sp3 => iters_sp3,
         :pdd => itd.pdd,
         :nvar_slack => id.nvar,
         :rbNormH => res.rbNormH,
@@ -331,6 +344,9 @@ function ripqp(
     else
       solver_specific = Dict(
         :relative_iter_cnt => cnts.km,
+        :iters_sp => iters_sp,
+        :iters_sp2 => iters_sp2,
+        :iters_sp3 => iters_sp3,
         :pdd => itd.pdd,
         :nvar_slack => id.nvar,
         :psoperations => psoperations,

@@ -30,6 +30,7 @@ function convert_types(
   fd::Abstract_QM_FloatData, # type T
   T0::DataType,
 ) where {T_old <: Real, S_old}
+  (T == T_old) && (return pt, itd, res, dda, convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0))
   S = S_old.name.wrapper{T, 1}
   pt = convert(Point{T, S}, pt)
   res = convert(AbstractResiduals{T, S}, res)
@@ -70,4 +71,4 @@ function iter_and_update_T!(
 end
 
 small_αs(α_pri::T, α_dual::T, cnts::Counters) where {T} =
-  (cnts.k ≥ 5) && ((α_pri < T(1.0e-1)) || (α_pri < T(1.0e-1)))
+  (cnts.k ≥ 5) && ((α_pri < T(1.0e-1)) || (α_dual < T(1.0e-1)))

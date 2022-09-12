@@ -98,7 +98,7 @@ end
       uplo = :U,
       form_mat = true,
       equilibrate = false,
-      preconditioner = LDL(),
+      preconditioner = LDL(T = Float64),
       atol_min = Float128(1.0e-18),
       rtol_min = Float128(1.0e-18),
       ρ_min = sqrt(eps(Float128)),

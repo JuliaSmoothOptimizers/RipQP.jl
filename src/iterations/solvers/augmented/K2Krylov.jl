@@ -391,9 +391,11 @@ function convertpad(
     mt.Deq.diag .= one(T)
   end
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
-  regu_precond = pad.regu
+  regu_precond = convert(Regularization{sp_new.preconditioner.T}, pad.regu)
   regu_precond.regul = :dynamic
-  pdat = PreconditionerData(sp_new, pad.pdat.K_fact, id.nvar, id.ncon, regu_precond, K)
+  K_fact = (sp_new.preconditioner.T != sp_old.preconditioner.T) ?
+    convertldl(sp_new.preconditioner.T, pad.pdat.K_fact) : pad.pdat.K_fact
+  pdat = PreconditionerData(sp_new, K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
 
   return PreallocatedDataK2Krylov(
@@ -432,6 +434,7 @@ function convertpad(
   regu.δ_min = T(sp_new.δ_min)
   regu.ρ *= 10
   regu.δ *= 10
+  regu.regul = sp_new.fact_alg.regul
   K_fact = convertldl(T, pad.pdat.K_fact)
   K = Symmetric(convert(eval(typeof(pad.K.data).name.name){T, Int}, pad.K.data), sp_new.uplo)
 
