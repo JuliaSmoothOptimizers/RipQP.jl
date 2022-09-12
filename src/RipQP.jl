@@ -73,8 +73,9 @@ containing information about the solved problem.
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
 - `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
-    to solve linear systems that occurs at each iteration in the second and third solving phase when `mode != :mono`, 
-    leave to `nothing` if you want to keep using `sp`. 
+    to solve linear systems that occurs at each iteration in the second and third solving phase.
+    When `mode != :mono`, leave to `nothing` if you want to keep using `sp`.
+    If `sp2` is not nothing, then `mode` should be set to `:multi`, `:multiref` or `multizoom`.  
 - `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
     Following algorithm
@@ -120,6 +121,10 @@ function ripqp(
       mode == :ref ||
       mode == :multiref ||
       error("not a valid mode")
+    if !isnothing(sp2) && mode == :mono
+      @warn "setting mode to multi because sp2 is provided"
+      mode = :multi
+    end
     typeof(solve_method) <: IPF &&
       kc != 0 &&
       error("IPF method should not be used with centrality corrections")
@@ -163,7 +168,7 @@ function ripqp(
       scaling!(fd_T0, id, sd, T0(1.0e-5))
     end
 
-    # extra workspace for multi mode (several floating-point systems)
+    # extra workspace for multi mode
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
       if Timulti == Float32
         fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
@@ -197,6 +202,7 @@ function ripqp(
       fd, ϵ = fd_T0, ϵ_T0
     end
 
+    # initialize data (some allocations for the pad creation)
     pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
       set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm)) # set final tolerances
@@ -218,10 +224,12 @@ function ripqp(
       end
     end
 
-    last_iter = iconf.mode == :mono
+    last_iter = iconf.mode == :mono # do not stop early in mono mode
     !isnothing(sp2) && (sc.max_iter = itol.max_iter1) # set max_iter for 1st solver
-    # iterations 1st solver (mono mode: only this call to the iter! function)
+    # IPM iterations 1st solver (mono mode: only this call to the iter! function)
     iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = last_iter)
+
+    # initialize iteration counters
     iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
 
     if !isnothing(sp2) # setup data for 2nd solver
@@ -239,8 +247,10 @@ function ripqp(
     end
 
     if !isnothing(sp3) # iter! with 2nd solver, setup data 3rd solver
-      # iterations 2nd solver
+      # IPM iterations 2nd solver starting from pt
       iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = !isnothing(sp3))
+
+      # iteration counter for 2nd solver
       iters_sp2 = cnts.k - iters_sp
 
       T3 = solver_type(sp3)
@@ -256,7 +266,8 @@ function ripqp(
       sc.max_iter = itol.max_iter 
     end
 
-    # iterations 3rd solver: different following the use of mode multi, multizoom, multiref
+    # IPM iterations 3rd solver: different following the use of mode multi, multizoom, multiref
+    # starting from pt
     if !sc.optimal && mode == :multi
       iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
     elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
@@ -288,7 +299,7 @@ function ripqp(
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     end
 
-    # update iter number
+    # update number of iterations for each solver 
     if isnothing(sp3) && !isnothing(sp2)
       iters_sp2 = cnts.k - iters_sp
     elseif !isnothing(sp3)

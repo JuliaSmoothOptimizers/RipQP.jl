@@ -40,35 +40,5 @@ function convert_types(
   return pt, itd, res, dda, pad
 end
 
-function iter_and_update_T!(
-  sp_old::Union{Nothing, SolverParams},
-  sp_new::Union{Nothing, SolverParams},
-  pt::Point{T},
-  itd::IterData{T},
-  fd_T::Abstract_QM_FloatData{T},
-  fd_Tnew::Abstract_QM_FloatData{Tnew},
-  id::QM_IntData,
-  res::AbstractResiduals{T},
-  sc::StopCrit{Tsc},
-  dda::DescentDirectionAllocs{T},
-  pad::PreallocatedData{T},
-  ϵ_T::Tolerances{T},
-  ϵ::Tolerances{T0},
-  cnts::Counters,
-  iconf::InputConfig,
-  max_iter_T::Int,
-  display::Bool,
-) where {T <: Real, Tnew <: Real, T0 <: Real, Tsc <: Real}
-
-  # convert to T_next
-  pt, itd, res, dda, pad =
-    convert_types(Tnew, pt, itd, res, dda, pad, sp_old, sp_new, id, fd_Tnew, T0)
-  sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
-  sc.small_μ = itd.μ < ϵ.μ
-  display && show_used_solver(pad)
-  display && setup_log_header(pad)
-  return pt, itd, res, dda, pad
-end
-
 small_αs(α_pri::T, α_dual::T, cnts::Counters) where {T} =
   (cnts.k ≥ 5) && ((α_pri < T(1.0e-1)) || (α_dual < T(1.0e-1)))

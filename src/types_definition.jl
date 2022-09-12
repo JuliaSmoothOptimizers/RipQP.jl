@@ -103,11 +103,11 @@ Type to specify the tolerances used by RipQP.
 - `ϵ_rb`: primal tolerance
 - `ϵ_rc`: dual tolerance
 - `max_iter1`, `ϵ_pdd1`, `ϵ_rb1`, `ϵ_rc1`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from `sp1` to `sp2` (or from single to double precision if `isnothing(sp2) == true`).
+    `ϵ_rc`, but used for switching from `sp1` to `sp2` (or from single to double precision if `sp2` is `nothing`).
     They are only usefull when `mode=:multi`
 - `max_iter2`, `ϵ_pdd2`, `ϵ_rb2`, `ϵ_rc2`: same as `max_iter`, `ϵ_pdd`, `ϵ_rb` and
-    `ϵ_rc`, but used for switching from `sp2` to `sp3` (or from double to quadruple precision if `isnothing(sp3) == true`).
-    They are only usefull when `mode=:multi` and `T0=Float128`
+    `ϵ_rc`, but used for switching from `sp2` to `sp3` (or from double to quadruple precision if `sp3` is `nothing`).
+    They are only usefull when `mode=:multi` and/or `T0=Float128`
 - `ϵ_rbz` : primal transition tolerance for the zoom procedure, (used only if `refinement=:zoom`)
 - `ϵ_Δx`: step tolerance for the current point estimate (note: this criterion
     is currently disabled)
