@@ -258,7 +258,7 @@ function solver!(
     kunscale!(pad.KS.x, rhsNorm)
   end
   if pad.equilibrate
-    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}} && step !== :aff
+    if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}} && step !== :aff
       rdiv!(pad.K.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.K.data)
     end
