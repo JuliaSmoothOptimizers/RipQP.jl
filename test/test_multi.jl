@@ -84,7 +84,6 @@ end
   stats1 = ripqp(
     qm128_1,
     mode = :multi,
-    Timulti = Float64,
     solve_method = IPF(),
     sp = K2KrylovParams(
       uplo = :U,

@@ -43,8 +43,8 @@ const to = TimerOutput()
     stats = ripqp(QM :: QuadraticModel{T0};
                   itol = InputTol(T0), scaling = true, ps = true,
                   normalize_rtol = true, kc = 0, mode = :mono, perturb = false,
-                  Timulti = Float32, early_multi_stop = true,
-                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+                  early_multi_stop = true,
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
                   sp2 = nothing, sp3 = nothing, 
                   solve_method = PC(), 
                   history = false, w = SystemWrite(), display = true) where {T0<:Real}
@@ -66,8 +66,6 @@ containing information about the solved problem.
     to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
     with multi-precision, `ref` to use the QP refinement procedure, or `multiref` 
     to use the QP refinement procedure with multi_precision
-- `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
-    it should be lower than the QP precision
 - `early_multi_stop :: Bool` : stop the iterations in lower precision systems earlier in multi-precision mode,
     based on some quantities of the algorithm
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
@@ -87,8 +85,8 @@ containing information about the solved problem.
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
 
-    stats = ripqp(LLS::LLSModel{T0}; mode = :mono, Timulti = Float32,
-                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
+    stats = ripqp(LLS::LLSModel{T0}; mode = :mono,
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(), 
                   kwargs...) where {T0 <: Real}
 """
 function ripqp(
@@ -100,9 +98,8 @@ function ripqp(
   kc::I = 0,
   perturb::Bool = false,
   mode::Symbol = :mono,
-  Timulti::DataType = Float32,
   early_multi_stop::Bool = true,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
   solve_method::SolveMethod = PC(),
@@ -128,9 +125,9 @@ function ripqp(
     typeof(solve_method) <: IPF &&
       kc != 0 &&
       error("IPF method should not be used with centrality corrections")
+    Ti = solver_type(sp) # initial solve type
     iconf = InputConfig(
       mode,
-      Timulti,
       early_multi_stop,
       scaling,
       ps || (QM0.data.H isa SparseMatrixCOO && QM0.data.A isa SparseMatrixCOO),
@@ -169,22 +166,16 @@ function ripqp(
     end
 
     # extra workspace for multi mode
-    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
-      if Timulti == Float32
-        fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
-        # if the 2nd solver is nothing:
-        isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){Float64}())
-        fd, ϵ = fd32, ϵ32
-        if T0 != Float64
-          fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
-          # if the 3nd solver is nothing:
-          isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
-        end
-      elseif Timulti == Float64
-        fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+      T2 = next_type(Ti, T0) # eltype of sp2
+      # if the 2nd solver is nothing:
+      isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T2}())
+      fd1, ϵ1 = allocate_extra_workspace1(Ti, itol, iconf, fd_T0)
+      fd, ϵ = fd1, ϵ1
+      if T2 != T0 || !isnothing(sp3)
+        fd2, ϵ2 = allocate_extra_workspace2(T2, itol, iconf, fd_T0)
         # if the 3nd solver is nothing:
-        isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T0}())
-        fd, ϵ = fd64, ϵ64
+        isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
       end
     elseif iconf.mode == :ref || iconf.mode == :zoom
       fd = fd_T0
@@ -204,12 +195,11 @@ function ripqp(
 
     # initialize data (some allocations for the pad creation)
     pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
-    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref) && (Timulti != T0)
-      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm)) # set final tolerances
-      if (T0 != Float64 && T0 != Float32 && Timulti == Float32)
-        set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm)) # set intermediate tolerances
-        T = Float32
-      end
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+       # set final tolerances
+      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
+       # set intermediate tolerances
+      !isnothing(sp3) && set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
     end
 
     Δt = time() - start_time
@@ -233,9 +223,8 @@ function ripqp(
     iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
 
     if !isnothing(sp2) # setup data for 2nd solver
-      T2 = solver_type(sp2)
-      fd = (T2 == T0) ? fd_T0 : fd64
-      ϵ = (T2 == T0) ? ϵ_T0 : ϵ64
+      fd = (T2 == T0) ? fd_T0 : fd2
+      ϵ = (T2 == T0) ? ϵ_T0 : ϵ2
       pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
@@ -253,10 +242,9 @@ function ripqp(
       # iteration counter for 2nd solver
       iters_sp2 = cnts.k - iters_sp
 
-      T3 = solver_type(sp3)
       fd = fd_T0
       ϵ = ϵ_T0
-      pt, itd, res, dda, pad = convert_types(T3, pt, itd, res, dda, pad, sp2, sp3, id, fd, T0)
+      pt, itd, res, dda, pad = convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)
@@ -393,8 +381,7 @@ end
 function ripqp(
   LLS::LLSModel{T0};
   mode::Symbol = :mono,
-  Timulti::DataType = Float32,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   kwargs...,
 ) where {T0 <: Real}
   sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
@@ -402,7 +389,6 @@ function ripqp(
   stats = ripqp(
     QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name);
     mode = mode,
-    Timulti = Timulti,
     sp = sp,
     kwargs...,
   )

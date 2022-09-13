@@ -72,10 +72,8 @@ mutable struct InputConfig{
   SP2 <: Union{Nothing, SolverParams},
   SP3 <: Union{Nothing, SolverParams},
   SM <: SolveMethod,
-  D <: DataType,
 }
   mode::Symbol
-  Timulti::D
   early_multi_stop::Bool # stop earlier in multi-precision, based on some quantities of the algorithm
   scaling::Bool
   presolve::Bool

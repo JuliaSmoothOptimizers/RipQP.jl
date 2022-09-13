@@ -5,16 +5,20 @@ function convert_FloatData(
   T::DataType,
   fd_T0::QM_FloatData{T0, S0, M10, M20},
 ) where {T0 <: Real, S0, M10, M20}
-  return QM_FloatData(
-    convert_sym(T, fd_T0.Q),
-    convert_mat(fd_T0.A, T),
-    convert(change_vector_eltype(S0, T), fd_T0.b),
-    convert(change_vector_eltype(S0, T), fd_T0.c),
-    T(fd_T0.c0),
-    convert(change_vector_eltype(S0, T), fd_T0.lvar),
-    convert(change_vector_eltype(S0, T), fd_T0.uvar),
-    fd_T0.uplo,
-  )
+  if T == T0
+    return fd_T0
+  else
+    return QM_FloatData(
+      convert_sym(T, fd_T0.Q),
+      convert_mat(fd_T0.A, T),
+      convert(change_vector_eltype(S0, T), fd_T0.b),
+      convert(change_vector_eltype(S0, T), fd_T0.c),
+      T(fd_T0.c0),
+      convert(change_vector_eltype(S0, T), fd_T0.lvar),
+      convert(change_vector_eltype(S0, T), fd_T0.uvar),
+      fd_T0.uplo,
+    )
+  end
 end
 
 function convert_types(

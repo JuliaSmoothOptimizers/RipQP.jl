@@ -113,8 +113,8 @@ function allocate_workspace(
   itol::InputTol,
   start_time,
   T0::DataType,
-  sp::SolverParams,
-)
+  sp::SolverParams{Ti},
+) where {Ti}
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   # save inital IntData to compute multipliers at the end of the algorithm
@@ -146,24 +146,22 @@ function allocate_workspace(
   uplo = iconf.sp.uplo
   fd_T0, id = get_QM_data(QM, sp) # apply presolve at the same time
 
-  T = T0 # T0 is the data type, in mode :multi T will gradually increase to T0
+  # final tolerances
   ϵ = Tolerances(
-    T(itol.ϵ_pdd),
-    T(itol.ϵ_rb),
-    T(itol.ϵ_rc),
-    one(T),
-    one(T),
-    T(itol.ϵ_μ),
-    T(itol.ϵ_Δx),
+    T0(itol.ϵ_pdd),
+    T0(itol.ϵ_rb),
+    T0(itol.ϵ_rc),
+    one(T0),
+    one(T0),
+    T0(itol.ϵ_μ),
+    T0(itol.ϵ_Δx),
     iconf.normalize_rtol,
   )
 
   sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
-  if iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom
-    T = iconf.Timulti
-  end
+  T = (iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom) ? Ti : T0
   S0 = typeof(fd_T0.c)
   S = change_vector_eltype(S0, T)
 
@@ -204,9 +202,8 @@ function allocate_workspace(
   return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T
 end
 
-function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
-  T = Float32
-  ϵ32 = Tolerances(
+function allocate_extra_workspace1(T::DataType, itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+  ϵ1 = Tolerances(
     T(itol.ϵ_pdd1),
     T(itol.ϵ_rb1),
     T(itol.ϵ_rc1),
@@ -216,14 +213,12 @@ function allocate_extra_workspace_32(itol::InputTol, iconf::InputConfig, fd_T0::
     T(itol.ϵ_Δx),
     iconf.normalize_rtol,
   )
-  fd32 = convert_FloatData(T, fd_T0)
-  return fd32, ϵ32
+  fd1 = convert_FloatData(T, fd_T0)
+  return fd1, ϵ1
 end
 
-function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
-  T = Float64
-  fd64 = convert_FloatData(T, fd_T0)
-  ϵ64 = Tolerances(
+function allocate_extra_workspace2(T::DataType, itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+  ϵ2 = Tolerances(
     T(itol.ϵ_pdd2),
     T(itol.ϵ_rb2),
     T(itol.ϵ_rc2),
@@ -233,7 +228,8 @@ function allocate_extra_workspace_64(itol::InputTol, iconf::InputConfig, fd_T0::
     T(itol.ϵ_Δx),
     iconf.normalize_rtol,
   )
-  return fd64, ϵ64
+  fd2 = convert_FloatData(T, fd_T0)
+  return fd2, ϵ2
 end
 
 function initialize!(
