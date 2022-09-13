@@ -183,7 +183,7 @@ function ripqp(
       elseif Timulti == Float64
         fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
         # if the 3nd solver is nothing:
-        isnothing(sp2) && (sp2 = eval(typeof(sp2).name.name){T0}())
+        isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T0}())
         fd, ϵ = fd64, ϵ64
       end
     elseif iconf.mode == :ref || iconf.mode == :zoom
