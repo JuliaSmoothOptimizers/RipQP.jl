@@ -12,7 +12,7 @@ mutable struct IdentityData{T <: Real, S, SI <: UniformScaling} <: Preconditione
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{Identity},
+  sp::AugmentedKrylovParams{T, Identity},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -24,7 +24,7 @@ function PreconditionerData(
 end
 
 function PreconditionerData(
-  sp::NewtonKrylovParams{Identity},
+  sp::NewtonKrylovParams{T, Identity},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

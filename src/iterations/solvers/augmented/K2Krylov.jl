@@ -15,7 +15,7 @@ The outer constructor
 
 creates a [`RipQP.SolverParams`](@ref).
 """
-mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{PT}
+mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{T, PT}
   uplo::Symbol
   kmethod::Symbol
   preconditioner::PT
@@ -41,14 +41,14 @@ function K2KrylovParams{T}(;
   rhs_scale::Bool = true,
   form_mat::Bool = false,
   equilibrate::Bool = false,
-  atol0::T = T(1.0e-4),
-  rtol0::T = T(1.0e-4),
-  atol_min::T = T(1.0e-10),
-  rtol_min::T = T(1.0e-10),
+  atol0::T = eps(T)^(1/4),
+  rtol0::T = eps(T)^(1/4),
+  atol_min::T = sqrt(eps(T)),
+  rtol_min::T = sqrt(eps(T)),
   ρ0::T = T(sqrt(eps()) * 1e5),
   δ0::T = T(sqrt(eps()) * 1e5),
-  ρ_min::T = 1e2 * sqrt(eps(T)),
-  δ_min::T = 1e2 * sqrt(eps(T)),
+  ρ_min::T = T(1e2 * sqrt(eps(T))),
+  δ_min::T = T(1e2 * sqrt(eps(T))),
   itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
@@ -258,7 +258,7 @@ function solver!(
     kunscale!(pad.KS.x, rhsNorm)
   end
   if pad.equilibrate
-    if typeof(pad.K) <: Symmetric{T, SparseMatrixCSC{T, Int}} && step !== :aff
+    if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}} && step !== :aff
       rdiv!(pad.K.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.K.data)
     end
@@ -391,9 +391,11 @@ function convertpad(
     mt.Deq.diag .= one(T)
   end
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
-  regu_precond = pad.regu
+  regu_precond = convert(Regularization{sp_new.preconditioner.T}, pad.regu)
   regu_precond.regul = :dynamic
-  pdat = PreconditionerData(sp_new, pad.pdat.K_fact, id.nvar, id.ncon, regu_precond, K)
+  K_fact = (sp_new.preconditioner.T != sp_old.preconditioner.T) ?
+    convertldl(sp_new.preconditioner.T, pad.pdat.K_fact) : pad.pdat.K_fact
+  pdat = PreconditionerData(sp_new, K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
 
   return PreallocatedDataK2Krylov(
@@ -413,5 +415,36 @@ function convertpad(
     T(sp_new.atol_min),
     T(sp_new.rtol_min),
     sp_new.itmax,
+  )
+end
+
+function convertpad(
+  ::Type{<:PreallocatedData{T}},
+  pad::PreallocatedDataK2Krylov{T_old},
+  sp_old::K2KrylovParams,
+  sp_new::K2LDLParams,
+  id::QM_IntData,
+  fd::Abstract_QM_FloatData,
+  T0::DataType,
+) where {T <: Real, T_old <: Real}
+  @assert sp_new.uplo == :U
+  D = convert(Array{T}, pad.D)
+  regu = convert(Regularization{T}, pad.regu)
+  regu.ρ_min = T(sp_new.ρ_min)
+  regu.δ_min = T(sp_new.δ_min)
+  regu.ρ *= 10
+  regu.δ *= 10
+  regu.regul = sp_new.fact_alg.regul
+  K_fact = convertldl(T, pad.pdat.K_fact)
+  K = Symmetric(convert(eval(typeof(pad.K.data).name.name){T, Int}, pad.K.data), sp_new.uplo)
+
+  return PreallocatedDataK2LDL(
+    D,
+    regu,
+    convert(SparseVector{T, Int}, pad.mt.diag_Q), #diag_Q
+    K, #K
+    K_fact, #K_fact
+    false,
+    pad.mt.diagind_K, #diagind_K
   )
 end

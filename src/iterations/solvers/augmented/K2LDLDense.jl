@@ -11,11 +11,11 @@ The outer constructor
 
 creates a [`RipQP.SolverParams`](@ref).
 """
-mutable struct K2LDLDenseParams <: AugmentedParams
+mutable struct K2LDLDenseParams{T} <: AugmentedParams{T}
   uplo::Symbol
   fact_alg::Symbol
-  ρ0::Float64
-  δ0::Float64
+  ρ0::T
+  δ0::T
 end
 
 function K2LDLDenseParams(;

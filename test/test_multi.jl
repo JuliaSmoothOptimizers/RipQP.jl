@@ -35,7 +35,7 @@ end
   qm128_1 = createQuadraticModelT(qps1, T = BigFloat)
   stats1 = ripqp(
     qm128_1,
-    itol = InputTol(BigFloat, ϵ_rb32 = BigFloat(0.1), ϵ_rb64 = BigFloat(0.01)),
+    itol = InputTol(BigFloat, ϵ_rb1 = BigFloat(0.1), ϵ_rb2 = BigFloat(0.01)),
     mode = :multi,
     normalize_rtol = false,
     display = false,
@@ -84,7 +84,6 @@ end
   stats1 = ripqp(
     qm128_1,
     mode = :multi,
-    Timulti = Float64,
     solve_method = IPF(),
     sp = K2KrylovParams(
       uplo = :U,
@@ -94,11 +93,11 @@ end
       ρ_min = sqrt(eps()),
       δ_min = sqrt(eps()),
     ),
-    sp3 = K2KrylovParams{Float128}(
+    sp2 = K2KrylovParams{Float128}(
       uplo = :U,
       form_mat = true,
       equilibrate = false,
-      preconditioner = LDL(),
+      preconditioner = LDL(T = Float64),
       atol_min = Float128(1.0e-18),
       rtol_min = Float128(1.0e-18),
       ρ_min = sqrt(eps(Float128)),

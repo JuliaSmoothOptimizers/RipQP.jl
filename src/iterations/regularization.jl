@@ -104,6 +104,7 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
      regu.regul == :classic &&
      cnts.k > 10 &&
      cnts.c_catch <= 1 &&
+     regu.δ_min >= eps(T)^(4/5) &&
      @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
     regu.δ /= 10
     regu.δ_min /= 10

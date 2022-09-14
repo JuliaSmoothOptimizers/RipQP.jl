@@ -43,8 +43,8 @@ const to = TimerOutput()
     stats = ripqp(QM :: QuadraticModel{T0};
                   itol = InputTol(T0), scaling = true, ps = true,
                   normalize_rtol = true, kc = 0, mode = :mono, perturb = false,
-                  Timulti = Float32, early_multi_stop = true,
-                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+                  early_multi_stop = true,
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
                   sp2 = nothing, sp3 = nothing, 
                   solve_method = PC(), 
                   history = false, w = SystemWrite(), display = true) where {T0<:Real}
@@ -66,15 +66,14 @@ containing information about the solved problem.
     to `T0`), `:zoom` to use the zoom procedure, `:multizoom` to use the zoom procedure 
     with multi-precision, `ref` to use the QP refinement procedure, or `multiref` 
     to use the QP refinement procedure with multi_precision
-- `Timulti :: DataType`: initial floating-point format to solve the QP (only usefull in multi-precision),
-    it should be lower than the QP precision
 - `early_multi_stop :: Bool` : stop the iterations in lower precision systems earlier in multi-precision mode,
     based on some quantities of the algorithm
 - `sp :: SolverParams` : choose a solver to solve linear systems that occurs at each iteration and during the 
     initialization, see [`RipQP.SolverParams`](@ref)
 - `sp2 :: Union{Nothing, SolverParams}` and `sp3 :: Union{Nothing, SolverParams}` : choose second and third solvers
-    to solve linear systems that occurs at each iteration in the second and third solving phase when `mode != :mono`, 
-    leave to `nothing` if you want to keep using `sp`. 
+    to solve linear systems that occurs at each iteration in the second and third solving phase.
+    When `mode != :mono`, leave to `nothing` if you want to keep using `sp`.
+    If `sp2` is not nothing, then `mode` should be set to `:multi`, `:multiref` or `multizoom`.  
 - `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
     Following algorithm
@@ -86,8 +85,8 @@ containing information about the solved problem.
 
 You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
 
-    stats = ripqp(LLS::LLSModel{T0}; mode = :mono, Timulti = Float32,
-                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(), 
+    stats = ripqp(LLS::LLSModel{T0}; mode = :mono,
+                  sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(), 
                   kwargs...) where {T0 <: Real}
 """
 function ripqp(
@@ -99,9 +98,8 @@ function ripqp(
   kc::I = 0,
   perturb::Bool = false,
   mode::Symbol = :mono,
-  Timulti::DataType = Float32,
   early_multi_stop::Bool = true,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
   solve_method::SolveMethod = PC(),
@@ -120,12 +118,16 @@ function ripqp(
       mode == :ref ||
       mode == :multiref ||
       error("not a valid mode")
+    if !isnothing(sp2) && mode == :mono
+      @warn "setting mode to multi because sp2 is provided"
+      mode = :multi
+    end
     typeof(solve_method) <: IPF &&
       kc != 0 &&
       error("IPF method should not be used with centrality corrections")
+    Ti = solver_type(sp) # initial solve type
     iconf = InputConfig(
       mode,
-      Timulti,
       early_multi_stop,
       scaling,
       ps || (QM0.data.H isa SparseMatrixCOO && QM0.data.A isa SparseMatrixCOO),
@@ -156,7 +158,7 @@ function ripqp(
     end
 
     # allocate workspace
-    sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T =
+    sc, idi, fd_T0, id, ϵ_T0, res, itd, dda, pt, sd, spd, cnts, T =
       @timeit_debug to "allocate workspace" allocate_workspace(QM, iconf, itol, start_time, T0, sp)
 
     if iconf.scaling
@@ -164,31 +166,40 @@ function ripqp(
     end
 
     # extra workspace for multi mode
-    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      if iconf.Timulti == Float32
-        fd32, ϵ32 = allocate_extra_workspace_32(itol, iconf, fd_T0)
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+      T2 = next_type(Ti, T0) # eltype of sp2
+      # if the 2nd solver is nothing:
+      isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T2}())
+      fd1, ϵ1 = allocate_extra_workspace1(Ti, itol, iconf, fd_T0)
+      fd, ϵ = fd1, ϵ1
+      if T2 != T0 || !isnothing(sp3)
+        fd2, ϵ2 = allocate_extra_workspace2(T2, itol, iconf, fd_T0)
+        # if the 3nd solver is nothing:
+        isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
       end
-      if T0 != Float64
-        fd64, ϵ64 = allocate_extra_workspace_64(itol, iconf, fd_T0)
-      end
+    elseif iconf.mode == :ref || iconf.mode == :zoom
+      fd = fd_T0
+      ϵ = Tolerances(
+        T(1),
+        T(itol.ϵ_rbz),
+        T(itol.ϵ_rbz),
+        T(ϵ_T0.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
+        one(T),
+        T(itol.ϵ_μ),
+        T(itol.ϵ_Δx),
+        iconf.normalize_rtol,
+      )
+    else
+      fd, ϵ = fd_T0, ϵ_T0
     end
 
-    # initialize
-    if iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref
-      if iconf.Timulti == Float32
-        pad = initialize!(fd32, id, res, itd, dda, pt, spd, ϵ32, sc, iconf, cnts, T0)
-        if T0 == Float128 || T0 == BigFloat
-          set_tol_residuals!(ϵ64, Float64(res.rbNorm), Float64(res.rcNorm))
-          T = Float32
-        end
-      elseif iconf.Timulti == Float64
-        pad = initialize!(fd64, id, res, itd, dda, pt, spd, ϵ64, sc, iconf, cnts, T0)
-      else
-        error("not a valid Timulti")
-      end
-      set_tol_residuals!(ϵ, T0(res.rbNorm), T0(res.rcNorm))
-    elseif iconf.mode == :mono || iconf.mode == :zoom || iconf.mode == :ref
-      pad = initialize!(fd_T0, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
+    # initialize data (some allocations for the pad creation)
+    pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
+    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+       # set final tolerances
+      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
+       # set intermediate tolerances
+      !isnothing(sp3) && set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
     end
 
     Δt = time() - start_time
@@ -203,101 +214,84 @@ function ripqp(
       end
     end
 
-    if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-      if iconf.Timulti == Float32
-        # iter in Float32 then convert data to Float64
-        pt, itd, res, dda, pad = iter_and_update_T!(
-          iconf.sp,
-          iconf.sp2,
-          pt,
-          itd,
-          fd32,
-          (T0 == Float64) ? fd_T0 : fd64,
-          id,
-          res,
-          sc,
-          dda,
-          pad,
-          ϵ32,
-          ϵ,
-          cnts,
-          iconf,
-          itol.max_iter32,
-          display,
-        )
-      end
-      if T0 != Float64
-        # iters in Float64 then convert data to Float128
-        pt, itd, res, dda, pad = iter_and_update_T!(
-          (iconf.sp2 === nothing) ? iconf.sp : iconf.sp2,
-          iconf.sp3,
-          pt,
-          itd,
-          fd64,
-          fd_T0,
-          id,
-          res,
-          sc,
-          dda,
-          pad,
-          ϵ64,
-          ϵ,
-          cnts,
-          iconf,
-          itol.max_iter64,
-          display,
-        )
-      end
-      sc.max_iter = itol.max_iter
+    last_iter = iconf.mode == :mono # do not stop early in mono mode
+    !isnothing(sp2) && (sc.max_iter = itol.max_iter1) # set max_iter for 1st solver
+    # IPM iterations 1st solver (mono mode: only this call to the iter! function)
+    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = last_iter)
+
+    # initialize iteration counters
+    iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
+
+    if !isnothing(sp2) # setup data for 2nd solver
+      fd = (T2 == T0) ? fd_T0 : fd2
+      ϵ = (T2 == T0) ? ϵ_T0 : ϵ2
+      pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
+      sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
+      sc.small_μ = itd.μ < ϵ_T0.μ
+      display && show_used_solver(pad)
+      display && setup_log_header(pad)
+
+      # set max_iter for 2nd solver
+      sc.max_iter = isnothing(sp3) ? itol.max_iter : itol.max_iter2 
     end
 
-    ## iter T0
-    # refinement
-    if !sc.optimal
-      if iconf.mode == :zoom || iconf.mode == :ref
-        ϵz = Tolerances(
-          T(1),
-          T(itol.ϵ_rbz),
-          T(itol.ϵ_rbz),
-          T(ϵ.tol_rb * T(itol.ϵ_rbz / itol.ϵ_rb)),
-          one(T),
-          T(itol.ϵ_μ),
-          T(itol.ϵ_Δx),
-          iconf.normalize_rtol,
-        )
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵz, cnts, iconf, T0, display)
-        sc.optimal = false
+    if !isnothing(sp3) # iter! with 2nd solver, setup data 3rd solver
+      # IPM iterations 2nd solver starting from pt
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = !isnothing(sp3))
 
-        fd_ref, pt_ref =
-          fd_refinement(fd_T0, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      # iteration counter for 2nd solver
+      iters_sp2 = cnts.k - iters_sp
 
-      elseif iconf.mode == :multizoom || iconf.mode == :multiref
-        spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
-        fd_ref, pt_ref = fd_refinement(
-          fd_T0,
-          id,
-          res,
-          itd.Δxy,
-          pt,
-          itd,
-          ϵ,
-          dda,
-          pad,
-          spd,
-          cnts,
-          T0,
-          iconf.mode,
-          centering = true,
-        )
-        iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-        update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+      fd = fd_T0
+      ϵ = ϵ_T0
+      pt, itd, res, dda, pad = convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, T0)
+      sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
+      sc.small_μ = itd.μ < ϵ_T0.μ
+      display && show_used_solver(pad)
+      display && setup_log_header(pad)
 
-      elseif iconf.mode == :mono || iconf.mode == :multi
-        # iters T0, no refinement
-        iter!(pt, itd, fd_T0, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
-      end
+      # set max_iter for 3rd solver
+      sc.max_iter = itol.max_iter 
+    end
+
+    # IPM iterations 3rd solver: different following the use of mode multi, multizoom, multiref
+    # starting from pt
+    if !sc.optimal && mode == :multi
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+    elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
+      spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
+      fd_ref, pt_ref = fd_refinement(
+        fd,
+        id,
+        res,
+        itd.Δxy,
+        pt,
+        itd,
+        ϵ,
+        dda,
+        pad,
+        spd,
+        cnts,
+        T0,
+        iconf.mode,
+        centering = true,
+      )
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+    elseif iconf.mode == :zoom || iconf.mode == :ref
+      ϵ = ϵ_T0
+      sc.optimal = false
+      fd_ref, pt_ref =
+        fd_refinement(fd, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
+    end
+
+    # update number of iterations for each solver 
+    if isnothing(sp3) && !isnothing(sp2)
+      iters_sp2 = cnts.k - iters_sp
+    elseif !isnothing(sp3)
+      iters_sp3 = cnts.k - iters_sp2
     end
 
     if iconf.scaling
@@ -330,6 +324,9 @@ function ripqp(
     if typeof(res) <: ResidualsHistory
       solver_specific = Dict(
         :relative_iter_cnt => cnts.km,
+        :iters_sp => iters_sp,
+        :iters_sp2 => iters_sp2,
+        :iters_sp3 => iters_sp3,
         :pdd => itd.pdd,
         :nvar_slack => id.nvar,
         :rbNormH => res.rbNormH,
@@ -346,6 +343,9 @@ function ripqp(
     else
       solver_specific = Dict(
         :relative_iter_cnt => cnts.km,
+        :iters_sp => iters_sp,
+        :iters_sp2 => iters_sp2,
+        :iters_sp3 => iters_sp3,
         :pdd => itd.pdd,
         :nvar_slack => id.nvar,
         :psoperations => psoperations,
@@ -381,8 +381,7 @@ end
 function ripqp(
   LLS::LLSModel{T0};
   mode::Symbol = :mono,
-  Timulti::DataType = Float32,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Timulti}(),
+  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   kwargs...,
 ) where {T0 <: Real}
   sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
@@ -390,7 +389,6 @@ function ripqp(
   stats = ripqp(
     QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name);
     mode = mode,
-    Timulti = Timulti,
     sp = sp,
     kwargs...,
   )

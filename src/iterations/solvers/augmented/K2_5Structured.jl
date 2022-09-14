@@ -21,34 +21,34 @@ The available methods are:
 
 The `mem` argument sould be used only with `gpmr`.
 """
-mutable struct K2_5StructuredParams <: AugmentedParams
+mutable struct K2_5StructuredParams{T} <: AugmentedParams{T}
   uplo::Symbol
   kmethod::Symbol
   rhs_scale::Bool
-  atol0::Float64
-  rtol0::Float64
-  atol_min::Float64
-  rtol_min::Float64
-  ρ0::Float64
-  δ0::Float64
-  ρ_min::Float64
-  δ_min::Float64
+  atol0::T
+  rtol0::T
+  atol_min::T
+  rtol_min::T
+  ρ0::T
+  δ0::T
+  ρ_min::T
+  δ_min::T
   itmax::Int
   mem::Int
 end
 
-function K2_5StructuredParams(;
+function K2_5StructuredParams{T}(;
   uplo::Symbol = :L,
   kmethod::Symbol = :trimr,
   rhs_scale::Bool = true,
-  atol0::T = 1.0e-4,
-  rtol0::T = 1.0e-4,
-  atol_min::T = 1.0e-10,
-  rtol_min::T = 1.0e-10,
-  ρ0::T = sqrt(eps()) * 1e5,
-  δ0::T = sqrt(eps()) * 1e5,
-  ρ_min::T = 1e2 * sqrt(eps()),
-  δ_min::T = 1e2 * sqrt(eps()),
+  atol0::T = eps(T)^(1/4),
+  rtol0::T = eps(T)^(1/4),
+  atol_min::T = sqrt(eps(T)),
+  rtol_min::T = sqrt(eps(T)),
+  ρ0::T = eps(T)^(1/4),
+  δ0::T = eps(T)^(1/4),
+  ρ_min::T = T(1e2 * sqrt(eps(T))),
+  δ_min::T = T(1e2 * sqrt(eps(T))),
   itmax::Int = 0,
   mem::Int = 20,
 ) where {T <: Real}
@@ -68,6 +68,8 @@ function K2_5StructuredParams(;
     mem,
   )
 end
+
+K2_5StructuredParams(; kwargs...) = K2_5StructuredParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK2_5Structured{
   T <: Real,

@@ -20,7 +20,7 @@ encounters a pivot that has a small magnitude).
 When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 `fact_alg` should be a [`RipQP.AbstractFactorization`](@ref).
 """
-mutable struct K2_5LDLParams{T, Fact} <: AugmentedParams
+mutable struct K2_5LDLParams{T, Fact} <: AugmentedParams{T}
   uplo::Symbol
   fact_alg::Fact
   ρ0::T

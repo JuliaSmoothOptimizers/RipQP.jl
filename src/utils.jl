@@ -186,3 +186,11 @@ function show_used_solver(pad::PreallocatedData{T}) where {T}
   slv_name = solver_name(pad)
   @info "Solving in $T using $slv_name"
 end
+
+solver_type(sp::SolverParams{T}) where {T} = T
+
+function next_type(T::DataType, T0::DataType)
+  T == T0 && return T0
+  T == Float32 && return Float64
+  T == Float64 && return T0
+end

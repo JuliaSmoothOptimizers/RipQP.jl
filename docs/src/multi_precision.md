@@ -19,8 +19,10 @@ You can use the multi-precision mode to solve a problem with a warm-start in a l
 [`RipQP.InputTol`](@ref) contains intermediate parameters that are used to decide when to transition from a lower precision to a higher precision.
 
 ```julia
-stats = ripqp(qm, mode = :multi, itol = InputTol(ϵ_pdd32 = 1.0e-2))
+stats = ripqp(qm, mode = :multi, itol = InputTol(ϵ_pdd1 = 1.0e-2))
 ```
+
+`ϵ_pdd1` is used for the transition from `Float32` to `Float64`, while `ϵ_pdd` is used at the end of the algorithm.
 
 ## Refinement of the Quadratic Problem
 
@@ -31,8 +33,8 @@ References:
 * D. Ma, L. Yang, R. M. T. Fleming, I. Thiele, B. O. Palsson, M. A. Saunders [*Reliable and efficient solution of genome-scale models of Metabolism and macromolecular Expression*](https://doi.org/10.1038/srep40863), Scientific Reports 7, 40863, 2017.
 
 ```julia
-stats = ripqp(qm, mode = :multiref, itol = InputTol(ϵ_pdd32 = 1.0e-2))
-stats = ripqp(qm, mode = :multizoom, itol = InputTol(ϵ_pdd32 = 1.0e-2))
+stats = ripqp(qm, mode = :multiref, itol = InputTol(ϵ_pdd1 = 1.0e-2))
+stats = ripqp(qm, mode = :multizoom, itol = InputTol(ϵ_pdd1 = 1.0e-2))
 ```
 
 The two presented algorithms follow the procedure described in each of the two above references.

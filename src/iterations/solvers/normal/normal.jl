@@ -1,6 +1,6 @@
-abstract type NormalParams <: SolverParams end
+abstract type NormalParams{T} <: SolverParams{T} end
 
-abstract type NormalKrylovParams{PT <: AbstractPreconditioner} <: NormalParams end
+abstract type NormalKrylovParams{T, PT <: AbstractPreconditioner} <: NormalParams{T} end
 
 abstract type PreallocatedDataNormal{T <: Real, S} <: PreallocatedData{T, S} end
 

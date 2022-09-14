@@ -13,16 +13,18 @@ The outer constructor
 
 creates a [`RipQP.SolverParams`](@ref).
 """
-mutable struct K1CholDenseParams <: NormalParams
+mutable struct K1CholDenseParams{T} <: NormalParams{T}
   uplo::Symbol
-  ρ0::Float64
-  δ0::Float64
+  ρ0::T
+  δ0::T
 end
 
-function K1CholDenseParams(; ρ0::Float64 = sqrt(eps()) * 1e5, δ0::Float64 = sqrt(eps()) * 1e5)
+function K1CholDenseParams{T}(; ρ0::T = T(sqrt(eps()) * 1e5), δ0::T = T(sqrt(eps()) * 1e5)) where {T}
   uplo = :L # mandatory for LDL fact
   return K1CholDenseParams(uplo, ρ0, δ0)
 end
+
+K1CholDenseParams(; kwargs...) = K1CholDenseParams{Float64}(; kwargs...)
 
 mutable struct PreallocatedDataK1CholDense{T <: Real, S, M <: AbstractMatrix{T}} <:
                PreallocatedDataNormalChol{T, S}

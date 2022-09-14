@@ -17,7 +17,7 @@ mutable struct EquilibrationData{T <: Real, S} <: PreconditionerData{T, S}
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{Equilibration},
+  sp::AugmentedKrylovParams{T, Equilibration},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -63,7 +63,7 @@ mutable struct EquilibrationK3SData{T <: Real, S, L <: LinearOperator{T}} <:
 end
 
 function PreconditionerData(
-  sp::NewtonKrylovParams{Equilibration},
+  sp::NewtonKrylovParams{T, Equilibration},
   id::QM_IntData,
   fd::QM_FloatData{T, S},
   regu::Regularization{T},

@@ -32,7 +32,7 @@ end
 ldivmem!(res, LLDLS::LLDLStor, x) = ldiv!(res, LLDLS.Fact, x)
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LLDL},
+  sp::AugmentedKrylovParams{T, <:LLDL},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},

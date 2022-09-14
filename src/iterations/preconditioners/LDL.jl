@@ -100,7 +100,7 @@ function dlt_div_stor!(res, v, tmp_res::Vector{T}, tmp_v::Vector{T}, n, Lp, Li, 
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LDL},
+  sp::AugmentedKrylovParams{T, <:LDL},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -123,15 +123,15 @@ function PreconditionerData(
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LDL},
+  sp::AugmentedKrylovParams{T, <:LDL},
   K_fact::FactorizationData{Tlow},
   nvar::Int,
   ncon::Int,
   regu_precond::Regularization{Tlow},
   K,
-) where {Tlow <: Real}
+) where {T, Tlow <: Real}
   regu_precond.regul = (K_fact isa LDLFactorizationData) ? :dynamic : :classic
-  T = eltype(K)
+  @assert T == eltype(K)
   if regu_precond.regul == :dynamic && K_fact isa LDLFactorizationData
     regu_precond.ρ, regu_precond.δ = -Tlow(eps(Tlow)^(3 / 4)), Tlow(eps(Tlow)^(0.45))
     K_fact.LDL.r1, K_fact.LDL.r2 = regu_precond.ρ, regu_precond.δ

@@ -227,7 +227,9 @@ function iter!(
   cnts::Counters,
   iconf::InputConfig,
   T0::DataType,
-  display::Bool,
+  display::Bool;
+  last_iter::Bool = true,
+  # false if there are several solvers sp and the current solve does not uses the last one
 ) where {T <: Real, Tc <: Real}
   @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired
     time_fact = (cnts.kc == -1) ? time_ns() : UInt(0) # timer centrality_corr factorization
@@ -261,9 +263,6 @@ function iter!(
       )
     end
 
-    # check alpha values in multi-precision
-    (T != T0) && iconf.early_multi_stop && small_αs(α_pri, α_dual, cnts) && break
-
     if cnts.kc > 0   # centrality corrections
       α_pri, α_dual =
         multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res, T0)
@@ -290,5 +289,8 @@ function iter!(
     sc.tired = sc.Δt > sc.max_time
 
     display == true && (@timeit_debug to "display" show_log_row(pad, itd, res, cnts, α_pri, α_dual))
+
+    # check alpha values in multi-precision
+    !last_iter && iconf.early_multi_stop && small_αs(α_pri, α_dual, cnts) && break
   end
 end
