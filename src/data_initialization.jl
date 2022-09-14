@@ -202,7 +202,12 @@ function allocate_workspace(
   return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T
 end
 
-function allocate_extra_workspace1(T::DataType, itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+function allocate_extra_workspace1(
+  T::DataType,
+  itol::InputTol,
+  iconf::InputConfig,
+  fd_T0::QM_FloatData,
+)
   ϵ1 = Tolerances(
     T(itol.ϵ_pdd1),
     T(itol.ϵ_rb1),
@@ -217,7 +222,12 @@ function allocate_extra_workspace1(T::DataType, itol::InputTol, iconf::InputConf
   return fd1, ϵ1
 end
 
-function allocate_extra_workspace2(T::DataType, itol::InputTol, iconf::InputConfig, fd_T0::QM_FloatData)
+function allocate_extra_workspace2(
+  T::DataType,
+  itol::InputTol,
+  iconf::InputConfig,
+  fd_T0::QM_FloatData,
+)
   ϵ2 = Tolerances(
     T(itol.ϵ_pdd2),
     T(itol.ϵ_rb2),
