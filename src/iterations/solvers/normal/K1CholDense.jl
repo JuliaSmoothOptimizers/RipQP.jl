@@ -19,7 +19,10 @@ mutable struct K1CholDenseParams{T} <: NormalParams{T}
   δ0::T
 end
 
-function K1CholDenseParams{T}(; ρ0::T = T(sqrt(eps()) * 1e5), δ0::T = T(sqrt(eps()) * 1e5)) where {T}
+function K1CholDenseParams{T}(;
+  ρ0::T = T(sqrt(eps()) * 1e5),
+  δ0::T = T(sqrt(eps()) * 1e5),
+) where {T}
   uplo = :L # mandatory for LDL fact
   return K1CholDenseParams(uplo, ρ0, δ0)
 end

@@ -196,9 +196,9 @@ function ripqp(
     # initialize data (some allocations for the pad creation)
     pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-       # set final tolerances
+      # set final tolerances
       set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
-       # set intermediate tolerances
+      # set intermediate tolerances
       !isnothing(sp3) && set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
     end
 
@@ -232,12 +232,27 @@ function ripqp(
       display && setup_log_header(pad)
 
       # set max_iter for 2nd solver
-      sc.max_iter = isnothing(sp3) ? itol.max_iter : itol.max_iter2 
+      sc.max_iter = isnothing(sp3) ? itol.max_iter : itol.max_iter2
     end
 
     if !isnothing(sp3) # iter! with 2nd solver, setup data 3rd solver
       # IPM iterations 2nd solver starting from pt
-      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = !isnothing(sp3))
+      iter!(
+        pt,
+        itd,
+        fd,
+        id,
+        res,
+        sc,
+        dda,
+        pad,
+        ϵ,
+        cnts,
+        iconf,
+        T0,
+        display,
+        last_iter = !isnothing(sp3),
+      )
 
       # iteration counter for 2nd solver
       iters_sp2 = cnts.k - iters_sp
@@ -251,7 +266,7 @@ function ripqp(
       display && setup_log_header(pad)
 
       # set max_iter for 3rd solver
-      sc.max_iter = itol.max_iter 
+      sc.max_iter = itol.max_iter
     end
 
     # IPM iterations 3rd solver: different following the use of mode multi, multizoom, multiref
@@ -386,12 +401,8 @@ function ripqp(
 ) where {T0 <: Real}
   sp.δ0 = 0.0 # equality constraints of least squares as QPs are already regularized
   FLLS = FeasibilityFormNLS(LLS)
-  stats = ripqp(
-    QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name);
-    mode = mode,
-    sp = sp,
-    kwargs...,
-  )
+  stats =
+    ripqp(QuadraticModel(FLLS, FLLS.meta.x0, name = LLS.meta.name); mode = mode, sp = sp, kwargs...)
   n = LLS.meta.nvar
   x, r = stats.solution[1:n], stats.solution[(n + 1):end]
   solver_sp = stats.solver_specific

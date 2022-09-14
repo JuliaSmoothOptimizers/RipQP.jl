@@ -34,7 +34,8 @@ function convert_types(
   fd::Abstract_QM_FloatData, # type T
   T0::DataType,
 ) where {T_old <: Real, S_old}
-  (T == T_old) && (return pt, itd, res, dda, convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0))
+  (T == T_old) &&
+    (return pt, itd, res, dda, convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0))
   S = S_old.name.wrapper{T, 1}
   pt = convert(Point{T, S}, pt)
   res = convert(AbstractResiduals{T, S}, res)

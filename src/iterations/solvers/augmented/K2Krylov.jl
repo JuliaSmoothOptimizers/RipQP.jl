@@ -41,8 +41,8 @@ function K2KrylovParams{T}(;
   rhs_scale::Bool = true,
   form_mat::Bool = false,
   equilibrate::Bool = false,
-  atol0::T = eps(T)^(1/4),
-  rtol0::T = eps(T)^(1/4),
+  atol0::T = eps(T)^(1 / 4),
+  rtol0::T = eps(T)^(1 / 4),
   atol_min::T = sqrt(eps(T)),
   rtol_min::T = sqrt(eps(T)),
   ρ0::T = T(sqrt(eps()) * 1e5),
@@ -258,7 +258,8 @@ function solver!(
     kunscale!(pad.KS.x, rhsNorm)
   end
   if pad.equilibrate
-    if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}} && step !== :aff
+    if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}} &&
+       step !== :aff
       rdiv!(pad.K.data, pad.mt.Deq)
       ldiv!(pad.mt.Deq, pad.K.data)
     end
@@ -393,7 +394,8 @@ function convertpad(
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
   regu_precond = convert(Regularization{sp_new.preconditioner.T}, pad.regu)
   regu_precond.regul = :dynamic
-  K_fact = (sp_new.preconditioner.T != sp_old.preconditioner.T) ?
+  K_fact =
+    (sp_new.preconditioner.T != sp_old.preconditioner.T) ?
     convertldl(sp_new.preconditioner.T, pad.pdat.K_fact) : pad.pdat.K_fact
   pdat = PreconditionerData(sp_new, K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
