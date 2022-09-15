@@ -55,6 +55,17 @@ function K2KrylovParams{T}(;
   if equilibrate && !form_mat
     error("use form_mat = true to use equilibration")
   end
+  if typeof(preconditioner) <: LDL
+    if !form_mat
+      form_mat = true
+      @info "changed form_mat to true to use this preconditioner"
+    end
+    uplo_fact = get_uplo(preconditioner.fact_alg)
+    if uplo != uplo_fact
+      uplo = uplo_fact
+      @info "changed uplo to :$uplo_fact to use this preconditioner"
+    end
+  end
   return K2KrylovParams(
     uplo,
     kmethod,
@@ -160,10 +171,6 @@ function PreallocatedData(
     D .= -T(1.0e-2)
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  typeof(sp.preconditioner) <: LDL &&
-    !(sp.form_mat) &&
-    (sp.form_mat = true) &&
-    @info "changed form_mat to true to use this preconditioner"
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q)
     K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo)
