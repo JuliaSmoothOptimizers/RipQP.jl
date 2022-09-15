@@ -196,9 +196,8 @@ function ripqp(
     # initialize data (some allocations for the pad creation)
     pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-      # set final tolerances
-      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
       # set intermediate tolerances
+      !isnothing(sp2) && set_tol_residuals!(ϵ1, Ti(res.rbNorm), Ti(res.rcNorm))
       !isnothing(sp3) && set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
     end
 
