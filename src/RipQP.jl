@@ -376,8 +376,8 @@ function ripqp(
     elapsed_time = time() - sc.start_time
 
     stats = GenericExecutionStats(
-      status,
       QM,
+      status = status,
       solution = x,
       objective = itd.minimize ? itd.pri_obj : -itd.pri_obj,
       dual_feas = res.rcNorm,
@@ -408,8 +408,8 @@ function ripqp(
   solver_sp = stats.solver_specific
   solver_sp[:r] = r
   return GenericExecutionStats(
-    stats.status,
     LLS,
+    status = stats.status,
     solution = x,
     objective = stats.objective,
     dual_feas = stats.dual_feas,
