@@ -223,7 +223,7 @@ function ripqp(
 
     if !isnothing(sp2) # setup data for 2nd solver
       fd = (T2 == T0) ? fd_T0 : fd2
-      ϵ = (T2 == T0) ? ϵ_T0 : ϵ2
+      ϵ = isnothing(sp3) ? ϵ_T0 : ϵ2
       pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
