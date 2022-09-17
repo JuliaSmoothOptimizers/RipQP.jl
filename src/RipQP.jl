@@ -196,9 +196,8 @@ function ripqp(
     # initialize data (some allocations for the pad creation)
     pad = initialize!(fd, id, res, itd, dda, pt, spd, ϵ, sc, iconf, cnts, T0)
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-      # set final tolerances
-      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
       # set intermediate tolerances
+      set_tol_residuals!(ϵ_T0, T0(res.rbNorm), T0(res.rcNorm))
       !isnothing(sp3) && set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
     end
 
@@ -223,8 +222,8 @@ function ripqp(
     iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
 
     if !isnothing(sp2) # setup data for 2nd solver
-      fd = (T2 == T0) ? fd_T0 : fd2
-      ϵ = (T2 == T0) ? ϵ_T0 : ϵ2
+      fd = isnothing(sp3) ? fd_T0 : fd2
+      ϵ = isnothing(sp3) ? ϵ_T0 : ϵ2
       pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
