@@ -15,7 +15,7 @@ The outer constructor
 
 creates a [`RipQP.SolverParams`](@ref).
 """
-mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{T, PT}
+mutable struct K2KrylovParams{T, PT, FT <: DataType} <: AugmentedKrylovParams{T, PT}
   uplo::Symbol
   kmethod::Symbol
   preconditioner::PT
@@ -32,6 +32,7 @@ mutable struct K2KrylovParams{T, PT} <: AugmentedKrylovParams{T, PT}
   δ_min::T
   itmax::Int
   mem::Int
+  Tir::FT
 end
 
 function K2KrylovParams{T}(;
@@ -41,8 +42,8 @@ function K2KrylovParams{T}(;
   rhs_scale::Bool = true,
   form_mat::Bool = false,
   equilibrate::Bool = false,
-  atol0::T = eps(T)^(1 / 4),
-  rtol0::T = eps(T)^(1 / 4),
+  atol0::T = T(eps(T)^(1 / 4)),
+  rtol0::T = T(eps(T)^(1 / 4)),
   atol_min::T = sqrt(eps(T)),
   rtol_min::T = sqrt(eps(T)),
   ρ0::T = T(sqrt(eps()) * 1e5),
@@ -51,6 +52,7 @@ function K2KrylovParams{T}(;
   δ_min::T = T(1e2 * sqrt(eps(T))),
   itmax::Int = 0,
   mem::Int = 20,
+  Tir::DataType = T,
 ) where {T <: Real}
   if equilibrate && !form_mat
     error("use form_mat = true to use equilibration")
@@ -83,6 +85,7 @@ function K2KrylovParams{T}(;
     δ_min,
     itmax,
     mem,
+    Tir,
   )
 end
 
