@@ -167,7 +167,7 @@ function ripqp(
 
     # extra workspace for multi mode
     if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
-      T2 = next_type(Ti, T0) # eltype of sp2
+      T2 = isnothing(sp2) ? next_type(Ti, T0) : solver_type(sp2) # eltype of sp2
       # if the 2nd solver is nothing:
       isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T2}())
       fd1, ϵ1 = allocate_extra_workspace1(Ti, itol, iconf, fd_T0)
