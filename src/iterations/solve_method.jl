@@ -2,6 +2,8 @@ export PC, IPF
 
 mutable struct PC <: SolveMethod end
 
+Base.isequal(sm1::PC, sm2::PC) = true
+
 abstract type DescentDirectionAllocs{T <: Real, S} end
 
 mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{T, S}
@@ -221,6 +223,8 @@ mutable struct IPF <: SolveMethod
   γ::Float64
 end
 
+Base.isequal(sm1::IPF, sm2::IPF) = (sm1.r == sm2.r) && (sm1.γ == sm2.γ)
+
 IPF(; r::Float64 = 0.999, γ::Float64 = 0.05) = IPF(r, γ)
 
 mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs{T, S}
@@ -291,9 +295,25 @@ end
 
 function convert_solve_method(
   ::Type{<:DescentDirectionAllocs{T, S}},
-  dda::DescentDirectionAllocs,
-  sp::SolverParams,
+  dda::DescentDirectionAllocs{T_old},
+  solve_method_old::SolveMethod,
+  solve_method_new::SolveMethod,
   id::QM_IntData,
-) where {T, S}
-  return convert(DescentDirectionAllocs{T, S}, dda)
+) where {T, S, T_old}
+  if isequal(solve_method_old, solve_method_new)
+    if T_old == T
+      return dda
+    else
+      return convert(DescentDirectionAllocs{T, S}, dda)
+    end
+  else
+    if T_old == T && typeof(solve_method_old) <: IPF && typeof(solve_method_new) <: IPF
+      # has to be IPF
+      dda.r = T(solve_method_new.r)
+      dda.γ = T(sole_method_new.γ)
+      return dda
+    else
+      return DescentDirectionAllocs(id, solve_method_new, S)
+    end
+  end
 end

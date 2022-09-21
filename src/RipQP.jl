@@ -76,7 +76,10 @@ containing information about the solved problem.
     If `sp2` is not nothing, then `mode` should be set to `:multi`, `:multiref` or `multizoom`.  
 - `solve_method :: SolveMethod` : method used to solve the system at each iteration, use `solve_method = PC()` to 
     use the Predictor-Corrector algorithm (default), and use `solve_method = IPF()` to use the Infeasible Path 
-    Following algorithm
+    Following algorithm.
+    `solve_method2 :: Union{Nothing, SolveMethod}` and  `solve_method3 :: Union{Nothing, SolveMethod}`
+    should be used with `sp2` and `sp3` to choose their respective solve method.
+    If they are `nothing`, then the solve method used is `solve_method`. 
 - `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
     history, and the number of products if using a Krylov method in the `solver_specific` field of the 
     [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
@@ -103,6 +106,8 @@ function ripqp(
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
   solve_method::SolveMethod = PC(),
+  solve_method2::Union{Nothing, SolveMethod} = nothing,
+  solve_method3::Union{Nothing, SolveMethod} = nothing,
   history::Bool = false,
   w::SystemWrite = SystemWrite(),
   display::Bool = true,
@@ -170,12 +175,14 @@ function ripqp(
       T2 = isnothing(sp2) ? next_type(Ti, T0) : solver_type(sp2) # eltype of sp2
       # if the 2nd solver is nothing:
       isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T2}())
+      isnothing(solve_method2) && (solve_method2 = solve_method) 
       fd1, ϵ1 = allocate_extra_workspace1(Ti, itol, iconf, fd_T0)
       fd, ϵ = fd1, ϵ1
       if T2 != T0 || !isnothing(sp3)
         fd2, ϵ2 = allocate_extra_workspace2(T2, itol, iconf, fd_T0)
         # if the 3nd solver is nothing:
         isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
+        isnothing(solve_method3) && (solve_method3 = solve_method2) 
       end
     elseif iconf.mode == :ref || iconf.mode == :zoom
       fd = fd_T0
@@ -224,7 +231,8 @@ function ripqp(
     if !isnothing(sp2) # setup data for 2nd solver
       fd = isnothing(sp3) ? fd_T0 : fd2
       ϵ = isnothing(sp3) ? ϵ_T0 : ϵ2
-      pt, itd, res, dda, pad = convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, T0)
+      pt, itd, res, dda, pad = 
+        convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, solve_method, solve_method2, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)
@@ -258,7 +266,8 @@ function ripqp(
 
       fd = fd_T0
       ϵ = ϵ_T0
-      pt, itd, res, dda, pad = convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, T0)
+      pt, itd, res, dda, pad =
+        convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, solve_method2, solve_method3, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)
