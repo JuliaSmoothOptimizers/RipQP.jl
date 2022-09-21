@@ -33,6 +33,7 @@ mutable struct K2KrylovParams{T, PT, FT <: DataType} <: AugmentedKrylovParams{T,
   itmax::Int
   mem::Int
   Tir::FT
+  switch_solve_method::Bool
 end
 
 function K2KrylovParams{T}(;
@@ -53,6 +54,7 @@ function K2KrylovParams{T}(;
   itmax::Int = 0,
   mem::Int = 20,
   Tir::DataType = T,
+  switch_solve_method::Bool = false,
 ) where {T <: Real}
   if equilibrate && !form_mat
     error("use form_mat = true to use equilibration")
@@ -86,6 +88,7 @@ function K2KrylovParams{T}(;
     itmax,
     mem,
     Tir,
+    switch_solve_method,
   )
 end
 
@@ -459,4 +462,30 @@ function convertpad(
     false,
     pad.mt.diagind_K, #diagind_K
   )
+end
+
+function convert_solve_method(
+  ::Type{<:DescentDirectionAllocs{T, S}},
+  dda::DescentDirectionAllocsPC,
+  sp::K2KrylovParams,
+  id::QM_IntData,
+) where {T, S}
+  if sp.switch_solve_method
+    return DescentDirectionAllocs(id, IPF(), S)
+  else
+    return convert(DescentDirectionAllocs{T, S}, dda)
+  end
+end
+
+function convert_solve_method(
+  ::Type{<:DescentDirectionAllocs{T, S}},
+  dda::DescentDirectionAllocsIPF,
+  sp::K2KrylovParams,
+  id::QM_IntData,
+) where {T, S}
+  if sp.switch_solve_method
+    return DescentDirectionAllocs(id, PC(), S)
+  else
+    return convert(DescentDirectionAllocs{T, S}, dda)
+  end
 end

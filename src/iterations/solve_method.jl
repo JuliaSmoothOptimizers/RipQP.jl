@@ -288,3 +288,12 @@ function update_dd!(
     itd.Δs_u .= @views (σ * itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
   end
 end
+
+function convert_solve_method(
+  ::Type{<:DescentDirectionAllocs{T, S}},
+  dda::DescentDirectionAllocs,
+  sp::SolverParams,
+  id::QM_IntData,
+) where {T, S}
+  return convert(DescentDirectionAllocs{T, S}, dda)
+end
