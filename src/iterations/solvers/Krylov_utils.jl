@@ -6,6 +6,8 @@ function init_Ksolver(M, v, sp::SolverParams)
     return eval(KRYLOV_SOLVERS[kmethod])(M, v, sp.mem)
   elseif kmethod == :gmresir
     return GmresIRSolver(GmresSolver(M, v, sp.mem), similar(v, sp.Tir), similar(v), similar(v), false, 0)
+  elseif kmethod == :ir
+    return IRSolver(similar(v), similar(v), similar(v, sp.Tir), similar(v), similar(v), false, 0)
   end
   return eval(KRYLOV_SOLVERS[kmethod])(M, v)
 end
@@ -638,6 +640,61 @@ function ksolve!(
     iter += niterations(KS.solver)
     rsolves .= r
     optimal = iter ≥ itmax || niterations(KS.solver) == 0 || norm(rsolves) ≤ atol
+  end
+  KS.itertot = iter
+end
+
+mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, T, S}
+  x_solve1::S
+  x_solve2::S
+  r::Sr
+  rsolves::S
+  x::S
+  warm_start::Bool
+  itertot::Int
+end
+
+Krylov.niterations(KS::IRSolver) = KS.itertot
+
+function Krylov.warm_start!(KS::IRSolver, x) # only indicate to warm_start
+  KS.warm_start = true
+end
+
+status_to_char(KS::IRSolver) = 's'
+
+function ksolve!(
+  KS::IRSolver{T},
+  K,
+  rhs::AbstractVector{T},
+  P::LRPrecond;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+  itmax::Int = 0,
+) where {T}
+
+  r = KS.r
+  Tr = eltype(r)
+  rsolves = KS.rsolves
+  if KS.warm_start
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+  else
+    r .= zero(Tr)
+    KS.x .= zero(T)
+  end
+  iter = 0
+  rsolves .= r
+  optimal = iter ≥ itmax || norm(rsolves) ≤ atol
+  while !optimal
+    mul!(KS.x_solve1, P.M, rsolves)
+    mul!(KS.x_solve2, P.N, KS.x_solve1)
+    KS.x .+= KS.x_solve2
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+    iter += 1
+    rsolves .= r
+    optimal = iter ≥ itmax || norm(rsolves) ≤ atol
   end
   KS.itertot = iter
 end

@@ -140,7 +140,7 @@ function PreconditionerData(
   end
 
   if T == Tlow
-    if sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir
+    if sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir || sp.kmethod == :ir
       if sp.preconditioner.pos == :C
         @assert K_fact isa LDLFactorizationData
         M = LinearOperator(
@@ -201,7 +201,7 @@ function PreconditionerData(
   else
     tmp_res = Vector{Tlow}(undef, nvar + ncon)
     tmp_v = Vector{Tlow}(undef, nvar + ncon)
-    if sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir
+    if sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir || sp.kmethod == :ir
       if sp.preconditioner.pos == :C
         @assert K_fact isa LDLFactorizationData
         M = LinearOperator(
@@ -392,7 +392,8 @@ function update_preconditioner!(
     end
     warm_start!(pad.KS, pad.KS.x)
   end
-  if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver || typeof(pad.KS) <: GmresIRSolver)
+  if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver || typeof(pad.KS) <: GmresIRSolver ||
+    typeof(pad.KS) <: IRSolver)
     abs_diagonal!(pad.pdat.K_fact)
   end
 end
