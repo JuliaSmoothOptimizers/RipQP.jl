@@ -4,6 +4,10 @@ function init_Ksolver(M, v, sp::SolverParams)
   kmethod = sp.kmethod
   if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
     return eval(KRYLOV_SOLVERS[kmethod])(M, v, sp.mem)
+  elseif kmethod == :gmresir
+    return GmresIRSolver(GmresSolver(M, v, sp.mem), similar(v, sp.Tir), similar(v), similar(v), false, 0)
+  elseif kmethod == :ir
+    return IRSolver(similar(v), similar(v), similar(v, sp.Tir), similar(v), similar(v), false, 0)
   end
   return eval(KRYLOV_SOLVERS[kmethod])(M, v)
 end
@@ -574,3 +578,123 @@ solver_name(
   " with $(get_krylov_method_name(pad.KS))",
   " and $(precond_name(pad.pdat)) preconditioner",
 )
+
+mutable struct GmresIRSolver{T, FC, S, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, FC, S}
+  solver::GmresSolver{T, FC, S}
+  r::Sr
+  rsolves::S
+  x::S
+  warm_start::Bool
+  itertot::Int
+end
+
+Krylov.niterations(KS::GmresIRSolver) = KS.itertot
+
+function Krylov.warm_start!(KS::GmresIRSolver, x) # only indicate to warm_start
+  KS.warm_start = true
+end
+
+status_to_char(KS::GmresIRSolver) = status_to_char(KS.solver.stats.status)
+
+function ksolve!(
+  KS::GmresIRSolver{T},
+  K,
+  rhs::AbstractVector{T},
+  P::LRPrecond;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+  itmax::Int = 0,
+) where {T}
+
+  r = KS.r
+  Tr = eltype(r)
+  rsolves = KS.rsolves
+  if KS.warm_start
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+  else
+    r .= zero(Tr)
+    KS.x .= zero(T)
+  end
+  KS.solver.warm_start = false
+  iter = 0
+  rsolves .= r
+  optimal = iter ≥ itmax || norm(rsolves) ≤ atol
+  while !optimal
+    gmres!(
+      KS.solver,
+      K,
+      rsolves,
+      M = P.M,
+      N = P.N,
+      restart = false,
+      verbose = verbose,
+      atol = atol,
+      rtol = rtol,
+      itmax = length(KS.solver.c),
+    )
+    KS.x .+= KS.solver.x
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+    iter += niterations(KS.solver)
+    rsolves .= r
+    optimal = iter ≥ itmax || niterations(KS.solver) == 0 || norm(rsolves) ≤ atol
+  end
+  KS.itertot = iter
+end
+
+mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, T, S}
+  x_solve1::S
+  x_solve2::S
+  r::Sr
+  rsolves::S
+  x::S
+  warm_start::Bool
+  itertot::Int
+end
+
+Krylov.niterations(KS::IRSolver) = KS.itertot
+
+function Krylov.warm_start!(KS::IRSolver, x) # only indicate to warm_start
+  KS.warm_start = true
+end
+
+status_to_char(KS::IRSolver) = 's'
+
+function ksolve!(
+  KS::IRSolver{T},
+  K,
+  rhs::AbstractVector{T},
+  P::LRPrecond;
+  verbose::Integer = 0,
+  atol::T = T(sqrt(eps(T))),
+  rtol::T = T(sqrt(eps(T))),
+  itmax::Int = 0,
+) where {T}
+
+  r = KS.r
+  Tr = eltype(r)
+  rsolves = KS.rsolves
+  if KS.warm_start
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+  else
+    r .= zero(Tr)
+    KS.x .= zero(T)
+  end
+  iter = 0
+  rsolves .= r
+  optimal = iter ≥ itmax || norm(rsolves) ≤ atol
+  while !optimal
+    mul!(KS.x_solve1, P.M, rsolves)
+    mul!(KS.x_solve2, P.N, KS.x_solve1)
+    KS.x .+= KS.x_solve2
+    mul!(r, K, KS.x)
+    @. r = rhs - r
+    iter += 1
+    rsolves .= r
+    optimal = iter ≥ itmax || norm(rsolves) ≤ atol
+  end
+  KS.itertot = iter
+end

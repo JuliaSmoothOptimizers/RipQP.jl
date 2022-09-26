@@ -126,6 +126,8 @@ function status_to_char(st::String)
   end
 end
 
+status_to_char(KS::KrylovSolver) = status_to_char(KS.stats.status)
+
 function show_log_row_krylov(
   pad::PreallocatedData{T},
   itd::IterData{T},
@@ -147,7 +149,7 @@ function show_log_row_krylov(
       pad.regu.ρ,
       pad.regu.δ,
       pad.kiter,
-      status_to_char(pad.KS.stats.status),
+      status_to_char(pad.KS),
     ],
   )
 end
