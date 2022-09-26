@@ -5,7 +5,14 @@ function init_Ksolver(M, v, sp::SolverParams)
   if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
     return eval(KRYLOV_SOLVERS[kmethod])(M, v, sp.mem)
   elseif kmethod == :gmresir
-    return GmresIRSolver(GmresSolver(M, v, sp.mem), similar(v, sp.Tir), similar(v), similar(v), false, 0)
+    return GmresIRSolver(
+      GmresSolver(M, v, sp.mem),
+      similar(v, sp.Tir),
+      similar(v),
+      similar(v),
+      false,
+      0,
+    )
   elseif kmethod == :ir
     return IRSolver(similar(v), similar(v), similar(v, sp.Tir), similar(v), similar(v), false, 0)
   end
@@ -606,7 +613,6 @@ function ksolve!(
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
 ) where {T}
-
   r = KS.r
   Tr = eltype(r)
   rsolves = KS.rsolves
@@ -644,7 +650,8 @@ function ksolve!(
   KS.itertot = iter
 end
 
-mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, T, S}
+mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <:
+               KrylovSolver{T, T, S}
   x_solve1::S
   x_solve2::S
   r::Sr
@@ -672,7 +679,6 @@ function ksolve!(
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
 ) where {T}
-
   r = KS.r
   Tr = eltype(r)
   rsolves = KS.rsolves

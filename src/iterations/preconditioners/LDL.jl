@@ -392,8 +392,12 @@ function update_preconditioner!(
     end
     warm_start!(pad.KS, pad.KS.x)
   end
-  if !(typeof(pad.KS) <: GmresSolver || typeof(pad.KS) <: DqgmresSolver || typeof(pad.KS) <: GmresIRSolver ||
-    typeof(pad.KS) <: IRSolver)
+  if !(
+    typeof(pad.KS) <: GmresSolver ||
+    typeof(pad.KS) <: DqgmresSolver ||
+    typeof(pad.KS) <: GmresIRSolver ||
+    typeof(pad.KS) <: IRSolver
+  )
     abs_diagonal!(pad.pdat.K_fact)
   end
 end

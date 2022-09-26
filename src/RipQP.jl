@@ -175,14 +175,14 @@ function ripqp(
       T2 = isnothing(sp2) ? next_type(Ti, T0) : solver_type(sp2) # eltype of sp2
       # if the 2nd solver is nothing:
       isnothing(sp2) && (sp2 = eval(typeof(sp).name.name){T2}())
-      isnothing(solve_method2) && (solve_method2 = solve_method) 
+      isnothing(solve_method2) && (solve_method2 = solve_method)
       fd1, ϵ1 = allocate_extra_workspace1(Ti, itol, iconf, fd_T0)
       fd, ϵ = fd1, ϵ1
       if T2 != T0 || !isnothing(sp3)
         fd2, ϵ2 = allocate_extra_workspace2(T2, itol, iconf, fd_T0)
         # if the 3nd solver is nothing:
         isnothing(sp3) && (sp3 = eval(typeof(sp2).name.name){T0}())
-        isnothing(solve_method3) && (solve_method3 = solve_method2) 
+        isnothing(solve_method3) && (solve_method3 = solve_method2)
       end
     elseif iconf.mode == :ref || iconf.mode == :zoom
       fd = fd_T0
@@ -231,7 +231,7 @@ function ripqp(
     if !isnothing(sp2) # setup data for 2nd solver
       fd = isnothing(sp3) ? fd_T0 : fd2
       ϵ = isnothing(sp3) ? ϵ_T0 : ϵ2
-      pt, itd, res, dda, pad = 
+      pt, itd, res, dda, pad =
         convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, solve_method, solve_method2, T0)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
@@ -266,8 +266,21 @@ function ripqp(
 
       fd = fd_T0
       ϵ = ϵ_T0
-      pt, itd, res, dda, pad =
-        convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, solve_method2, solve_method3, T0)
+      pt, itd, res, dda, pad = convert_types(
+        T0,
+        pt,
+        itd,
+        res,
+        dda,
+        pad,
+        sp2,
+        sp3,
+        id,
+        fd,
+        solve_method2,
+        solve_method3,
+        T0,
+      )
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)
