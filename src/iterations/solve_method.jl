@@ -103,8 +103,8 @@ function update_dd!(
   res::AbstractResiduals{T},
   pad::PreallocatedData{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
 
   # solve system aff
   dda.Δxy_aff[1:(id.nvar)] .= .-res.rc
@@ -263,8 +263,8 @@ function update_dd!(
   res::AbstractResiduals{T},
   pad::PreallocatedData{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   # D = [s_l (x-lvar) + s_u (uvar-x)]
   dda.compl_l .= pt.s_l .* itd.x_m_lvar
   dda.compl_u .= pt.s_u .* itd.uvar_m_x

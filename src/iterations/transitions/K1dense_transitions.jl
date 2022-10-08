@@ -5,8 +5,8 @@ function convertpad(
   sp_new::Union{Nothing, K1CholDenseParams},
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  T02::DataType,
-) where {T <: Real, T0 <: Real, S0, M0}
+  ::Type{T02}
+) where {T <: Real, T0 <: Real, T02 <: Real, S0, M0}
   S = change_vector_eltype(S0, T)
   pad = PreallocatedDataK1CholDense(
     convert(S, pad.D),

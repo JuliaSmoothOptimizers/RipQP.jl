@@ -227,11 +227,11 @@ function iter!(
   ϵ::Tolerances{T},
   cnts::Counters,
   iconf::InputConfig,
-  T0::DataType,
+  ::Type{T0},
   display::Bool;
   last_iter::Bool = true,
   # false if there are several solvers sp and the current solve does not uses the last one
-) where {T <: Real, Tc <: Real}
+) where {T <: Real, Tc <: Real, T0 <: Real}
   @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired
     time_fact = (cnts.kc == -1) ? time_ns() : UInt(0) # timer centrality_corr factorization
     out = @timeit_debug to "update solver" update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0) # update data for the solver! function used

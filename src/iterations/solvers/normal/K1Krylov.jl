@@ -179,9 +179,9 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
+  ::Type{T0},
   step::Symbol,
-) where {T <: Real}
+) where {T <: Real, T0 <: Real}
   pad.rhs .= @views dd[(id.nvar + 1):end]
   if fd.uplo == :U
     @views mul!(pad.rhs, fd.A', dd[1:(id.nvar)] ./ pad.D, one(T), one(T))
@@ -227,8 +227,8 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
   end

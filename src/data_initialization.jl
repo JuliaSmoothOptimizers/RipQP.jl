@@ -112,9 +112,9 @@ function allocate_workspace(
   iconf::InputConfig,
   itol::InputTol,
   start_time,
-  T0::DataType,
+  ::Type{T0},
   sp::SolverParams{Ti},
-) where {Ti}
+) where {Ti, T0}
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
   # save inital IntData to compute multipliers at the end of the algorithm
@@ -223,11 +223,11 @@ function allocate_extra_workspace1(
 end
 
 function allocate_extra_workspace2(
-  T::DataType,
+  ::Type{T},
   itol::InputTol,
   iconf::InputConfig,
   fd_T0::QM_FloatData,
-)
+) where {T}
   ϵ2 = Tolerances(
     T(itol.ϵ_pdd2),
     T(itol.ϵ_rb2),
@@ -254,8 +254,8 @@ function initialize!(
   sc::StopCrit{Tc},
   iconf::InputConfig{Tconf},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real, Tc <: Real, Tconf <: Real}
+  ::Type{T0},
+) where {T <: Real, Tc <: Real, Tconf <: Real, T0 <: Real}
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [b]

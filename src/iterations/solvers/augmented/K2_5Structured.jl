@@ -169,9 +169,9 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
+  ::Type{T0},
   step::Symbol,
-) where {T <: Real}
+) where {T <: Real, T0 <: Real}
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)] .* pad.sqrtX1X2
   pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
          dd[(id.nvar + 1):end]
@@ -226,8 +226,8 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
   end

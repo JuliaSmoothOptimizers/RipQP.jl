@@ -203,9 +203,9 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
+  ::Type{T0},
   step::Symbol,
-) where {T <: Real}
+) where {T <: Real, T0 <: Real}
 
   # erase dda.Δxy_aff only for affine predictor step with PC method
   pad.rhs[1:(id.nvar)] .= @views dd[1:(id.nvar)] .* pad.sqrtX1X2
@@ -245,8 +245,8 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
   end

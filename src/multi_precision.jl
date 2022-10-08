@@ -1,10 +1,10 @@
-convert_sym(T::DataType, Q::Symmetric{T0, M0}) where {T0, M0 <: AbstractMatrix{T0}} =
+convert_sym(::Type{T}, Q::Symmetric{T0, M0}) where {T, T0, M0 <: AbstractMatrix{T0}} =
   Symmetric(convert_mat(Q.data, T), Symbol(Q.uplo))
 
 function convert_FloatData(
-  T::DataType,
+  ::Type{T},
   fd_T0::QM_FloatData{T0, S0, M10, M20},
-) where {T0 <: Real, S0, M10, M20}
+) where {T <: Real, T0 <: Real, S0, M10, M20}
   if T == T0
     return fd_T0
   else
@@ -22,7 +22,7 @@ function convert_FloatData(
 end
 
 function convert_types(
-  T::DataType,
+  ::Type{T},
   pt::Point{T_old, S_old},
   itd::IterData{T_old, S_old},
   res::AbstractResiduals{T_old, S_old},
@@ -34,8 +34,8 @@ function convert_types(
   fd::Abstract_QM_FloatData, # type T
   solve_method_old::SolveMethod,
   solve_method_new::SolveMethod,
-  T0::DataType,
-) where {T_old <: Real, S_old}
+  ::Type{T0},
+) where {T<: Real, T_old <: Real, S_old, T0 <: Real}
   S = S_old.name.wrapper{T, 1}
   (T == T_old) && (
     return pt,

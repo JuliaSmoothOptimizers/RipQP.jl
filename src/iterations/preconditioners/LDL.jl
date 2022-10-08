@@ -289,33 +289,32 @@ function PreconditionerData(
 end
 
 function factorize_scale_K2!(
-  K::Symmetric,
-  K_fact,
-  D,
-  Deq,
-  diag_Q,
+  K::Symmetric{T},
+  K_fact::FactorizationData{Tlow},
+  D::AbstractVector{T},
+  Deq::Diagonal{T, <:AbstractVector{T}},
+  diag_Q::AbstractSparseVector{T},
   diagind_K,
-  regu,
-  s_l,
-  s_u,
-  x_m_lvar,
-  uvar_m_x,
+  regu::Regularization{Tlow},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
   ilow,
   iupp,
   ncon,
   nvar,
-  cnts,
-  qp,
-  T,
-  T0,
-)
+  cnts::Counters,
+  qp::Bool,
+  ::Type{T0},
+) where {T, Tlow, T0}
   if regu.regul == :dynamic
-    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, T, qp)
+    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     while !factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts, T, T0)
+      out = update_regu_trycatch!(regu, cnts, T0)
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
@@ -333,7 +332,6 @@ function factorize_scale_K2!(
         diagind_K,
         nvar,
         ncon,
-        T,
       )
       @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
@@ -376,7 +374,6 @@ function update_preconditioner!(
     id.nvar,
     cnts,
     itd.qp,
-    Tlow,
     Tlow,
   ) # update D and factorize K
 

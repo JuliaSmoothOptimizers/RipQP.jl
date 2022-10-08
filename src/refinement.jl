@@ -28,10 +28,10 @@ function fd_refinement(
   pad::PreallocatedData{T},
   spd::StartingPointData{T},
   cnts::Counters,
-  T0::DataType,
+  ::Type{T0},
   mode::Symbol;
   centering::Bool = false,
-) where {T <: Real}
+) where {T <: Real, T0 <: Real}
 
   # center Points before zoom
   if centering

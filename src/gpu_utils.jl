@@ -1,20 +1,20 @@
 using .CUDA
 
-change_vector_eltype(S0::Type{<:CUDA.CuVector}, T) = S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
+change_vector_eltype(S0::Type{<:CUDA.CuVector}, ::Type{T}) where {T} = S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
 
-convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSC, T) = CUDA.CUSPARSE.CuSparseMatrixCSC(
+convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSC, ::Type{T}) where {T} = CUDA.CUSPARSE.CuSparseMatrixCSC(
   convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colPtr),
   convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowVal),
   convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
   M.dims,
 )
-convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSR, T) = CUDA.CUSPARSE.CuSparseMatrixCSR(
+convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSR, ::Type{T}) where {T} = CUDA.CUSPARSE.CuSparseMatrixCSR(
   convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowPtr),
   convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colVal),
   convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
   M.dims,
 )
-convert_mat(M::CUDA.CuMatrix, T) = convert(typeof(M).name.wrapper{T, 2, CUDA.Mem.DeviceBuffer}, M)
+convert_mat(M::CUDA.CuMatrix, ::Type{T}) where {T} = convert(typeof(M).name.wrapper{T, 2, CUDA.Mem.DeviceBuffer}, M)
 
 function sparse_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
   CPUvals = Vector(vals)
@@ -76,7 +76,7 @@ function check_bounds(x::T, lvar, uvar) where {T <: Real}
 end
 
 # starting points
-function update_rngbounds!(x, irng, lvar, uvar, ϵ) where {T <: Real}
+function update_rngbounds!(x, irng, lvar, uvar, ϵ)
   @views broadcast!(check_bounds, x[irng], x[irng], lvar[irng], uvar[irng])
 end
 

@@ -40,8 +40,8 @@ function multi_centrality_corr!(
   id::QM_IntData,
   cnts::Counters,
   res::AbstractResiduals{T},
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   iter_c = 0 # current number of correction iterations
   corr_flag = true #stop correction if false
   # for storage issues Δ_aff = Δp  and Δ_cc = Δm

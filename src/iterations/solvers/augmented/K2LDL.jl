@@ -74,7 +74,7 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
   end
   diag_Q = get_diag_Q(fd.Q)
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo)
+  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo, T)
 
   diagind_K = get_diagind_K(K, sp.uplo)
   K_fact = init_fact(K, sp.fact_alg)
@@ -112,9 +112,9 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
+  ::Type{T0},
   step::Symbol,
-) where {T <: Real}
+) where {T <: Real, T0 <: Real}
   ldiv!(pad.K_fact, dd)
   return 0
 end
@@ -128,11 +128,11 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
-) where {T <: Real}
+  ::Type{T0},
+) where {T <: Real, T0 <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts, T, T0)
+    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts, T0)
     out == 1 && return out
   end
 
@@ -150,7 +150,6 @@ function update_pad!(
     pad.diagind_K,
     id.nvar,
     id.ncon,
-    T,
   )
   out = factorize_K2!(
     pad.K,
@@ -169,7 +168,6 @@ function update_pad!(
     id.nvar,
     cnts,
     itd.qp,
-    T,
     T0,
   ) # update D and factorize K
 
@@ -311,9 +309,9 @@ function create_K2(
   A::SparseMatrixCSC,
   diag_Q::SparseVector,
   regu::Regularization,
-  uplo::Symbol;
-  T = eltype(D),
-)
+  uplo::Symbol,
+  ::Type{T},
+) where {T}
   # for classic regul only
   n_nz = length(D) - length(diag_Q.nzind) + length(A.nzval) + length(Q.nzval)
   if (regu.regul == :classic || regu.regul == :hybrid) && regu.δ > 0
@@ -376,9 +374,9 @@ function create_K2(
   A::SparseMatrixCOO,
   diag_Q::SparseVector,
   regu::Regularization,
-  uplo::Symbol;
-  T = eltype(D),
-)
+  uplo::Symbol,
+  ::Type{T},
+) where {T}
   nvar, ncon = id.nvar, id.ncon
   δ = regu.δ
   nnz_Q, nnz_A = nnz(Q), nnz(A)
@@ -443,24 +441,23 @@ function update_diag_K22!(K::Symmetric{T, <:SparseMatrixCOO}, δ, diagind_K, nva
 end
 
 function update_K!(
-  K::Symmetric,
-  D,
-  regu,
-  s_l,
-  s_u,
-  x_m_lvar,
-  uvar_m_x,
+  K::Symmetric{T},
+  D::AbstractVector{T},
+  regu::Regularization,
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
   ilow,
   iupp,
-  diag_Q,
+  diag_Q::AbstractSparseVector{T},
   diagind_K,
   nvar,
   ncon,
-  T,
-)
+) where {T}
   if regu.regul == :classic || regu.regul == :hybrid
     D .= -regu.ρ
-    if regu.δ > zero(T)
+    if regu.δ > 0
       update_diag_K22!(K, regu.δ, diagind_K, nvar, ncon)
     end
   else
@@ -472,7 +469,14 @@ function update_K!(
   update_diag_K11!(K, D, diagind_K, nvar)
 end
 
-function update_K_dynamic!(K::Symmetric, K_fact, regu, diagind_K, cnts, T, qp)
+function update_K_dynamic!(
+  K::Symmetric{T},
+  K_fact::LDLFactorizations.LDLFactorization{Tlow},
+  regu::Regularization{Tlow},
+  diagind_K,
+  cnts::Counters,
+  qp::Bool,
+) where {T, Tlow}
   Amax = @views norm(K.data.nzval[diagind_K], Inf)
   if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
     if T == Float32 && regu.regul == :dynamic
@@ -488,32 +492,31 @@ end
 
 # iteration functions for the K2 system
 function factorize_K2!(
-  K::Symmetric,
-  K_fact,
-  D,
-  diag_Q,
+  K::Symmetric{T},
+  K_fact::FactorizationData{T},
+  D::AbstractVector{T},
+  diag_Q::AbstractSparseVector{T},
   diagind_K,
-  regu,
-  s_l,
-  s_u,
-  x_m_lvar,
-  uvar_m_x,
+  regu::Regularization{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
   ilow,
   iupp,
   ncon,
   nvar,
-  cnts,
-  qp,
-  T,
-  T0,
-)
+  cnts::Counters,
+  qp::Bool,
+  ::Type{T0},
+) where {T, T0}
   if (regu.regul == :dynamic || regu.regul == :hybrid) && K_fact isa LDLFactorizationData
-    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, T, qp)
+    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
     generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
     while !factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts, T, T0)
+      out = update_regu_trycatch!(regu, cnts, T0)
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
@@ -531,7 +534,6 @@ function factorize_K2!(
         diagind_K,
         nvar,
         ncon,
-        T,
       )
       generic_factorize!(K, K_fact)
     end

@@ -5,8 +5,8 @@ function convertpad(
   sp_new::K2KrylovParams,
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
+  ::Type{T0},
+) where {T <: Real, T_old <: Real, T0 <: Real}
   @assert sp_new.uplo == :U
   D = convert(Array{T}, pad.D)
   regu = convert(Regularization{T}, pad.regu)
@@ -56,8 +56,8 @@ function convertpad(
   sp_new::K2KrylovParams,
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
+  ::Type{T0},
+) where {T <: Real, T_old <: Real, T0 <: Real}
   D = convert(Array{T}, pad.D)
   regu = convert(Regularization{T}, pad.regu)
   regu.ρ_min = T(sp_new.ρ_min)
@@ -109,8 +109,8 @@ function convertpad(
   sp_new::K2LDLParams,
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  T0::DataType,
-) where {T <: Real, T_old <: Real}
+  ::Type{T0},
+) where {T <: Real, T_old <: Real, T0 <: Real}
   @assert sp_new.uplo == :U
   D = convert(Array{T}, pad.D)
   regu = convert(Regularization{T}, pad.regu)
