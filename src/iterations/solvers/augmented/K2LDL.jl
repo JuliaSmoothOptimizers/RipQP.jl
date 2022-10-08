@@ -479,7 +479,7 @@ function update_K_dynamic!(
 ) where {T, Tlow}
   Amax = @views norm(K.data.nzval[diagind_K], Inf)
   if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
-    if T == Float32 && regu.regul == :dynamic
+    if Tlow == Float32 && regu.regul == :dynamic
       return one(Int) # update to Float64
     elseif (qp || cnts.c_pdd < 4) && regu.regul == :dynamic
       cnts.c_pdd += 1
@@ -487,7 +487,7 @@ function update_K_dynamic!(
       K_fact.r2 = regu.δ
     end
   end
-  K_fact.tol = Amax * T(eps(T))
+  K_fact.tol = Tlow(Amax * eps(Tlow))
 end
 
 # iteration functions for the K2 system
