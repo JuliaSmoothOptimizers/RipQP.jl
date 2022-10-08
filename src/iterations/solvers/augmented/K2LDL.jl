@@ -132,7 +132,7 @@ function update_pad!(
 ) where {T <: Real, T0 <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts, T0)
+    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts)
     out == 1 && return out
   end
 
@@ -168,7 +168,6 @@ function update_pad!(
     id.nvar,
     cnts,
     itd.qp,
-    T0,
   ) # update D and factorize K
 
   if out == 1
@@ -508,15 +507,14 @@ function factorize_K2!(
   nvar,
   cnts::Counters,
   qp::Bool,
-  ::Type{T0},
-) where {T, T0}
+) where {T}
   if (regu.regul == :dynamic || regu.regul == :hybrid) && K_fact isa LDLFactorizationData
     update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
     generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
     while !factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts, T0)
+      out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1

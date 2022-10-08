@@ -306,15 +306,14 @@ function factorize_scale_K2!(
   nvar,
   cnts::Counters,
   qp::Bool,
-  ::Type{T0},
-) where {T, Tlow, T0}
+) where {T, Tlow}
   if regu.regul == :dynamic
     update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     while !factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts, T0)
+      out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
@@ -374,7 +373,6 @@ function update_preconditioner!(
     id.nvar,
     cnts,
     itd.qp,
-    Tlow,
   ) # update D and factorize K
 
   if out == 1
