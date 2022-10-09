@@ -34,7 +34,7 @@ function convert_types(
   fd::Abstract_QM_FloatData, # type T
   solve_method_old::SolveMethod,
   solve_method_new::SolveMethod,
-) where {T<: Real, T_old <: Real, S_old}
+) where {T <: Real, T_old <: Real, S_old}
   S = S_old.name.wrapper{T, 1}
   (T == T_old) && (
     return pt,

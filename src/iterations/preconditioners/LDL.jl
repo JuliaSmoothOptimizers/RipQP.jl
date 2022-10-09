@@ -317,21 +317,7 @@ function factorize_scale_K2!(
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
-      update_K!(
-        K,
-        D,
-        regu,
-        s_l,
-        s_u,
-        x_m_lvar,
-        uvar_m_x,
-        ilow,
-        iupp,
-        diag_Q,
-        diagind_K,
-        nvar,
-        ncon,
-      )
+      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
       @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
 
