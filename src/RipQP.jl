@@ -226,7 +226,7 @@ function ripqp(
       cnts.last_sp = false # sp is not the last sp because sp2 is not nothing
     end
     # IPM iterations 1st solver (mono mode: only this call to the iter! function)
-    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display, last_iter = last_iter)
+    iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, display, last_iter = last_iter)
 
     # initialize iteration counters
     iters_sp, iters_sp2, iters_sp3 = cnts.k, 0, 0
@@ -244,7 +244,7 @@ function ripqp(
         cnts.last_sp = false # sp2 is not the last sp because sp3 is not nothing
       end
       pt, itd, res, dda, pad =
-        convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, solve_method, solve_method2, T0)
+        convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd, solve_method, solve_method2)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)
@@ -265,7 +265,6 @@ function ripqp(
         ϵ,
         cnts,
         iconf,
-        T0,
         display,
         last_iter = !isnothing(sp3),
       )
@@ -288,7 +287,6 @@ function ripqp(
         fd,
         solve_method2,
         solve_method3,
-        T0,
       )
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
@@ -303,7 +301,7 @@ function ripqp(
     # IPM iterations 3rd solver: different following the use of mode multi, multizoom, multiref
     # starting from pt
     if !sc.optimal && mode == :multi
-      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      iter!(pt, itd, fd, id, res, sc, dda, pad, ϵ, cnts, iconf, display)
     elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
       spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
       fd_ref, pt_ref = fd_refinement(
@@ -318,18 +316,17 @@ function ripqp(
         pad,
         spd,
         cnts,
-        T0,
         iconf.mode,
         centering = true,
       )
-      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     elseif iconf.mode == :zoom || iconf.mode == :ref
       ϵ = ϵ_T0
       sc.optimal = false
       fd_ref, pt_ref =
-        fd_refinement(fd, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, T0, iconf.mode)
-      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, T0, display)
+        fd_refinement(fd, id, res, itd.Δxy, pt, itd, ϵ, dda, pad, spd, cnts, iconf.mode)
+      iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ, cnts, iconf, display)
       update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd_T0, itd)
     end
 

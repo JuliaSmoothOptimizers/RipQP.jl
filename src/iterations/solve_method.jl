@@ -103,8 +103,7 @@ function update_dd!(
   res::AbstractResiduals{T},
   pad::PreallocatedData{T},
   cnts::Counters,
-  ::Type{T0},
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
 
   # solve system aff
   dda.Δxy_aff[1:(id.nvar)] .= .-res.rc
@@ -128,7 +127,6 @@ function update_dd!(
     id,
     res,
     cnts,
-    T0,
     :aff,
   )
   out == 1 && return out
@@ -203,7 +201,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
-  out = @timeit_debug to "solver cc" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+  out = @timeit_debug to "solver cc" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
@@ -263,8 +261,7 @@ function update_dd!(
   res::AbstractResiduals{T},
   pad::PreallocatedData{T},
   cnts::Counters,
-  ::Type{T0},
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   # D = [s_l (x-lvar) + s_u (uvar-x)]
   dda.compl_l .= pt.s_l .* itd.x_m_lvar
   dda.compl_u .= pt.s_u .* itd.uvar_m_x
@@ -285,7 +282,7 @@ function update_dd!(
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :IPF, cnts.k)
   out =
-    @timeit_debug to "solver IPF" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
+    @timeit_debug to "solver IPF" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :IPF)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views (σ * itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l

@@ -34,20 +34,19 @@ function convert_types(
   fd::Abstract_QM_FloatData, # type T
   solve_method_old::SolveMethod,
   solve_method_new::SolveMethod,
-  ::Type{T0},
-) where {T<: Real, T_old <: Real, S_old, T0 <: Real}
+) where {T<: Real, T_old <: Real, S_old}
   S = S_old.name.wrapper{T, 1}
   (T == T_old) && (
     return pt,
     itd,
     res,
     convert_solve_method(DescentDirectionAllocs{T, S}, dda, solve_method_old, solve_method_new, id),
-    convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0)
+    convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd)
   )
   pt = convert(Point{T, S}, pt)
   res = convert(AbstractResiduals{T, S}, res)
   itd = convert(IterData{T, S}, itd)
-  pad = convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd, T0)
+  pad = convertpad(PreallocatedData{T}, pad, sp_old, sp_new, id, fd)
   dda = convert(DescentDirectionAllocs{T, S}, dda)
   dda =
     convert_solve_method(DescentDirectionAllocs{T, S}, dda, solve_method_old, solve_method_new, id)

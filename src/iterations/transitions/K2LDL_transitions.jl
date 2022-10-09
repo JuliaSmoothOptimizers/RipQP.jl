@@ -5,8 +5,7 @@ function convertpad(
   sp_new::Union{Nothing, K2LDLParams},
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  ::Type{T0},
-) where {T <: Real, T_old <: Real, T0 <: Real}
+) where {T <: Real, T_old <: Real}
   pad = PreallocatedDataK2LDL(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),

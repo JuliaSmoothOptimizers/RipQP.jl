@@ -271,7 +271,7 @@ function initialize!(
   end
   @timeit_debug to "init solver" begin
     pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
-    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :init)
+    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :init)
   end
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]

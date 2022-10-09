@@ -112,9 +112,8 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
   step::Symbol,
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   ldiv!(pad.K_fact, dd)
   return 0
 end
@@ -128,8 +127,7 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
     out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts)

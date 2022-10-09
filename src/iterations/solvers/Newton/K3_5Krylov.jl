@@ -232,9 +232,8 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
   step::Symbol,
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   if step == :aff
     Δs_l = dda.Δs_l_aff
     Δs_u = dda.Δs_u_aff
@@ -281,8 +280,7 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
   end

@@ -115,9 +115,8 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
   step::Symbol,
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   if pad.K_scaled
     dd[1:(id.nvar)] .*= pad.D
     ldiv!(pad.K_fact, dd)
@@ -154,8 +153,7 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  ::Type{T0},
-) where {T <: Real, T0 <: Real}
+) where {T <: Real}
   pad.K_scaled = false
   update_K!(
     pad.K,
