@@ -39,8 +39,7 @@ end</code></pre><p>Now you need to write a <code>RipQP.PreallocatedData</code> f
 end</code></pre><p>Then, you need to write a <code>RipQP.update_pad!</code> function that will update the <code>RipQP.PreallocatedData</code> struct before computing the direction of descent.</p><pre><code class="language-julia">function RipQP.update_pad!(pad :: PreallocatedDataK2basic{T}, dda :: RipQP.DescentDirectionAllocs{T},
                            pt :: RipQP.Point{T}, itd :: RipQP.IterData{T},
                            fd :: RipQP.Abstract_QM_FloatData{T}, id :: RipQP.QM_IntData,
-                           res :: RipQP.Residuals{T}, cnts :: RipQP.Counters,
-                           T0 :: RipQP.DataType) where {T&lt;:Real}
+                           res :: RipQP.Residuals{T}, cnts :: RipQP.Counters) where {T&lt;:Real}
 
     # update the diagonal of K2
     pad.D .= -pad.ρ
@@ -53,15 +52,14 @@ end</code></pre><p>Then, you need to write a <code>RipQP.update_pad!</code> func
     # factorize K2
     ldl_factorize!(Symmetric(pad.K, :U), pad.K_fact)
 
-end</code></pre><p>Finally, you need to write a <code>RipQP.solver!</code> function that compute directions of descent. Note that this function solves in-place the linear system by overwriting the direction of descent. That is why the direction of descent <code>dd</code>  countains the right hand side of the linear system to solve.</p><pre><code class="language-julia">function RipQP.solver!(dd :: AbstractVector{T}, pad :: PreallocatedDataK2basic{T},
+end</code></pre><p>Finally, you need to write a <code>RipQP.solver!</code> function that compute directions of descent. Note that this function solves in-place the linear system by overwriting the direction of descent. That is why the direction of descent <code>dd</code> contains the right hand side of the linear system to solve.</p><pre><code class="language-julia">function RipQP.solver!(dd :: AbstractVector{T}, pad :: PreallocatedDataK2basic{T},
                        dda :: RipQP.DescentDirectionAllocsPC{T}, pt :: RipQP.Point{T},
                        itd :: RipQP.IterData{T}, fd :: RipQP.Abstract_QM_FloatData{T},
                        id :: RipQP.QM_IntData, res :: RipQP.Residuals{T},
-                       cnts :: RipQP.Counters, T0 :: DataType,
-                       step :: Symbol) where {T&lt;:Real}
+                       cnts :: RipQP.Counters, step :: Symbol) where {T&lt;:Real}
 
     ldiv!(pad.K_fact, dd)
     return 0
 end</code></pre><p>Then, you can use your solver:</p><pre><code class="language-julia">using QuadraticModels, QPSReader
 qm = QuadraticModel(readqps(&quot;QAFIRO.SIF&quot;))
-stats1 = ripqp(qm, sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tutorial/">« Tutorial</a><a class="docs-footer-nextpage" href="../multi_precision/">Multi-precision »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 8 October 2022 02:32">Saturday 8 October 2022</span>. Using Julia version 1.8.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+stats1 = ripqp(qm, sp = K2basicLDLParams(:U, 1.0e-6, 1.0e-6))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tutorial/">« Tutorial</a><a class="docs-footer-nextpage" href="../multi_precision/">Multi-precision »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 9 October 2022 17:53">Sunday 9 October 2022</span>. Using Julia version 1.8.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
