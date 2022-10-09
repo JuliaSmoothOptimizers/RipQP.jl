@@ -274,20 +274,8 @@ function ripqp(
 
       fd = fd_T0
       ϵ = ϵ_T0
-      pt, itd, res, dda, pad = convert_types(
-        T0,
-        pt,
-        itd,
-        res,
-        dda,
-        pad,
-        sp2,
-        sp3,
-        id,
-        fd,
-        solve_method2,
-        solve_method3,
-      )
+      pt, itd, res, dda, pad =
+        convert_types(T0, pt, itd, res, dda, pad, sp2, sp3, id, fd, solve_method2, solve_method3)
       sc.optimal = itd.pdd < ϵ_T0.pdd && res.rbNorm < ϵ_T0.tol_rb && res.rcNorm < ϵ_T0.tol_rc
       sc.small_μ = itd.μ < ϵ_T0.μ
       display && show_used_solver(pad)

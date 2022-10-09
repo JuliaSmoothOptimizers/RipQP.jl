@@ -291,21 +291,7 @@ function factorize_K2_5!(
       end
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
-      update_K!(
-        K,
-        D,
-        regu,
-        s_l,
-        s_u,
-        x_m_lvar,
-        uvar_m_x,
-        ilow,
-        iupp,
-        diag_Q,
-        diagind_K,
-        nvar,
-        ncon,
-      )
+      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
 
       X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)
       K.data.nzval[view(diagind_K, 1:nvar)] .*= D .^ 2

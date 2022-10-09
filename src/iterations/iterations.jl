@@ -264,8 +264,7 @@ function iter!(
     end
 
     if cnts.kc > 0   # centrality corrections
-      α_pri, α_dual =
-        multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res)
+      α_pri, α_dual = multi_centrality_corr!(dda, pad, pt, α_pri, α_dual, itd, fd, id, cnts, res)
       ## TODO replace by centrality_corr.jl, deal with α
     end
 
