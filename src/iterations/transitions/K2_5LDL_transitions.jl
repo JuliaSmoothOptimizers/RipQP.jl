@@ -5,7 +5,6 @@ function convertpad(
   sp_new::Union{Nothing, K2_5LDLParams},
   id::QM_IntData,
   fd::Abstract_QM_FloatData,
-  T0::DataType,
 ) where {T <: Real, T_old <: Real}
   pad = PreallocatedDataK2_5LDL(
     convert(Array{T}, pad.D),
@@ -19,7 +18,7 @@ function convertpad(
   )
 
   if pad.regu.regul == :classic
-    if T == Float64 && T0 == Float64
+    if T == Float64 && typeof(sp_new) == Nothing
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps()) * 1e-5), T(sqrt(eps()) * 1e0)
     else
       pad.regu.ρ_min, pad.regu.δ_min = T(sqrt(eps(T)) * 1e1), T(sqrt(eps(T)) * 1e1)

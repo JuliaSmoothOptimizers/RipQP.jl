@@ -28,7 +28,6 @@ function fd_refinement(
   pad::PreallocatedData{T},
   spd::StartingPointData{T},
   cnts::Counters,
-  T0::DataType,
   mode::Symbol;
   centering::Bool = false,
 ) where {T <: Real}
@@ -54,10 +53,10 @@ function fd_refinement(
       typeof(pad.pdat) <: LDLData &&
       !factorized(pad.pdat.K_fact)
     )
-      out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts, T0)
-      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :IPF)
+      out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts)
+      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :IPF)
     else
-      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+      out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
     end
     itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
     itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u

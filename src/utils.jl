@@ -1,8 +1,8 @@
-change_vector_eltype(S0::Type{<:Vector}, T) = S0.name.wrapper{T, 1}
+change_vector_eltype(S0::Type{<:Vector}, ::Type{T}) where {T} = S0.name.wrapper{T, 1}
 
-convert_mat(M::Union{SparseMatrixCOO, SparseMatrixCSC}, T) =
+convert_mat(M::Union{SparseMatrixCOO, SparseMatrixCSC}, ::Type{T}) where {T} =
   convert(typeof(M).name.wrapper{T, Int}, M)
-convert_mat(M::Matrix, T) = convert(Matrix{T}, M)
+convert_mat(M::Matrix, ::Type{T}) where {T} = convert(Matrix{T}, M)
 
 function push_history_residuals!(
   res::ResidualsHistory{T},
@@ -191,7 +191,7 @@ end
 
 solver_type(sp::SolverParams{T}) where {T} = T
 
-function next_type(T::DataType, T0::DataType)
+function next_type(::Type{T}, ::Type{T0}) where {T, T0}
   T == T0 && return T0
   T == Float32 && return Float64
   T == Float64 && return T0

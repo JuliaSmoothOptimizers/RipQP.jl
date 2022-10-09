@@ -589,4 +589,5 @@ mutable struct Counters
   kc::Int # maximum corrector steps
   c_ref::Int # current number of refinements
   w::SystemWrite # store SystemWrite data
+  last_sp::Bool # true if currently using the last solver to iterate (always true in mono-precision)
 end

@@ -369,7 +369,6 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
   step::Symbol,
 ) where {T <: Real}
   Δs_l = itd.Δs_l
@@ -455,7 +454,6 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
 ) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)

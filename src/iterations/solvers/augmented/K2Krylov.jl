@@ -176,7 +176,7 @@ function PreallocatedData(
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   if sp.form_mat
     diag_Q = get_diag_Q(fd.Q)
-    K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo)
+    K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo, T)
     diagind_K = get_diagind_K(K, sp.uplo)
     if sp.equilibrate
       Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
@@ -233,7 +233,6 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
   step::Symbol,
 ) where {T <: Real}
   pad.rhs .= pad.equilibrate ? dd .* pad.mt.Deq.diag : dd
@@ -289,7 +288,6 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
 ) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)

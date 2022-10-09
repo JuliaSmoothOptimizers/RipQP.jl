@@ -1,9 +1,8 @@
 # tools for the regularization of the system.
 
 # update regularization values in classic mode if there is a failure during factorization
-function update_regu_trycatch!(regu, cnts, T, T0)
-  T == Float32 && T0 != Float32 && return 1
-  T0 == Float128 && T == Float64 && return 1
+function update_regu_trycatch!(regu::Regularization{T}, cnts::Counters) where {T}
+  !cnts.last_sp && return 1
   if cnts.c_pdd == 0 && cnts.c_catch == 0
     regu.δ *= T(1e2)
     regu.δ_min *= T(1e2)
@@ -39,15 +38,13 @@ end
 
 # update regularization, and corrects if the magnitude of the diagonal of the matrix is too high
 function update_regu_diagK2!(
-  regu,
+  regu::Regularization{T},
   K::Symmetric{<:Real, <:SparseMatrixCSC},
   diagind_K,
-  nvar,
+  nvar::Int,
   itd::IterData,
-  cnts,
-  T,
-  T0,
-)
+  cnts::Counters,
+) where {T}
   update_regu_diagK2!(
     regu,
     K.data.nzval,
@@ -57,21 +54,17 @@ function update_regu_diagK2!(
     itd.l_pdd,
     itd.mean_pdd,
     cnts,
-    T,
-    T0,
   )
 end
 
 function update_regu_diagK2!(
-  regu,
+  regu::Regularization{T},
   K::Symmetric{<:Real, <:SparseMatrixCOO},
   diagind_K,
-  nvar,
+  nvar::Int,
   itd::IterData,
-  cnts,
-  T,
-  T0,
-)
+  cnts::Counters,
+) where {T}
   update_regu_diagK2!(
     regu,
     K.data.vals,
@@ -81,12 +74,19 @@ function update_regu_diagK2!(
     itd.l_pdd,
     itd.mean_pdd,
     cnts,
-    T,
-    T0,
   )
 end
 
-function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pdd, cnts, T, T0)
+function update_regu_diagK2!(
+  regu::Regularization{T},
+  K_nzval::AbstractVector{T},
+  diagind_K,
+  nvar::Int,
+  pdd::T,
+  l_pdd::Vector{T},
+  mean_pdd::T,
+  cnts::Counters,
+) where {T}
   l_pdd[cnts.k % 6 + 1] = pdd
   mean_pdd = mean(l_pdd)
 
@@ -109,7 +109,7 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
     regu.δ /= 10
     regu.δ_min /= 10
     cnts.c_pdd += 1
-  elseif T != T0 &&
+  elseif !cnts.last_sp &&
          cnts.c_pdd <= 2 &&
          cnts.k ≥ 5 &&
          @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / eps(T) &&
@@ -129,7 +129,14 @@ function update_regu_diagK2!(regu, K_nzval, diagind_K, nvar, pdd, l_pdd, mean_pd
   return 0
 end
 
-function update_regu_diagK2_5!(regu, D, pdd, l_pdd, mean_pdd, cnts, T, T0)
+function update_regu_diagK2_5!(
+  regu::Regularization{T},
+  D::AbstractVector{T},
+  pdd::T,
+  l_pdd::Vector{T},
+  mean_pdd::T,
+  cnts::Counters,
+) where {T}
   l_pdd[cnts.k % 6 + 1] = pdd
   mean_pdd = mean(l_pdd)
 
@@ -149,7 +156,7 @@ function update_regu_diagK2_5!(regu, D, pdd, l_pdd, mean_pdd, cnts, T, T0)
     regu.δ /= 10
     regu.δ_min /= 10
     cnts.c_pdd += 1
-  elseif T != T0 && cnts.c_pdd < 2 && @views minimum(D) < -one(T) / regu.δ / T(1e-5)
+  elseif !cnts.last_sp && cnts.c_pdd < 2 && @views minimum(D) < -one(T) / regu.δ / T(1e-5)
     return 1
   elseif T == Float128 &&
          cnts.k > 10 &&

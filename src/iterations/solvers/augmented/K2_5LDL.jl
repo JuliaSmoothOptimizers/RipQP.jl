@@ -77,7 +77,7 @@ function PreallocatedData(
   D .= -T(1.0e0) / 2
   regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
   diag_Q = get_diag_Q(fd.Q)
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo)
+  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo, T)
 
   diagind_K = get_diagind_K(K, sp.uplo)
   K_fact = init_fact(K, sp.fact_alg)
@@ -115,7 +115,6 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
   step::Symbol,
 ) where {T <: Real}
   if pad.K_scaled
@@ -129,7 +128,7 @@ function solver!(
   if step == :cc || step == :IPF  # update regularization and restore K. Cannot be done in update_pad since x-lvar and uvar-x will change.
     out = 0
     if pad.regu.regul == :classic # update ρ and δ values, check K diag magnitude 
-      out = update_regu_diagK2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, T, T0)
+      out = update_regu_diagK2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts)
     end
 
     # restore J for next iteration
@@ -154,7 +153,6 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
 ) where {T <: Real}
   pad.K_scaled = false
   update_K!(
@@ -171,7 +169,6 @@ function update_pad!(
     pad.diagind_K,
     id.nvar,
     id.ncon,
-    T,
   )
   out = factorize_K2_5!(
     pad.K,
@@ -190,8 +187,6 @@ function update_pad!(
     id.nvar,
     cnts,
     itd.qp,
-    T,
-    T0,
   )
   out == 1 && return out
   pad.K_scaled = true
@@ -246,32 +241,30 @@ end
 
 # iteration functions for the K2.5 system
 function factorize_K2_5!(
-  K::Symmetric,
-  K_fact,
-  D,
-  diag_Q,
+  K::Symmetric{T},
+  K_fact::FactorizationData{T},
+  D::AbstractVector{T},
+  diag_Q::AbstractSparseVector{T},
   diagind_K,
-  regu,
-  s_l,
-  s_u,
-  x_m_lvar,
-  uvar_m_x,
+  regu::Regularization{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
   ilow,
   iupp,
   ncon,
   nvar,
-  cnts,
-  qp,
-  T,
-  T0,
-)
+  cnts::Counters,
+  qp::Bool,
+) where {T}
   X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)
   lrmultilply_K!(K, D, nvar)
   if regu.regul == :dynamic
     # Amax = @views norm(K.nzval[diagind_K], Inf)
     Amax = minimum(D)
     if Amax < sqrt(eps(T)) && cnts.c_pdd < 8
-      if T == Float32
+      if cnts.last_sp
         # restore K for next iteration
         X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)
         lrmultilply_K!(K, D, nvar)
@@ -288,8 +281,8 @@ function factorize_K2_5!(
 
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
-    while !factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts, T, T0)
+    while !RipQP.factorized(K_fact)
+      out = update_regu_trycatch!(regu, cnts)
       if out == 1
         # restore J for next iteration
         X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)
@@ -312,7 +305,6 @@ function factorize_K2_5!(
         diagind_K,
         nvar,
         ncon,
-        T,
       )
 
       X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)

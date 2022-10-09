@@ -40,7 +40,6 @@ function multi_centrality_corr!(
   id::QM_IntData,
   cnts::Counters,
   res::AbstractResiduals{T},
-  T0::DataType,
 ) where {T <: Real}
   iter_c = 0 # current number of correction iterations
   corr_flag = true #stop correction if false
@@ -97,7 +96,7 @@ function multi_centrality_corr!(
     itd.Δxy .= 0
     itd.Δxy[id.ilow] .+= dda.rxs_l ./ itd.x_m_lvar
     itd.Δxy[id.iupp] .+= dda.rxs_u ./ itd.uvar_m_x
-    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, T0, :cc)
+    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
     itd.Δs_l .= @views .-(dda.rxs_l .+ pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar
     itd.Δs_u .= @views (dda.rxs_u .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x
 

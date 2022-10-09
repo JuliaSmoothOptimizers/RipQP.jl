@@ -9,7 +9,7 @@ init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LDLFact; Tf = T) w
 
 generic_factorize!(K::Symmetric, K_fact::LDLFactorizationData) = ldl_factorize!(K, K_fact.LDL)
 
-LDLFactorizations.factorized(K_fact::LDLFactorizationData) = factorized(K_fact.LDL)
+RipQP.factorized(K_fact::LDLFactorizationData) = LDLFactorizations.factorized(K_fact.LDL)
 
 ldiv!(K_fact::LDLFactorizationData, dd::AbstractVector) = ldiv!(K_fact.LDL, dd)
 
