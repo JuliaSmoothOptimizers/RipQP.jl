@@ -283,7 +283,7 @@ function factorize_K2_5!(
 
   elseif regu.regul == :classic
     generic_factorize!(K, K_fact)
-    while !factorized(K_fact)
+    while !RipQP.factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts)
       if out == 1
         # restore J for next iteration

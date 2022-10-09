@@ -36,7 +36,7 @@ function generic_factorize!(
   ma57_factorize!(K_fact.ma57)
 end
 
-LDLFactorizations.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
+RipQP.factorized(K_fact::Ma57Factorization) = (K_fact.ma57.info.info[1] == 0)
 
 ldiv!(K_fact::Ma57Factorization{T}, dd::AbstractVector{T}) where {T} =
   ma57_solve!(K_fact.ma57, dd, K_fact.work)
@@ -109,7 +109,7 @@ function generic_factorize!(
   ma97_factorize!(K_fact.ma97)
 end
 
-LDLFactorizations.factorized(K_fact::Ma97Factorization) = (K_fact.ma97.info.flag == 0)
+RipQP.factorized(K_fact::Ma97Factorization) = (K_fact.ma97.info.flag == 0)
 
 ldiv!(K_fact::Ma97Factorization{T}, dd::AbstractVector{T}) where {T} = ma97_solve!(K_fact.ma97, dd)
 

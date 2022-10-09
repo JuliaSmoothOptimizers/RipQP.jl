@@ -29,7 +29,7 @@ function generic_factorize!(
   !K_fact.initialized && (K_fact.initialized = true)
 end
 
-LDLFactorizations.factorized(K_fact::QDLDLFactorization) = K_fact.factorized
+RipQP.factorized(K_fact::QDLDLFactorization) = K_fact.factorized
 
 function ldiv!(K_fact::QDLDLFactorization, dd::AbstractVector)
   QDLDL.solve!(K_fact.F, dd)

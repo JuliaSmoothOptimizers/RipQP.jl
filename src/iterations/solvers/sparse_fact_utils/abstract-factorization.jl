@@ -14,6 +14,8 @@ function ldiv!(res::AbstractVector, K_fact::FactorizationData, v::AbstractVector
   ldiv!(K_fact, res)
 end
 
+function factorized end
+
 """
     fact_alg = LDLFact(; regul = :classic)
 

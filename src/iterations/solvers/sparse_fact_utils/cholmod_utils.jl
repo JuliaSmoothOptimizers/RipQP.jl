@@ -27,7 +27,7 @@ function generic_factorize!(
   !K_fact.initialized && (K_fact.initialized = true)
 end
 
-LDLFactorizations.factorized(K_fact::CholmodFactorization) = K_fact.factorized
+RipQP.factorized(K_fact::CholmodFactorization) = K_fact.factorized
 
 function ldiv!(K_fact::CholmodFactorization, dd::AbstractVector)
   dd .= K_fact.F \ dd

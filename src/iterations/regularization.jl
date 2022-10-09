@@ -2,7 +2,7 @@
 
 # update regularization values in classic mode if there is a failure during factorization
 function update_regu_trycatch!(regu::Regularization{T}, cnts::Counters) where {T}
-  cnts.last_sp && return 1
+  !cnts.last_sp && return 1
   if cnts.c_pdd == 0 && cnts.c_catch == 0
     regu.δ *= T(1e2)
     regu.δ_min *= T(1e2)

@@ -312,7 +312,7 @@ function factorize_scale_K2!(
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
-    while !factorized(K_fact)
+    while !RipQP.factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
