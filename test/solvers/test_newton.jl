@@ -107,7 +107,7 @@ end
 end
 
 @testset "K3_5 structured" begin
-  for kmethod in [:tricg, :trimr, :gpmr]
+  for kmethod in [:trimr, :tricg, :gpmr]
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
