@@ -41,7 +41,6 @@ Identity
 Jacobi
 Equilibration
 LDL
-LLDL
 ```
 
 ## Factorizations
@@ -53,4 +52,5 @@ CholmodFact
 QDLDLFact
 HSLMA57Fact
 HSLMA97Fact
+LLDLFact
 ```

@@ -112,7 +112,7 @@ end
     sp = K2KrylovParams(
       uplo = :L,
       kmethod = :minres,
-      preconditioner = LLDL(),
+      preconditioner = LDL(fact_alg = LLDLFact()),
       rhs_scale = true,
       form_mat = true,
       equilibrate = true,

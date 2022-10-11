@@ -18,9 +18,20 @@ end
 
 function init_fact(
   K::Symmetric{T, SparseMatrixCOO{T, Int}},
-  fact_alg::HSLMA57Fact;
-  Tf = T,
+  fact_alg::HSLMA57Fact,
 ) where {T}
+  K_fact = Ma57Factorization(
+    ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = fact_alg.sqd),
+    Vector{T}(undef, size(K, 1)),
+  )
+  return K_fact
+end
+
+function init_fact(
+  K::Symmetric{T, SparseMatrixCOO{T, Int}},
+  fact_alg::HSLMA57Fact,
+  ::Type{Tf},
+) where {T, Tf}
   K_fact = Ma57Factorization(
     ma57_coord(size(K, 1), K.data.rows, K.data.cols, Tf.(K.data.vals), sqd = fact_alg.sqd),
     Vector{Tf}(undef, size(K, 1)),
@@ -93,8 +104,17 @@ end
 
 function init_fact(
   K::Symmetric{T, SparseMatrixCSC{T, Int}},
-  fact_alg::HSLMA97Fact;
-  Tf = T,
+  fact_alg::HSLMA97Fact,
+  ::Type{T},
+) where {T}
+  return Ma97Factorization(
+    ma97_csc(size(K, 1), Int32.(K.data.colptr), Int32.(K.data.rowval), K.data.nzval),
+  )
+end
+
+function init_fact(
+  K::Symmetric{T, SparseMatrixCSC{T, Int}},
+  fact_alg::HSLMA97Fact,
 ) where {T}
   return Ma97Factorization(
     ma97_csc(size(K, 1), Int32.(K.data.colptr), Int32.(K.data.rowval), K.data.nzval),

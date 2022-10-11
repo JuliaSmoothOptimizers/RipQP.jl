@@ -490,11 +490,11 @@ end
 # iteration functions for the K2 system
 function factorize_K2!(
   K::Symmetric{T},
-  K_fact::FactorizationData{T},
+  K_fact::FactorizationData{Tlow},
   D::AbstractVector{T},
   diag_Q::AbstractSparseVector{T},
   diagind_K,
-  regu::Regularization{T},
+  regu::Regularization{Tlow},
   s_l::AbstractVector{T},
   s_u::AbstractVector{T},
   x_m_lvar::AbstractVector{T},
@@ -505,23 +505,23 @@ function factorize_K2!(
   nvar,
   cnts::Counters,
   qp::Bool,
-) where {T}
+) where {T, Tlow}
   if (regu.regul == :dynamic || regu.regul == :hybrid) && K_fact isa LDLFactorizationData
     update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
-    generic_factorize!(K, K_fact)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   elseif regu.regul == :classic
-    generic_factorize!(K, K_fact)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     while !RipQP.factorized(K_fact)
       out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
       cnts.c_catch >= 4 && return 1
       update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
-      generic_factorize!(K, K_fact)
+      @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
 
   else # no Regularization
-    generic_factorize!(K, K_fact)
+    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   end
 
   return 0 # factorization succeeded

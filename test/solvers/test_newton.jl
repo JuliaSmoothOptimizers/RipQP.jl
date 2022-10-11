@@ -10,16 +10,15 @@
     )
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-1)
     @test stats2.status == :first_order
-
-    stats3 = ripqp(
-      QuadraticModel(qps3),
-      display = false,
-      sp = K3KrylovParams(uplo = :U, kmethod = kmethod),
-      itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
-    )
-    @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :first_order
   end
+  stats3 = ripqp(
+    QuadraticModel(qps3),
+    display = false,
+    sp = K3KrylovParams(uplo = :U, kmethod = :gmres),
+    itol = InputTol(max_iter = 50, max_time = 20.0, ϵ_rc = 1.0e-4, ϵ_rb = 1.0e-4, ϵ_pdd = 1.0e-4),
+  )
+  @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
+  @test stats3.status == :first_order
 end
 
 @testset "KrylovK3_5" begin
@@ -108,7 +107,7 @@ end
 end
 
 @testset "K3_5 structured" begin
-  for kmethod in [:tricg, :trimr, :gpmr]
+  for kmethod in [:trimr, :tricg, :gpmr]
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,

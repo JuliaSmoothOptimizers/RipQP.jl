@@ -209,7 +209,7 @@ function update_kresiduals_history!(
     @views mul!(res.Kres[1:nvar], Symmetric(Qreg, :U), solx)
     @views mul!(res.Kres[1:nvar], As', soly, one(T), one(T))
     @views mul!(res.Kres[(nvar + 1):end], As, solx)
-    res.Kres[(nvar + 1):(nvar + ncon)] .+= δ .* soly[1:ncon]
+    res.Kres[(nvar + 1):(nvar + ncon)] .+= @views δ .* soly[1:ncon]
     res.Kres[(nvar + ncon + 1):(nvar + ncon + nlow)] .+=
       @views s_l .* solx[ilow] .+ x_m_lvar .* soly[(ncon + 1):(ncon + nlow)]
     res.Kres[(nvar + ncon + nlow + 1):end] .+=

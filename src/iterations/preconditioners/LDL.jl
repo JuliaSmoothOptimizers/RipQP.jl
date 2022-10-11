@@ -117,7 +117,7 @@ function PreconditionerData(
     sqrt(eps(Tlow)),
     regu.δ != 0 ? :classic : :dynamic,
   )
-  K_fact = @timeit_debug to "init factorization" init_fact(K, sp.preconditioner.fact_alg, Tf = Tlow)
+  K_fact = @timeit_debug to "init factorization" init_fact(K, sp.preconditioner.fact_alg, Tlow)
 
   return PreconditionerData(sp, K_fact, id.nvar, id.ncon, regu_precond, K)
 end
@@ -288,46 +288,6 @@ function PreconditionerData(
   )
 end
 
-function factorize_scale_K2!(
-  K::Symmetric{T},
-  K_fact::FactorizationData{Tlow},
-  D::AbstractVector{T},
-  Deq::Diagonal{T, <:AbstractVector{T}},
-  diag_Q::AbstractSparseVector{T},
-  diagind_K,
-  regu::Regularization{Tlow},
-  s_l::AbstractVector{T},
-  s_u::AbstractVector{T},
-  x_m_lvar::AbstractVector{T},
-  uvar_m_x::AbstractVector{T},
-  ilow,
-  iupp,
-  ncon,
-  nvar,
-  cnts::Counters,
-  qp::Bool,
-) where {T, Tlow}
-  if regu.regul == :dynamic
-    update_K_dynamic!(K, K_fact.LDL, regu, diagind_K, cnts, qp)
-    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
-  elseif regu.regul == :classic
-    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
-    while !RipQP.factorized(K_fact)
-      out = update_regu_trycatch!(regu, cnts)
-      out == 1 && return out
-      cnts.c_catch += 1
-      cnts.c_catch >= 4 && return 1
-      update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
-      @timeit_debug to "factorize" generic_factorize!(K, K_fact)
-    end
-
-  else # no Regularization
-    @timeit_debug to "factorize" generic_factorize!(K, K_fact)
-  end
-
-  return 0 # factorization succeeded
-end
-
 function update_preconditioner!(
   pdat::LDLData{T},
   pad::PreallocatedData{T},
@@ -341,11 +301,10 @@ function update_preconditioner!(
   pad.pdat.regu.ρ, pad.pdat.regu.δ =
     max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
 
-  out = factorize_scale_K2!(
+  out = factorize_K2!(
     pad.pdat.K,
     pad.pdat.K_fact,
     pad.D,
-    pad.mt.Deq,
     pad.mt.diag_Q,
     pad.mt.diagind_K,
     pad.pdat.regu,
@@ -381,4 +340,5 @@ function update_preconditioner!(
   )
     abs_diagonal!(pad.pdat.K_fact)
   end
+  return 0
 end

@@ -240,7 +240,7 @@ function solver!(
     rhsNorm = kscale!(pad.rhs)
   end
   if step !== :cc
-    @timeit_debug to "preconditioner update" update_preconditioner!(
+    out = @timeit_debug to "preconditioner update" update_preconditioner!(
       pad.pdat,
       pad,
       itd,
@@ -250,6 +250,7 @@ function solver!(
       cnts,
     )
     pad.kiter = 0
+    out == 1 && return out
   end
   @timeit_debug to "Krylov solve" ksolve!(
     pad.KS,

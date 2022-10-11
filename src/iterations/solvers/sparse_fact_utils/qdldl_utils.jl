@@ -9,6 +9,9 @@ mutable struct QDLDLFactorization{T} <: FactorizationData{T}
   factorized::Bool
 end
 
+init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::QDLDLFact, ::Type{T}) where {T} =
+  QDLDLFactorization(QDLDL.qdldl(K.data), false, get_diagind_K(K, :U), true)
+
 init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::QDLDLFact) where {T} =
   QDLDLFactorization(QDLDL.qdldl(K.data), false, get_diagind_K(K, :U), true)
 
