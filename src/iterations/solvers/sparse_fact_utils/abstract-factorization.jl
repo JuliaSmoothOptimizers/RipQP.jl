@@ -105,11 +105,10 @@ struct LLDLFact <: AbstractFactorization
   mem::Int
   droptol::Float64
   function LLDLFact(regul::Symbol, mem::Int, droptol::Float64)
-    regul == :classic ||
-      regul == :none ||
-      error("regul should be :classic or :none")
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
     return new(regul, mem, droptol)
   end
 end
-LLDLFact(; regul::Symbol = :classic, mem::Int = 0, droptol::Float64 = 0.0) = LLDLFact(regul, mem, droptol)
+LLDLFact(; regul::Symbol = :classic, mem::Int = 0, droptol::Float64 = 0.0) =
+  LLDLFact(regul, mem, droptol)
 include("lldlfact_utils.jl")
