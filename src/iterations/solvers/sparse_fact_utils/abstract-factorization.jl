@@ -1,4 +1,4 @@
-export AbstractFactorization, LDLFact, HSLMA57Fact, HSLMA97Fact, CholmodFact, QDLDLFact
+export AbstractFactorization, LDLFact, HSLMA57Fact, HSLMA97Fact, CholmodFact, QDLDLFact, LLDLFact
 
 import LinearAlgebra.ldiv!
 
@@ -95,3 +95,21 @@ struct HSLMA97Fact <: AbstractFactorization
   end
 end
 HSLMA97Fact(; regul::Symbol = :classic) = HSLMA97Fact(regul)
+
+"""
+    fact_alg = LLDLFact(; regul = :classic, mem = 0, droptol = 0.0)
+Choose [`LimitedLDLFactorizations.jl`](https://github.com/JuliaSmoothOptimizers/LimitedLDLFactorizations.jl) to compute factorizations.
+"""
+struct LLDLFact <: AbstractFactorization
+  regul::Symbol
+  mem::Int
+  droptol::Float64
+  function LLDLFact(regul::Symbol, mem::Int, droptol::Float64)
+    regul == :classic ||
+      regul == :none ||
+      error("regul should be :classic or :none")
+    return new(regul, mem, droptol)
+  end
+end
+LLDLFact(; regul::Symbol = :classic, mem::Int = 0, droptol::Float64 = 0.0) = LLDLFact(regul, mem, droptol)
+include("lldlfact_utils.jl")

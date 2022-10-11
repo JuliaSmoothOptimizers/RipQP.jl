@@ -74,9 +74,17 @@ function convertpad(
   sp_new.equilibrate && (mt.Deq.diag .= one(T))
   regu_precond = convert(Regularization{sp_new.preconditioner.T}, pad.regu)
   regu_precond.regul = :dynamic
-  K_fact =
-    (sp_new.preconditioner.T != sp_old.preconditioner.T) ?
-    convertldl(sp_new.preconditioner.T, pad.pdat.K_fact) : pad.pdat.K_fact
+  if typeof(sp_old.preconditioner.fact_alg) == LLDLFact ||
+      typeof(sp_old.preconditioner.fact_alg) != typeof(sp_new.preconditioner.fact_alg)
+    if get_uplo(sp_old.preconditioner.fact_alg) != get_uplo(sp_new.preconditioner.fact_alg)
+      # transpose if new factorization does not use the same uplo
+      K = Symmetric(SparseMatrixCSC(K.data'), sp_new.uplo)
+      mt.diagind_K = get_diagind_K(K, sp_new.uplo)
+    end
+    K_fact = init_fact(K, sp_new.preconditioner.fact_alg)
+  else
+    K_fact = convertldl(sp_new.preconditioner.T, pad.pdat.K_fact)
+  end
   pdat = PreconditionerData(sp_new, K_fact, id.nvar, id.ncon, regu_precond, K)
   KS = init_Ksolver(K, rhs, sp_new)
 

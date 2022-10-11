@@ -117,7 +117,7 @@ function PreconditionerData(
     sqrt(eps(Tlow)),
     regu.δ != 0 ? :classic : :dynamic,
   )
-  K_fact = @timeit_debug to "init factorization" init_fact(K, sp.preconditioner.fact_alg, Tf = Tlow)
+  K_fact = @timeit_debug to "init factorization" init_fact(K, sp.preconditioner.fact_alg, Tlow)
 
   return PreconditionerData(sp, K_fact, id.nvar, id.ncon, regu_precond, K)
 end
@@ -381,4 +381,5 @@ function update_preconditioner!(
   )
     abs_diagonal!(pad.pdat.K_fact)
   end
+  return 0
 end

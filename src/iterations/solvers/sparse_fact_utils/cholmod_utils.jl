@@ -8,6 +8,9 @@ mutable struct CholmodFactorization{T} <: FactorizationData{T}
   factorized::Bool
 end
 
+init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::CholmodFact, ::Type{T}) where {T} =
+  CholmodFactorization(ldlt(K), false, true)
+
 init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::CholmodFact) where {T} =
   CholmodFactorization(ldlt(K), false, true)
 
