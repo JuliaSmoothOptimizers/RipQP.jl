@@ -134,8 +134,8 @@ function solver!(
     # restore J for next iteration
     if pad.K_scaled
       pad.D .= one(T)
-      pad.D[id.ilow] ./= sqrt.(itd.x_m_lvar)
-      pad.D[id.iupp] ./= sqrt.(itd.uvar_m_x)
+      @. pad.D[id.ilow] /= sqrt(itd.x_m_lvar)
+      @. pad.D[id.iupp] /= sqrt(itd.uvar_m_x)
       lrmultilply_K!(pad.K, pad.D, id.nvar)
       pad.K_scaled = false
     end

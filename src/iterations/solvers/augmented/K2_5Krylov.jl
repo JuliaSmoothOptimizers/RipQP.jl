@@ -113,21 +113,21 @@ function opK2_5prod!(
   β::T,
   uplo::Symbol,
 ) where {T}
-  tmp2 .= @views sqrtX1X2 .* v[1:nvar]
+  @. tmp2 = @views sqrtX1X2 * v[1:nvar]
   mul!(tmp1, Q, tmp2, -α, zero(T))
-  tmp1 .= @views sqrtX1X2 .* tmp1 .+ α .* D .* v[1:nvar]
+  @. tmp1 = @views sqrtX1X2 * tmp1 + α * D * v[1:nvar]
   if β == zero(T)
     res[1:nvar] .= tmp1
   else
-    res[1:nvar] .= @views tmp1 .+ β .* res[1:nvar]
+    @. res[1:nvar] = @views tmp1 + β * res[1:nvar]
   end
   if uplo == :U
     @views mul!(tmp1, A, v[(nvar + 1):end], α, zero(T))
-    res[1:nvar] .+= sqrtX1X2 .* tmp1
+    @. res[1:nvar] += sqrtX1X2 * tmp1
     @views mul!(res[(nvar + 1):end], A', tmp2, α, β)
   else
     @views mul!(tmp1, A', v[(nvar + 1):end], α, zero(T))
-    res[1:nvar] .+= sqrtX1X2 .* tmp1
+    @. res[1:nvar] += sqrtX1X2 * tmp1
     @views mul!(res[(nvar + 1):end], A, tmp2, α, β)
   end
   res[(nvar + 1):end] .+= @views (α * δv[1]) .* v[(nvar + 1):end]
@@ -207,7 +207,7 @@ function solver!(
 ) where {T <: Real}
 
   # erase dda.Δxy_aff only for affine predictor step with PC method
-  pad.rhs[1:(id.nvar)] .= @views dd[1:(id.nvar)] .* pad.sqrtX1X2
+  @. pad.rhs[1:(id.nvar)] = @views dd[1:(id.nvar)] * pad.sqrtX1X2
   pad.rhs[(id.nvar + 1):end] .= @views dd[(id.nvar + 1):end]
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
@@ -258,15 +258,15 @@ function update_pad!(
 
   # K2.5
   pad.sqrtX1X2 .= one(T)
-  pad.sqrtX1X2[id.ilow] .*= sqrt.(itd.x_m_lvar)
-  pad.sqrtX1X2[id.iupp] .*= sqrt.(itd.uvar_m_x)
+  @. pad.sqrtX1X2[id.ilow] *= sqrt(itd.x_m_lvar)
+  @. pad.sqrtX1X2[id.iupp] *= sqrt(itd.uvar_m_x)
   pad.D .= zero(T)
   pad.D[id.ilow] .-= pt.s_l
   pad.D[id.iupp] .*= itd.uvar_m_x
   pad.tmp1 .= zero(T)
   pad.tmp1[id.iupp] .-= pt.s_u
   pad.tmp1[id.ilow] .*= itd.x_m_lvar
-  pad.D .+= pad.tmp1 .- pad.regu.ρ
+  @. pad.D += pad.tmp1 - pad.regu.ρ
 
   pad.δv[1] = pad.regu.δ
 

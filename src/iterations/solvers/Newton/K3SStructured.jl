@@ -119,11 +119,11 @@ function opAIprod!(
   uplo::Symbol,
 ) where {T}
   if β == 0
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* v[ilow]
-    res[(ncon + nlow + 1):end] .= @views (-α) .* v[iupp]
+    @. res[(ncon + 1):(ncon + nlow)] = @views α * v[ilow]
+    @. res[(ncon + nlow + 1):end] = @views -α * v[iupp]
   else
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* v[ilow] .+ β .* res[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .= @views (-α) .* v[iupp] .+ β .* res[(ncon + nlow + 1):end]
+    @. res[(ncon + 1):(ncon + nlow)] = @views α * v[ilow] + β * res[(ncon + 1):(ncon + nlow)]
+    @. res[(ncon + nlow + 1):end] = @views -α * v[iupp] + β * res[(ncon + nlow + 1):end]
   end
   if uplo == :U
     @views mul!(res[1:ncon], A', v, α, β)
@@ -152,8 +152,8 @@ function opAItprod!(
   else
     @views mul!(res, A', v[1:ncon], α, β)
   end
-  res[ilow] .+= @views α .* v[(ncon + 1):(ncon + nlow)]
-  res[iupp] .-= @views α .* v[(ncon + nlow + 1):end]
+  @. res[ilow] += @views α * v[(ncon + 1):(ncon + nlow)]
+  @. res[iupp] -= @views α * v[(ncon + nlow + 1):end]
 end
 
 function opBRK3Sprod!(
@@ -171,14 +171,14 @@ function opBRK3Sprod!(
 ) where {T <: Real}
   if β == zero(T)
     res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .= @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end]
+    @. res[(ncon + 1):(ncon + nlow)] = @views α * s_l / x_m_lvar * v[(ncon + 1):(ncon + nlow)]
+    @. res[(ncon + nlow + 1):end] = @views α * s_u / uvar_m_x * v[(ncon + nlow + 1):end]
   else
     res[1:ncon] .= @views (α / δv[1]) .* v[1:ncon] .+ β .* res[1:ncon]
-    res[(ncon + 1):(ncon + nlow)] .= @views α .* s_l ./ x_m_lvar .* v[(ncon + 1):(ncon + nlow)] .+
-           β .* res[(ncon + 1):(ncon + nlow)]
-    res[(ncon + nlow + 1):end] .=
-      @views α .* s_u ./ uvar_m_x .* v[(ncon + nlow + 1):end] .+ β .* res[(ncon + nlow + 1):end]
+    @. res[(ncon + 1):(ncon + nlow)] = @views α * s_l / x_m_lvar * v[(ncon + 1):(ncon + nlow)] +
+           β * res[(ncon + 1):(ncon + nlow)]
+    @. res[(ncon + nlow + 1):end] =
+      @views α * s_u / uvar_m_x * v[(ncon + nlow + 1):end] + β * res[(ncon + nlow + 1):end]
   end
 end
 
@@ -205,11 +205,11 @@ function update_kresiduals_historyK3S!(
     @views mul!(res.Kres[1:nvar], Symmetric(Qreg, :U), solx)
     @views mul!(res.Kres[1:nvar], AI', soly, one(T), one(T))
     @views mul!(res.Kres[(nvar + 1):end], AI, solx)
-    res.Kres[(nvar + 1):(nvar + ncon)] .+= δ .* soly[1:ncon]
-    res.Kres[(nvar + ncon + 1):(nvar + ncon + nlow)] .+=
-      @views solx[ilow] .+ x_m_lvar .* soly[(ncon + 1):(ncon + nlow)] ./ s_l
-    res.Kres[(nvar + ncon + nlow + 1):end] .+=
-      @views .-solx[iupp] .+ uvar_m_x .* soly[(ncon + nlow + 1):end] ./ s_u
+    @. res.Kres[(nvar + 1):(nvar + ncon)] += @views δ * soly[1:ncon]
+    @. res.Kres[(nvar + ncon + 1):(nvar + ncon + nlow)] +=
+      @views solx[ilow] + x_m_lvar * soly[(ncon + 1):(ncon + nlow)] / s_l
+    @. res.Kres[(nvar + ncon + nlow + 1):end] +=
+      @views -solx[iupp] + uvar_m_x * soly[(ncon + nlow + 1):end] / s_u
     res.Kres[1:nvar] .-= rhs1
     res.Kres[(nvar + 1):end] .-= rhs2
   end

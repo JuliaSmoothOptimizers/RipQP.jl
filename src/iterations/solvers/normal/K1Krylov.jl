@@ -110,11 +110,13 @@ function opK1prod!(
 ) where {T}
   if uplo == :U
     mul!(vtmp, A, v)
-    mul!(res, A', vtmp ./ D, α, β)
+    vtmp ./= D
+    mul!(res, A', vtmp, α, β)
     res .+= (α * δv[1]) .* v
   else
     mul!(vtmp, A', v)
-    mul!(res, A, vtmp ./ D, α, β)
+    vtmp ./= D
+    mul!(res, A, vtmp, α, β)
     res .+= (α * δv[1]) .* v
   end
 end
@@ -241,8 +243,8 @@ function update_pad!(
   pad.δv[1] = pad.regu.δ
 
   pad.D .= pad.regu.ρ
-  pad.D[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
+  @. pad.D[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.D[id.iupp] += pt.s_u / itd.uvar_m_x
   pad.δv[1] = pad.regu.δ
 
   # update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)

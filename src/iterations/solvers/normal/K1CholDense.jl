@@ -122,9 +122,9 @@ function update_pad!(
   end
 
   pad.D .= pad.regu.ρ
-  pad.D[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.invD.diag .= one(T) ./ pad.D
+  @. pad.D[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.D[id.iupp] += pt.s_u / itd.uvar_m_x
+  @. pad.invD.diag = one(T) / pad.D
   mul!(pad.AinvD, fd.A, pad.invD)
   mul!(pad.K, pad.AinvD, fd.A')
   pad.K[pad.diagindK] .+= pad.regu.δ

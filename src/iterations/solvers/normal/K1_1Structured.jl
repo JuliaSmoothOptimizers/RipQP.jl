@@ -159,7 +159,7 @@ function solver!(
   if pad.regu.δ == zero(T)
     pad.Δy0 .= zero(T)
   else
-    pad.Δy0 .= .-pad.ξ2 ./ pad.regu.δ
+    @. pad.Δy0 = -pad.ξ2 / pad.regu.δ
   end
   if fd.uplo == :U
     mul!(pad.ξ12, fd.A, pad.Δy0)
@@ -185,13 +185,13 @@ function solver!(
   if pad.rhs_scale
     kunscale!(pad.KS.x, ξ12Norm)
   end
-  dd[(id.nvar + 1):end] .= pad.KS.x .- pad.Δy0
+  @. dd[(id.nvar + 1):end] = pad.KS.x - pad.Δy0
   if fd.uplo == :U
     @views mul!(pad.ξ1, fd.A, dd[(id.nvar + 1):end], one(T), -one(T))
   else
     @views mul!(pad.ξ1, fd.A', dd[(id.nvar + 1):end], one(T), -one(T))
   end
-  dd[1:(id.nvar)] .= pad.ξ1 ./ pad.E
+  @. dd[1:(id.nvar)] = pad.ξ1 / pad.E
   update_kresiduals_history_K1struct!(
     res,
     fd.uplo == :U ? fd.A' : fd.A,
@@ -229,9 +229,9 @@ function update_pad!(
   end
 
   pad.E .= pad.regu.ρ
-  pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.invE .= one(T) ./ pad.E
+  @. pad.E[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.E[id.iupp] += pt.s_u / itd.uvar_m_x
+  @. pad.invE = one(T) / pad.E
 
   return 0
 end

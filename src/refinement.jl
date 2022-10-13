@@ -43,10 +43,10 @@ function fd_refinement(
     # dda.rxs_u .= itd.μ 
     # solve_augmented_system_cc!(pad.K_fact, itd.Δxy, itd.Δs_l, itd.Δs_u, itd.x_m_lvar, itd.uvar_m_x, 
     #                         pad.rxs_l, pad.rxs_u, pt.s_l, pt.s_u, id.ilow, id.iupp)
-    itd.Δxy[1:(id.nvar)] .= .-res.rc
-    itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] .= .-res.rb
-    itd.Δxy[id.ilow] .+= pt.s_l .- itd.μ ./ itd.x_m_lvar
-    itd.Δxy[id.iupp] .-= pt.s_u .- itd.μ ./ itd.uvar_m_x
+    @. itd.Δxy[1:(id.nvar)] = -res.rc
+    @. itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)] = -res.rb
+    @. itd.Δxy[id.ilow] += pt.s_l - itd.μ / itd.x_m_lvar
+    @. itd.Δxy[id.iupp] -= pt.s_u - itd.μ / itd.uvar_m_x
     padT = typeof(pad)
     if (padT <: PreallocatedDataAugmentedLDL && !factorized(pad.K_fact)) || (
       padT <: PreallocatedDataK2Krylov &&
@@ -58,8 +58,8 @@ function fd_refinement(
     else
       out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
     end
-    itd.Δs_l .= @views (itd.μ .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l
-    itd.Δs_u .= @views (itd.μ .+ pt.s_u .* itd.Δxy[id.iupp]) ./ itd.uvar_m_x .- pt.s_u
+    @. itd.Δs_l = @views (itd.μ - pt.s_l * itd.Δxy[id.ilow]) / itd.x_m_lvar - pt.s_l
+    @. itd.Δs_u = @views (itd.μ + pt.s_u * itd.Δxy[id.iupp]) / itd.uvar_m_x - pt.s_u
     α_pri, α_dual =
       compute_αs(pt.x, pt.s_l, pt.s_u, fd.lvar, fd.uvar, itd.Δxy, itd.Δs_l, itd.Δs_u, id.nvar)
     update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id)
@@ -138,10 +138,10 @@ function update_pt_ref!(
 ) where {T <: Real}
 
   # update Point                    
-  pt.x .+= pt_z.x ./ Δref
-  pt.y .+= pt_z.y ./ Δref
-  pt.s_l .= pt_z.s_l ./ Δref
-  pt.s_u .= pt_z.s_u ./ Δref
+  @. pt.x += pt_z.x / Δref
+  @. pt.y += pt_z.y / Δref
+  @. pt.s_l = pt_z.s_l / Δref
+  @. pt.s_u = pt_z.s_u / Δref
 
   # update IterData
   itd.Qx = mul!(itd.Qx, fd.Q, pt.x)
@@ -155,8 +155,8 @@ function update_pt_ref!(
   itd.pdd = abs(itd.pri_obj - itd.dual_obj) / (one(T) + abs(itd.pri_obj))
 
   # update Residuals
-  res.rb .= itd.Ax .- fd.b
-  res.rc .= itd.ATy .- itd.Qx .- fd.c
+  @. res.rb = itd.Ax - fd.b
+  @. res.rc = itd.ATy - itd.Qx - fd.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)
@@ -190,8 +190,8 @@ function update_data!(
   )
 
   # update IterData
-  itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
-  itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
+  @. itd.x_m_lvar = @views pt.x[id.ilow] - fd.lvar[id.ilow]
+  @. itd.uvar_m_x = @views fd.uvar[id.iupp] - pt.x[id.iupp]
   boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
 
@@ -233,8 +233,8 @@ function update_data!(
   itd.pdd = abs(itd.pri_obj - itd.dual_obj) / (one(T) + abs(itd.pri_obj))
 
   #update Residuals
-  res.rb .= itd.Ax .- fd.b
-  res.rc .= itd.ATy .- itd.Qx .- fd.c
+  @. res.rb = itd.Ax - fd.b
+  @. res.rc = itd.ATy - itd.Qx - fd.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf) / fd.Δref, norm(res.rb, Inf) / fd.Δref

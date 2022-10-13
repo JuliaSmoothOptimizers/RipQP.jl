@@ -116,8 +116,8 @@ function opK3prod!(
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
   res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= @views α .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= @views α .* v[(nvar + ncon + nlow + 1):end]
+  @. res[ilow] += @views α * v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  @. res[iupp] -= @views α * v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
@@ -127,17 +127,17 @@ function opK3prod!(
   end
   res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (s_l * v[ilow] + x_m_lvar * v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-s_u * v[iupp] + uvar_m_x * v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (s_l .* v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-s_u .* v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
-             β .* res[(nvar + ncon + nlow + 1):end]
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (s_l * v[ilow] + x_m_lvar * v[(nvar + ncon + 1):(nvar + ncon + nlow)]) +
+             β * res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-s_u * v[iupp] + uvar_m_x * v[(nvar + ncon + nlow + 1):end]) +
+             β * res[(nvar + ncon + nlow + 1):end]
   end
 end
 
@@ -163,8 +163,8 @@ function opK3tprod!(
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
   res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= @views α .* s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= @views α .* s_u .* v[(nvar + ncon + nlow + 1):end]
+  @. res[ilow] += @views α * s_l * v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  @. res[iupp] -= @views α * s_u * v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
@@ -174,17 +174,17 @@ function opK3tprod!(
   end
   res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end])
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (v[ilow] + x_m_lvar * v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-v[iupp] + uvar_m_x * v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x .* v[(nvar + ncon + nlow + 1):end]) .+
-             β .* res[(nvar + ncon + nlow + 1):end]
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (v[ilow] + x_m_lvar * v[(nvar + ncon + 1):(nvar + ncon + nlow)]) +
+             β * res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-v[iupp] + uvar_m_x * v[(nvar + ncon + nlow + 1):end]) +
+             β * res[(nvar + ncon + nlow + 1):end]
   end
 end
 

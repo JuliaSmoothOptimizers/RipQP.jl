@@ -183,7 +183,7 @@ function solver!(
     kunscale!(pad.KS.y, ξ22Norm)
   end
   dd[(id.nvar + 1):end] .= pad.KS.y
-  dd[1:(id.nvar)] .= pad.KS.x .- pad.Δx0
+  @. dd[1:(id.nvar)] = pad.KS.x - pad.Δx0
   update_kresiduals_history_K1struct!(
     res,
     fd.uplo == :U ? fd.A' : fd.A,
@@ -222,9 +222,9 @@ function update_pad!(
   end
 
   pad.E .= pad.regu.ρ
-  pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.invE .= one(T) ./ pad.E
+  @. pad.E[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.E[id.iupp] += pt.s_u / itd.uvar_m_x
+  @. pad.invE = one(T) / pad.E
 
   return 0
 end

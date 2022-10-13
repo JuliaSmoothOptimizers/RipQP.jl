@@ -147,9 +147,9 @@ function update_kresiduals_history!(
 ) where {T <: Real}
   if typeof(res) <: ResidualsHistory
     @views mul!(res.Kres[1:nvar], A', soly)
-    res.Kres[1:nvar] .+= .-E .* solx .- ξ1
+    @. res.Kres[1:nvar] += -E * solx - ξ1
     @views mul!(res.Kres[(nvar + 1):end], A, solx)
-    res.Kres[(nvar + 1):end] .+= δ .* soly .- ξ2
+    @. res.Kres[(nvar + 1):end] += δ * soly - ξ2
   end
 end
 
@@ -231,9 +231,9 @@ function update_pad!(
   end
 
   pad.E .= pad.regu.ρ
-  pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.invE .= one(T) ./ pad.E
+  @. pad.E[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.E[id.iupp] += pt.s_u / itd.uvar_m_x
+  @. pad.invE = one(T) / pad.E
 
   return 0
 end
