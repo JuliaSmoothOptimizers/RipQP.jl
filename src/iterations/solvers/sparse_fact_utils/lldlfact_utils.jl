@@ -12,7 +12,8 @@ init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LLDLFact) where {T
 init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::LLDLFact, ::Type{Tf}) where {T, Tf} =
   LLDLFactorizationData(lldl(K.data, Tf, memory = fact_alg.mem), fact_alg.mem, Tf(fact_alg.droptol))
 
-generic_factorize!(K::Symmetric, K_fact::LLDLFactorizationData) = lldl_factorize!(K_fact.LLDL, K.data)
+generic_factorize!(K::Symmetric, K_fact::LLDLFactorizationData) =
+  lldl_factorize!(K_fact.LLDL, K.data)
 
 RipQP.factorized(K_fact::LLDLFactorizationData) = LimitedLDLFactorizations.factorized(K_fact.LLDL)
 

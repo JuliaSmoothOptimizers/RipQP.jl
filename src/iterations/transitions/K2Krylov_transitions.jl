@@ -75,7 +75,7 @@ function convertpad(
   regu_precond = convert(Regularization{sp_new.preconditioner.T}, pad.regu)
   regu_precond.regul = :dynamic
   if typeof(sp_old.preconditioner.fact_alg) == LLDLFact ||
-      typeof(sp_old.preconditioner.fact_alg) != typeof(sp_new.preconditioner.fact_alg)
+     typeof(sp_old.preconditioner.fact_alg) != typeof(sp_new.preconditioner.fact_alg)
     if get_uplo(sp_old.preconditioner.fact_alg) != get_uplo(sp_new.preconditioner.fact_alg)
       # transpose if new factorization does not use the same uplo
       K = Symmetric(SparseMatrixCSC(K.data'), sp_new.uplo)

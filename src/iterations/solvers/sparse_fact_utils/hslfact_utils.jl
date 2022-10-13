@@ -16,10 +16,7 @@ mutable struct Ma57Factorization{T} <: FactorizationData{T}
   work::Vector{T}
 end
 
-function init_fact(
-  K::Symmetric{T, SparseMatrixCOO{T, Int}},
-  fact_alg::HSLMA57Fact,
-) where {T}
+function init_fact(K::Symmetric{T, SparseMatrixCOO{T, Int}}, fact_alg::HSLMA57Fact) where {T}
   K_fact = Ma57Factorization(
     ma57_coord(size(K, 1), K.data.rows, K.data.cols, K.data.vals, sqd = fact_alg.sqd),
     Vector{T}(undef, size(K, 1)),
@@ -112,10 +109,7 @@ function init_fact(
   )
 end
 
-function init_fact(
-  K::Symmetric{T, SparseMatrixCSC{T, Int}},
-  fact_alg::HSLMA97Fact,
-) where {T}
+function init_fact(K::Symmetric{T, SparseMatrixCSC{T, Int}}, fact_alg::HSLMA97Fact) where {T}
   return Ma97Factorization(
     ma97_csc(size(K, 1), Int32.(K.data.colptr), Int32.(K.data.rowval), K.data.nzval),
   )
