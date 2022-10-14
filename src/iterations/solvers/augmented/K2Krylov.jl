@@ -175,9 +175,7 @@ function PreallocatedData(
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   if sp.form_mat
-    diag_Q = get_diag_Q(fd.Q)
-    K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo, T)
-    diagind_K = get_diagind_K(K, sp.uplo)
+    K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
     if sp.equilibrate
       Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
       Deq.diag .= one(T)
@@ -263,7 +261,6 @@ function solver!(
     itmax = pad.itmax,
   )
   pad.kiter += niterations(pad.KS)
-  println(pad.K * pad.KS.x - pad.rhs)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)

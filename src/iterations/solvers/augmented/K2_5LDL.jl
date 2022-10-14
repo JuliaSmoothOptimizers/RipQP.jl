@@ -76,10 +76,8 @@ function PreallocatedData(
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
   regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
-  diag_Q = get_diag_Q(fd.Q)
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo, T)
-
-  diagind_K = get_diagind_K(K, sp.uplo)
+  K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
+  
   K_fact = init_fact(K, sp.fact_alg)
   if regu.regul == :dynamic
     Amax = @views norm(K.data.nzval[diagind_K], Inf)

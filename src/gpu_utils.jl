@@ -1,6 +1,19 @@
 using .CUDA
 
-include("iterations/solvers/augmented/K2KrylovLDLGPU.jl")
+include("iterations/solvers/gpu/K2KrylovLDLGPU.jl")
+
+function get_mat_QPData(
+  A::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
+  H::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
+  nvar::Int,
+  ncon::Int,
+  sp::K2KrylovGPUParams,
+) where {T, Ti}
+  # A is Aᵀ of QuadraticModel QM
+  fdA = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(A.colInd), Vector(A.rowInd), Vector(A.nzVal), nvar, ncon))
+  fdQ = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(H.colInd), Vector(H.rowInd), Vector(H.nzVal), nvar, nvar))
+  return fdA, Symmetric(fdQ, sp.uplo)
+end
 
 change_vector_eltype(S0::Type{<:CUDA.CuVector}, ::Type{T}) where {T} =
   S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
@@ -214,7 +227,7 @@ function NLPModelsModifiers.SlackModel(
   qp::AbstractQuadraticModel{T, S},
   name = qp.meta.name * "-slack",
 ) where {T, S <: CUDA.CuArray}
-  # qp.meta.ncon == length(qp.meta.jfix) && return qp
+  qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
 

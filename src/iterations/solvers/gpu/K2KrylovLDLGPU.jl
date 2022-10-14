@@ -16,15 +16,15 @@ end
 
 LDLGPU(; T::DataType = Float32, pos = :C, warm_start = true) = LDLGPU(T, pos, warm_start)
 
-mutable struct LDLGPUData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond}} <:
-               PreconditionerData{T, S}
+mutable struct LDLGPUData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond},
+    F <: FactorizationData{Tlow}} <: PreconditionerData{T, S}
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
   L::UnitLowerTriangular{Tlow, CUDA.CUSPARSE.CuSparseMatrixCSC{Tlow, Int32}} # T or Tlow?
-  d::CUDA.CuVector{Tlow}
-  tmp_res::CUDA.CuVector{Tlow}
-  tmp_v::CUDA.CuVector{Tlow}
+  d::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
+  tmp_res::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
+  tmp_v::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
   regu::Regularization{Tlow}
-  K_fact::LDLFactorizations.LDLFactorization{Tlow, Int, Int, Int} # factorized matrix
+  K_fact::F # factorized matrix
   fact_fail::Bool # true if factorization failed
   warm_start::Bool
   P::Op
@@ -44,7 +44,7 @@ function ldl_ldiv_gpu!(res, L, d, x, P, Pinv, tmp_res, tmp_v)
 end
 
 function PreconditionerData(
-  sp::AugmentedKrylovParams{<:LDLGPU},
+  sp::AugmentedKrylovParams{<:Real, <:LDLGPU},
   id::QM_IntData,
   fd::QM_FloatData{T},
   regu::Regularization{T},
@@ -61,18 +61,23 @@ function PreconditionerData(
     :dynamic,
   )
 
-  K_fact = @timeit_debug to "LDL analyze" ldl_analyze(K, Tf = Tlow)
-  K_fact.r1, K_fact.r2 = regu_precond.ρ, regu_precond.δ
-  K_fact.tol = Tlow(eps(Tlow))
-  K_fact.n_d = id.nvar
-  ldl_factorize!(K, K_fact)
+  K_fact = @timeit_debug to "LDL analyze" init_fact(K, LDLFact(), Tlow)
+  K_fact.LDL.r1, K_fact.LDL.r2 = regu_precond.ρ, regu_precond.δ
+  K_fact.LDL.tol = Tlow(eps(Tlow))
+  K_fact.LDL.n_d = id.nvar
+  generic_factorize!(K, K_fact)
   L = UnitLowerTriangular(CUDA.CUSPARSE.CuSparseMatrixCSC(
-    CuVector(K_fact.Lp),
-    CuVector(K_fact.Li),
-    CuVector{Tlow}(K_fact.Lx),
+    CuVector(K_fact.LDL.Lp),
+    CuVector(K_fact.LDL.Li),
+    CuVector{Tlow}(K_fact.LDL.Lx),
     size(K),
   ))
-  d = abs.(CuVector(K_fact.d))
+  
+  if !(sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir || sp.kmethod == :ir)
+    d = abs.(CuVector(K_fact.LDL.d))
+  else
+    d = CuVector(K_fact.LDL.d)
+  end
   tmp_res = similar(d)
   tmp_v = similar(d)
 
@@ -82,10 +87,10 @@ function PreconditionerData(
     id.nvar + id.ncon,
     true,
     true,
-    (res, v, α, β) -> ldl_ldiv_gpu!(res, L, d, v, K_fact.P, K_fact.pinv, tmp_res, tmp_v),
+    (res, v, α, β) -> ldl_ldiv_gpu!(res, L, d, v, K_fact.LDL.P, K_fact.LDL.pinv, tmp_res, tmp_v),
   )
 
-  return LDLGPUData{T, typeof(fd.c), Tlow, typeof(P)}(
+  return LDLGPUData{T, typeof(fd.c), Tlow, typeof(P), typeof(K_fact)}(
     K,
     L,
     d,
@@ -112,11 +117,10 @@ function update_preconditioner!(
   pad.pdat.regu.ρ, pad.pdat.regu.δ =
     max(pad.regu.ρ, sqrt(eps(Tlow))), max(pad.regu.ρ, sqrt(eps(Tlow)))
 
-  out = factorize_scale_K2!(
-    pad.pdat.K.data,
+  out = factorize_K2!(
+    pad.pdat.K,
     pad.pdat.K_fact,
     pad.D,
-    pad.mt.Deq,
     pad.mt.diag_Q,
     pad.mt.diagind_K,
     pad.pdat.regu,
@@ -130,25 +134,30 @@ function update_preconditioner!(
     id.nvar,
     cnts,
     itd.qp,
-    Tlow,
-    Tlow,
   ) # update D and factorize K
 
-  copyto!(pad.pdat.L.data.nzVal, pad.pdat.K_fact.Lx)
-  copyto!(pad.pdat.d, pad.pdat.K_fact.d)
-  pad.pdat.d .= abs.(pad.pdat.d)
+  copyto!(pad.pdat.L.data.nzVal, pad.pdat.K_fact.LDL.Lx)
+  copyto!(pad.pdat.d, pad.pdat.K_fact.LDL.d)
+  if !(
+    typeof(pad.KS) <: GmresSolver ||
+    typeof(pad.KS) <: DqgmresSolver ||
+    typeof(pad.KS) <: GmresIRSolver ||
+    typeof(pad.KS) <: IRSolver
+  )
+    @. pad.pdat.d = abs(pad.pdat.d)
+  end
 
   if out == 1
     pad.pdat.fact_fail = true
     return out
   end
   if pad.pdat.warm_start
-    ldl_ldiv_gpu!(pad.KS.x, pdat.L, pdat.d, pad.rhs, pdat.K_fact.P, pdat.K_fact.pinv, pdat.tmp_res, pdat.tmp_v)
+    ldl_ldiv_gpu!(pad.KS.x, pdat.L, pdat.d, pad.rhs, pdat.K_fact.LDL.P, pdat.K_fact.LDL.pinv, pdat.tmp_res, pdat.tmp_v)
     warm_start!(pad.KS, pad.KS.x)
   end
 end
 
-mutable struct K2KrylovGPUParams{T, PT} <: AugmentedKrylovParams{PT}
+mutable struct K2KrylovGPUParams{T, PT} <: AugmentedKrylovParams{T, PT}
   uplo::Symbol
   kmethod::Symbol
   preconditioner::PT
@@ -207,20 +216,6 @@ end
 
 K2KrylovGPUParams(; kwargs...) = K2KrylovGPUParams{Float64}(; kwargs...)
 
-mutable struct MatrixTools{T}
-  diag_Q::SparseVector{T, Int} # Q diag
-  diagind_K::Vector{Int}
-  Deq::Diagonal{T, Vector{T}}
-  C_eq::Diagonal{T, Vector{T}}
-end
-
-convert(::Type{MatrixTools{T}}, mt::MatrixTools) where {T} = MatrixTools(
-  convert(SparseVector{T, Int}, mt.diag_Q),
-  mt.diagind_K,
-  Diagonal(convert(Vector{T}, mt.Deq.diag)),
-  Diagonal(convert(Vector{T}, mt.C_eq.diag)),
-)
-
 mutable struct PreallocatedDataK2KrylovGPU{
   T <: Real,
   S,
@@ -243,6 +238,7 @@ mutable struct PreallocatedDataK2KrylovGPU{
   mt::MT
   deq::S
   KS::Ksol
+  kiter::Int
   atol::T
   rtol::T
   atol_min::T
@@ -262,10 +258,11 @@ function opK2eqprod!(
   v::AbstractVector{T},
   vtmp::AbstractVector{T},
   uplo::Symbol,
+  equilibrate::Bool,
 ) where {T}
-  vtmp .= deq .* v
+  equilibrate && (vtmp .= deq .* v)
   @views mul!(res[1:nvar], Q, vtmp[1:nvar], -one(T), zero(T))
-  res[1:nvar] .+= D .* vtmp[1:nvar]
+  @. res[1:nvar] += @views D * vtmp[1:nvar]
   if uplo == :U
     @views mul!(res[1:nvar], A, vtmp[(nvar + 1):end], one(T), one(T))
     @views mul!(res[(nvar + 1):end], A', vtmp[1:nvar], one(T), zero(T))
@@ -274,7 +271,7 @@ function opK2eqprod!(
     @views mul!(res[(nvar + 1):end], A, vtmp[1:nvar], one(T), zero(T))
   end
   res[(nvar + 1):end] .+= @views δv[1] .* vtmp[(nvar + 1):end]
-  res .*= deq
+  equilibrate && (res .*= deq)
 end
 
 function PreallocatedData(
@@ -296,12 +293,10 @@ function PreallocatedData(
     regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), :hybrid)
     D .= -T(1.0e-2)
   end
+  Dcpu = Vector(D)
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
-  Qcpu = SparseMatrixCSC(fd.Q.data)
-  Acpu = SparseMatrixCSC(fd.A)
-  diag_Q = get_diag_Q(Qcpu.colptr, Qcpu.rowval, Qcpu.nzval, id.nvar)
-  Kcpu = Symmetric(create_K2(id, Vector(D), Qcpu, Acpu, diag_Q, regu), fd.uplo)
-  diagind_K = get_diag_sparseCSC(Kcpu.data.colptr, id.ncon + id.nvar)
+  Kcpu, diagind_K, diag_Q = get_K2_matrixdata(id, Dcpu, fd.Q, fd.A, regu, sp.uplo, T)
+
   if sp.equilibrate
     Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
     Deq.diag .= one(T)
@@ -311,16 +306,15 @@ function PreallocatedData(
     C_eq = Diagonal(Vector{T}(undef, 0))
   end
   mt = MatrixTools(diag_Q, diagind_K, Deq, C_eq)
-  Dcpu = Vector(D)
   deq = CuVector(Deq.diag)
-  vtmp = similar(deq)
+  vtmp = similar(D, id.nvar + id.ncon)
   K = LinearOperator(
     T,
     id.nvar + id.ncon,
     id.nvar + id.ncon,
     true,
     true,
-    (res, v, α, β) -> opK2eqprod!(res, id.nvar, fd.Q, D, fd.A, δv, deq, v, vtmp, fd.uplo),
+    (res, v, α, β) -> opK2eqprod!(res, id.nvar, fd.Q, D, fd.A, δv, deq, v, vtmp, fd.uplo, sp.equilibrate),
   )
   diagQnz = similar(deq, length(diag_Q.nzval))
   copyto!(diagQnz, diag_Q.nzval)
@@ -344,6 +338,7 @@ function PreallocatedData(
     mt,
     deq,
     KS,
+    0,
     T(sp.atol0),
     T(sp.rtol0),
     T(sp.atol_min),
@@ -363,7 +358,6 @@ function solver!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
   step::Symbol,
 ) where {T <: Real}
   pad.rhs .= pad.equilibrate ? dd .* pad.deq : dd
@@ -391,6 +385,7 @@ function solver!(
     rtol = pad.rtol,
     itmax = pad.itmax,
   )
+  pad.kiter += niterations(pad.KS)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
@@ -416,7 +411,6 @@ function update_pad!(
   id::QM_IntData,
   res::AbstractResiduals{T},
   cnts::Counters,
-  T0::DataType,
 ) where {T <: Real}
   if cnts.k != 0
     update_regu!(pad.regu)
@@ -430,8 +424,8 @@ function update_pad!(
   end
 
   pad.D .= -pad.regu.ρ
-  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+  @. pad.D[id.ilow] -= pt.s_l / itd.x_m_lvar
+  @. pad.D[id.iupp] -= pt.s_u / itd.uvar_m_x
   pad.δv[1] = pad.regu.δ
   pad.D[pad.mt.diag_Q.nzind] .-= pad.diagQnz
   copyto!(pad.Dcpu, pad.D)
@@ -452,21 +446,25 @@ function update_pad!(
   return 0
 end
 
+function get_K2_matrixdata(
+  id::QM_IntData,
+  D::AbstractVector,
+  Q::Symmetric,
+  A::CUDA.CUSPARSE.AbstractCuSparseMatrix,
+  regu::Regularization,
+  uplo::Symbol,
+  ::Type{T},
+) where {T}
+  Qcpu = Symmetric(SparseMatrixCSC(Q.data), uplo)
+  Acpu = SparseMatrixCSC(A)
+  diag_Q = get_diag_Q(Qcpu)
+  K = create_K2(id, D, Qcpu.data, Acpu, diag_Q, regu, uplo, T)
+  diagind_K = get_diagind_K(K, uplo)
+  return K, diagind_K, diag_Q
+end
+
 # function get_mat_QPData(A::CUDA.CUSPARSE.CuSparseMatrixCSC, H, nvar::Int, ncon::Int, uplo::Symbol)
 #   fdA = uplo == :U ? CUDA.CUSPARSE.CuSparseMatrixCSC(SparseMatrixCSC(transpose(SparseMatrixCSC(A)))) : A
 #   fdH = uplo == :U ? CUDA.CUSPARSE.CuSparseMatrixCSC(SparseMatrixCSC(transpose(SparseMatrixCSC(H)))) : H
 #   return fdA, Symmetric(fdH, uplo)
 # end
-
-function get_mat_QPData(
-  A::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
-  H::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
-  nvar::Int,
-  ncon::Int,
-  uplo::Symbol,
-) where {T, Ti}
-  # A is Aᵀ of QuadraticModel QM
-  fdA = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(A.colInd), Vector(A.rowInd), Vector(A.nzVal), nvar, ncon))
-  fdQ = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(H.colInd), Vector(H.rowInd), Vector(H.nzVal), nvar, nvar))
-  return fdA, Symmetric(fdQ, uplo)
-end
