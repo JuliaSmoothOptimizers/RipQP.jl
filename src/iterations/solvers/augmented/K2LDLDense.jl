@@ -108,8 +108,8 @@ function update_pad!(
   end
 
   pad.D .= -pad.regu.ρ
-  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+  @. pad.D[id.ilow] -= pt.s_l / itd.x_m_lvar
+  @. pad.D[id.iupp] -= pt.s_u / itd.uvar_m_x
   pad.K.data[1:(id.nvar), 1:(id.nvar)] .= .-fd.Q.data .+ Diagonal(pad.D)
   pad.K.data[(id.nvar + 1):(id.nvar + id.ncon), 1:(id.nvar)] .= fd.A
   pad.K.data[(id.nvar + 1):(id.nvar + id.ncon), (id.nvar + 1):(id.nvar + id.ncon)] .= zero(T)

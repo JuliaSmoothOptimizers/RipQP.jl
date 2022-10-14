@@ -122,7 +122,7 @@ function PreallocatedData(
     regu.δ = zero(T)
   end
   invE = similar(E)
-  invE .= one(T) ./ E
+  @. invE = one(T) / E
 
   sqrtX1X2 = fill!(similar(fd.c), one(T))
   ξ1 = similar(fd.c, id.nvar)
@@ -210,7 +210,7 @@ function solver!(
     kunscale!(pad.KS.y, rhsNorm)
   end
 
-  dd[1:(id.nvar)] .= pad.KS.x .* pad.sqrtX1X2
+  @. dd[1:(id.nvar)] = pad.KS.x * pad.sqrtX1X2
   dd[(id.nvar + 1):end] .= pad.KS.y
 
   return 0
@@ -238,13 +238,13 @@ function update_pad!(
   end
 
   pad.sqrtX1X2 .= one(T)
-  pad.sqrtX1X2[id.ilow] .*= sqrt.(itd.x_m_lvar)
-  pad.sqrtX1X2[id.iupp] .*= sqrt.(itd.uvar_m_x)
+  @. pad.sqrtX1X2[id.ilow] *= sqrt(itd.x_m_lvar)
+  @. pad.sqrtX1X2[id.iupp] *= sqrt(itd.uvar_m_x)
   pad.E .= pad.regu.ρ
-  pad.E[id.ilow] .+= pt.s_l ./ itd.x_m_lvar
-  pad.E[id.iupp] .+= pt.s_u ./ itd.uvar_m_x
-  pad.E .*= pad.sqrtX1X2 .^ 2
-  pad.invE .= one(T) ./ pad.E
+  @. pad.E[id.ilow] += pt.s_l / itd.x_m_lvar
+  @. pad.E[id.iupp] += pt.s_u / itd.uvar_m_x
+  @. pad.E *= pad.sqrtX1X2^2
+  @. pad.invE = one(T) / pad.E
 
   return 0
 end

@@ -144,7 +144,7 @@ function opK2prod!(
   uplo::Symbol,
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
-  res[1:nvar] .+= α .* D .* v[1:nvar]
+  @. res[1:nvar] += @views α * D * v[1:nvar]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):end], α, one(T))
     @views mul!(res[(nvar + 1):end], A', v[1:nvar], α, β)
@@ -302,8 +302,8 @@ function update_pad!(
   end
 
   pad.D .= -pad.regu.ρ
-  pad.D[id.ilow] .-= pt.s_l ./ itd.x_m_lvar
-  pad.D[id.iupp] .-= pt.s_u ./ itd.uvar_m_x
+  @. pad.D[id.ilow] -= pt.s_l / itd.x_m_lvar
+  @. pad.D[id.iupp] -= pt.s_u / itd.uvar_m_x
   pad.δv[1] = pad.regu.δ
   if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}}
     pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval

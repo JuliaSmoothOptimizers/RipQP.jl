@@ -281,8 +281,8 @@ function initialize!(
   # stopping criterion
   #     rcNorm, rbNorm = norm(rc), norm(rb)
   #     optimal = pdd < ϵ_pdd && rbNorm < ϵ_rb && rcNorm < ϵ_rc
-  res.rb .= itd.Ax .- fd.b
-  res.rc .= itd.ATy .- itd.Qx .- fd.c
+  @. res.rb = itd.Ax - fd.b
+  @. res.rc = itd.ATy - itd.Qx - fd.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   res.rcNorm, res.rbNorm = norm(res.rc, Inf), norm(res.rb, Inf)

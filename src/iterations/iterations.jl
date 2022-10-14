@@ -50,22 +50,22 @@ function compute_α_primal(v, dir_v, lvar, uvar)
   return min(α_l, α_u)
 end
 
-@inline function compute_αs(x, s_l, s_u, lvar, uvar, Δxy, Δs_l, Δs_u, nvar)
+function compute_αs(x, s_l, s_u, lvar, uvar, Δxy, Δs_l, Δs_u, nvar)
   α_pri = @views compute_α_primal(x, Δxy[1:nvar], lvar, uvar)
   α_dual_l = compute_α_dual(s_l, Δs_l)
   α_dual_u = compute_α_dual(s_u, Δs_u)
   return α_pri, min(α_dual_l, α_dual_u)
 end
 
-@inline function compute_μ(x_m_lvar, uvar_m_x, s_l, s_u, nb_low, nb_upp)
+function compute_μ(x_m_lvar, uvar_m_x, s_l, s_u, nb_low, nb_upp)
   return (dot(s_l, x_m_lvar) + dot(s_u, uvar_m_x)) / (nb_low + nb_upp)
 end
 
 function update_pt!(x, y, s_l, s_u, α_pri, α_dual, Δxy, Δs_l, Δs_u, ncon, nvar)
-  x .= @views x .+ α_pri .* Δxy[1:nvar]
-  y .= @views y .+ α_dual .* Δxy[(nvar + 1):(ncon + nvar)]
-  s_l .= s_l .+ α_dual .* Δs_l
-  s_u .= s_u .+ α_dual .* Δs_u
+  @. x += @views α_pri * Δxy[1:nvar]
+  @. y += @views α_dual * Δxy[(nvar + 1):(ncon + nvar)]
+  @. s_l += α_dual * Δs_l
+  @. s_u += α_dual * Δs_u
 end
 
 function safe_boundary(v::T) where {T <: Real}
@@ -77,8 +77,8 @@ end
 
 # "security" if x is too close from lvar or uvar
 function boundary_safety!(x_m_lvar, uvar_m_x)
-  x_m_lvar .= safe_boundary.(x_m_lvar)
-  uvar_m_x .= safe_boundary.(uvar_m_x)
+  @. x_m_lvar = safe_boundary(x_m_lvar)
+  @. uvar_m_x = safe_boundary(uvar_m_x)
 end
 
 function perturb_x!(
@@ -113,16 +113,16 @@ function perturb_x!(
       s_u[i] += alea * pert
     end
   end
-  x_m_lvar .= @views x[ilow] .- lvar[ilow]
-  uvar_m_x .= @views uvar[iupp] .- x[iupp]
+  @. x_m_lvar = @views x[ilow] - lvar[ilow]
+  @. uvar_m_x = @views uvar[iupp] - x[iupp]
   boundary_safety!(x_m_lvar, uvar_m_x)
   boundary_safety!(s_l, s_u)
 end
 
 function update_IterData!(itd, pt, fd, id, safety)
   T = eltype(itd.x_m_lvar)
-  itd.x_m_lvar .= @views pt.x[id.ilow] .- fd.lvar[id.ilow]
-  itd.uvar_m_x .= @views fd.uvar[id.iupp] .- pt.x[id.iupp]
+  @. itd.x_m_lvar = @views pt.x[id.ilow] - fd.lvar[id.ilow]
+  @. itd.uvar_m_x = @views fd.uvar[id.iupp] - pt.x[id.iupp]
   safety && boundary_safety!(itd.x_m_lvar, itd.uvar_m_x)
   itd.μ = compute_μ(itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, id.nlow, id.nupp)
 
@@ -201,8 +201,8 @@ function update_data!(
   update_IterData!(itd, pt, fd, id, true)
 
   #update Residuals
-  res.rb .= itd.Ax .- fd.b
-  res.rc .= itd.ATy .- itd.Qx .- fd.c
+  @. res.rb = itd.Ax - fd.b
+  @. res.rc = itd.ATy - itd.Qx - fd.c
   res.rc[id.ilow] .+= pt.s_l
   res.rc[id.iupp] .-= pt.s_u
   # update stopping criterion values:

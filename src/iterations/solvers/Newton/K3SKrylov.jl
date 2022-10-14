@@ -124,8 +124,8 @@ function opK3Sprod!(
 ) where {T}
   @views mul!(res[1:nvar], Q, v[1:nvar], -α, β)
   res[1:nvar] .-= @views (α * ρv[1]) .* v[1:nvar]
-  res[ilow] .+= @views α .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]
-  res[iupp] .-= @views α .* v[(nvar + ncon + nlow + 1):end]
+  @. res[ilow] += @views α * v[(nvar + ncon + 1):(nvar + ncon + nlow)]
+  @. res[iupp] -= @views α * v[(nvar + ncon + nlow + 1):end]
   if uplo == :U
     @views mul!(res[1:nvar], A, v[(nvar + 1):(nvar + ncon)], α, one(T))
     @views mul!(res[(nvar + 1):(nvar + ncon)], A', v[1:nvar], α, β)
@@ -135,17 +135,17 @@ function opK3Sprod!(
   end
   res[(nvar + 1):(nvar + ncon)] .+= @views (α * δv[1]) .* v[(nvar + 1):(nvar + ncon)]
   if β == 0
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar_div_s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)])
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x_div_s_u .* v[(nvar + ncon + nlow + 1):end])
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (v[ilow] + x_m_lvar_div_s_l * v[(nvar + ncon + 1):(nvar + ncon + nlow)])
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-v[iupp] + uvar_m_x_div_s_u * v[(nvar + ncon + nlow + 1):end])
   else
-    res[(nvar + ncon + 1):(nvar + ncon + nlow)] .=
-      @views α .* (v[ilow] .+ x_m_lvar_div_s_l .* v[(nvar + ncon + 1):(nvar + ncon + nlow)]) .+
-             β .* res[(nvar + ncon + 1):(nvar + ncon + nlow)]
-    res[(nvar + ncon + nlow + 1):end] .=
-      @views α .* (.-v[iupp] .+ uvar_m_x_div_s_u .* v[(nvar + ncon + nlow + 1):end]) .+
-             β .* res[(nvar + ncon + nlow + 1):end]
+    @. res[(nvar + ncon + 1):(nvar + ncon + nlow)] =
+      @views α * (v[ilow] + x_m_lvar_div_s_l * v[(nvar + ncon + 1):(nvar + ncon + nlow)]) +
+             β * res[(nvar + ncon + 1):(nvar + ncon + nlow)]
+    @. res[(nvar + ncon + nlow + 1):end] =
+      @views α * (-v[iupp] + uvar_m_x_div_s_u * v[(nvar + ncon + nlow + 1):end]) +
+             β * res[(nvar + ncon + nlow + 1):end]
   end
 end
 
@@ -239,8 +239,8 @@ function solver!(
     Δs_u = itd.Δs_u
   end
   pad.rhs[1:(id.nvar + id.ncon)] .= dd
-  pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] .= Δs_l ./ pt.s_l
-  pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] .= Δs_u ./ pt.s_u
+  @. pad.rhs[(id.nvar + id.ncon + 1):(id.nvar + id.ncon + id.nlow)] = Δs_l / pt.s_l
+  @. pad.rhs[(id.nvar + id.ncon + id.nlow + 1):end] = Δs_u / pt.s_u
   if pad.rhs_scale
     rhsNorm = kscale!(pad.rhs)
   end
@@ -291,8 +291,8 @@ function update_pad!(
 
   pad.ρv[1] = pad.regu.ρ
   pad.δv[1] = pad.regu.δ
-  pad.x_m_lvar_div_s_l .= itd.x_m_lvar ./ pt.s_l
-  pad.uvar_m_x_div_s_u .= itd.uvar_m_x ./ pt.s_u
+  @. pad.x_m_lvar_div_s_l = itd.x_m_lvar / pt.s_l
+  @. pad.uvar_m_x_div_s_u = itd.uvar_m_x / pt.s_u
 
   update_preconditioner!(pad.pdat, pad, itd, pt, id, fd, cnts)
 
