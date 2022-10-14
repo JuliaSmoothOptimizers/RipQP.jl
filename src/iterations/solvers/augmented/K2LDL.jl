@@ -434,6 +434,21 @@ function get_K2_matrixdata(
   return K, diagind_K, diag_Q
 end
 
+function update_D!(
+  D::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  ρ::T,
+  ilow,
+  iupp,
+) where {T}
+  D .= -ρ
+  @. D[ilow] -= s_l / x_m_lvar
+  @. D[iupp] -= s_u / uvar_m_x
+end
+
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}
   K.data.nzval[view(diagind_K, 1:nvar)] = D
 end
@@ -466,15 +481,14 @@ function update_K!(
   ncon,
 ) where {T}
   if regu.regul == :classic || regu.regul == :hybrid
-    D .= -regu.ρ
+    ρ = regu.ρ
     if regu.δ > 0
       update_diag_K22!(K, regu.δ, diagind_K, nvar, ncon)
     end
   else
-    D .= zero(T)
+    ρ = zero(T)
   end
-  D[ilow] .-= s_l ./ x_m_lvar
-  D[iupp] .-= s_u ./ uvar_m_x
+  update_D!(D, x_m_lvar, uvar_m_x, s_l, s_u, ρ, ilow, iupp)
   D[diag_Q.nzind] .-= diag_Q.nzval
   update_diag_K11!(K, D, diagind_K, nvar)
 end

@@ -416,21 +416,14 @@ function update_pad!(
     update_regu!(pad.regu)
   end
 
-  if pad.atol > pad.atol_min
-    pad.atol /= 10
-  end
-  if pad.rtol > pad.rtol_min
-    pad.rtol /= 10
-  end
+  update_krylov_tol!(pad)
 
-  pad.D .= -pad.regu.ρ
-  @. pad.D[id.ilow] -= pt.s_l / itd.x_m_lvar
-  @. pad.D[id.iupp] -= pt.s_u / itd.uvar_m_x
+  update_D!(pad.D, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, pad.regu.ρ, id.ilow, id.iupp)
   pad.δv[1] = pad.regu.δ
   pad.D[pad.mt.diag_Q.nzind] .-= pad.diagQnz
   copyto!(pad.Dcpu, pad.D)
-  pad.Kcpu.data.nzval[view(pad.mt.diagind_K, 1:(id.nvar))] = pad.Dcpu
-  pad.Kcpu.data.nzval[view(pad.mt.diagind_K, (id.nvar + 1):(id.ncon + id.nvar))] .= pad.regu.δ
+  update_diag_K11!(pad.Kcpu, pad.Dcpu, pad.mt.diagind_K, id.nvar)
+  update_diag_K22!(pad.Kcpu, pad.regu.δ, pad.mt.diagind_K, id.nvar, id.ncon)
   if pad.equilibrate
     pad.mt.Deq.diag .= one(T)
     @timeit_debug to "equilibration" equilibrate!(

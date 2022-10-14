@@ -704,3 +704,12 @@ function ksolve!(
   end
   KS.itertot = iter
 end
+
+function update_krylov_tol!(pad::PreallocatedData)
+  if pad.atol > pad.atol_min
+    pad.atol /= 10
+  end
+  if pad.rtol > pad.rtol_min
+    pad.rtol /= 10
+  end
+end
