@@ -73,10 +73,8 @@ function PreallocatedData(
   else
     regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
   end
-  diag_Q = get_diag_Q(fd.Q)
-  K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, sp.uplo, T)
+  K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
 
-  diagind_K = get_diagind_K(K, sp.uplo)
   K_fact = init_fact(K, sp.fact_alg)
   if regu.regul == :dynamic || regu.regul == :hybrid
     Amax = @views norm(K.data.nzval[diagind_K], Inf)
@@ -421,6 +419,36 @@ function create_K2(
   return Symmetric(SparseMatrixCOO(nvar + ncon, nvar + ncon, rows, cols, vals), uplo)
 end
 
+function get_K2_matrixdata(
+  id::QM_IntData,
+  D::AbstractVector,
+  Q::Symmetric,
+  A::AbstractSparseMatrix,
+  regu::Regularization,
+  uplo::Symbol,
+  ::Type{T},
+) where {T}
+  diag_Q = get_diag_Q(Q)
+  K = create_K2(id, D, Q.data, A, diag_Q, regu, uplo, T)
+  diagind_K = get_diagind_K(K, uplo)
+  return K, diagind_K, diag_Q
+end
+
+function update_D!(
+  D::AbstractVector{T},
+  x_m_lvar::AbstractVector{T},
+  uvar_m_x::AbstractVector{T},
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  ρ::T,
+  ilow,
+  iupp,
+) where {T}
+  D .= -ρ
+  @. D[ilow] -= s_l / x_m_lvar
+  @. D[iupp] -= s_u / uvar_m_x
+end
+
 function update_diag_K11!(K::Symmetric{T, <:SparseMatrixCSC}, D, diagind_K, nvar) where {T}
   K.data.nzval[view(diagind_K, 1:nvar)] = D
 end
@@ -453,15 +481,14 @@ function update_K!(
   ncon,
 ) where {T}
   if regu.regul == :classic || regu.regul == :hybrid
-    D .= -regu.ρ
+    ρ = regu.ρ
     if regu.δ > 0
       update_diag_K22!(K, regu.δ, diagind_K, nvar, ncon)
     end
   else
-    D .= zero(T)
+    ρ = zero(T)
   end
-  D[ilow] .-= s_l ./ x_m_lvar
-  D[iupp] .-= s_u ./ uvar_m_x
+  update_D!(D, x_m_lvar, uvar_m_x, s_l, s_u, ρ, ilow, iupp)
   D[diag_Q.nzind] .-= diag_Q.nzval
   update_diag_K11!(K, D, diagind_K, nvar)
 end

@@ -233,12 +233,7 @@ function update_pad!(
     update_regu!(pad.regu)
   end
 
-  if pad.atol > pad.atol_min
-    pad.atol /= 10
-  end
-  if pad.rtol > pad.rtol_min
-    pad.rtol /= 10
-  end
+  update_krylov_tol!(pad)
 
   pad.δv[1] = pad.regu.δ
 

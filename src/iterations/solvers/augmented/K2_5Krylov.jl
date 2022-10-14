@@ -249,12 +249,7 @@ function update_pad!(
     update_regu!(pad.regu)
   end
 
-  if pad.atol > pad.atol_min
-    pad.atol /= 10
-  end
-  if pad.rtol > pad.rtol_min
-    pad.rtol /= 10
-  end
+  update_krylov_tol!(pad)
 
   # K2.5
   pad.sqrtX1X2 .= one(T)

@@ -230,12 +230,7 @@ function update_pad!(
     update_regu!(pad.regu)
   end
 
-  if pad.atol > pad.atol_min
-    pad.atol /= 10
-  end
-  if pad.rtol > pad.rtol_min
-    pad.rtol /= 10
-  end
+  update_krylov_tol!(pad)
 
   pad.sqrtX1X2 .= one(T)
   @. pad.sqrtX1X2[id.ilow] *= sqrt(itd.x_m_lvar)

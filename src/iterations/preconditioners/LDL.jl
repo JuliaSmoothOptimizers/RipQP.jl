@@ -319,7 +319,6 @@ function update_preconditioner!(
     cnts,
     itd.qp,
   ) # update D and factorize K
-
   if out == 1
     pad.pdat.fact_fail = true
     return out

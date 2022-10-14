@@ -175,9 +175,7 @@ function PreallocatedData(
   end
   δv = [regu.δ] # put it in a Vector so that we can modify it without modifying opK2prod!
   if sp.form_mat
-    diag_Q = get_diag_Q(fd.Q)
-    K = create_K2(id, D, fd.Q.data, fd.A, diag_Q, regu, fd.uplo, T)
-    diagind_K = get_diagind_K(K, sp.uplo)
+    K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
     if sp.equilibrate
       Deq = Diagonal(Vector{T}(undef, id.nvar + id.ncon))
       Deq.diag .= one(T)
@@ -294,16 +292,9 @@ function update_pad!(
     update_regu!(pad.regu)
   end
 
-  if pad.atol > pad.atol_min
-    pad.atol /= 10
-  end
-  if pad.rtol > pad.rtol_min
-    pad.rtol /= 10
-  end
+  update_krylov_tol!(pad)
 
-  pad.D .= -pad.regu.ρ
-  @. pad.D[id.ilow] -= pt.s_l / itd.x_m_lvar
-  @. pad.D[id.iupp] -= pt.s_u / itd.uvar_m_x
+  update_D!(pad.D, itd.x_m_lvar, itd.uvar_m_x, pt.s_l, pt.s_u, pad.regu.ρ, id.ilow, id.iupp)
   pad.δv[1] = pad.regu.δ
   if typeof(pad.K) <: Symmetric{T, <:Union{SparseMatrixCSC{T}, SparseMatrixCOO{T}}}
     pad.D[pad.mt.diag_Q.nzind] .-= pad.mt.diag_Q.nzval
