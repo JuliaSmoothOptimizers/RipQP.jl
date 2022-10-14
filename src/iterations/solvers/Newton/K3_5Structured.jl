@@ -128,8 +128,7 @@ function opAsprod!(
   else
     @. res[(ncon + 1):(ncon + nlow)] =
       @views α * sqrt(s_l) * v[ilow] + β * res[(ncon + 1):(ncon + nlow)]
-    @. res[(ncon + nlow + 1):end] =
-      @views -α * sqrt(s_u) * v[iupp] + β * res[(ncon + nlow + 1):end]
+    @. res[(ncon + nlow + 1):end] = @views -α * sqrt(s_u) * v[iupp] + β * res[(ncon + nlow + 1):end]
   end
   if uplo == :U
     @views mul!(res[1:ncon], A', v, α, β)
