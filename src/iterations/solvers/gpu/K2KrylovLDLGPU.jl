@@ -16,8 +16,13 @@ end
 
 LDLGPU(; T::DataType = Float32, pos = :C, warm_start = true) = LDLGPU(T, pos, warm_start)
 
-mutable struct LDLGPUData{T <: Real, S, Tlow, Op <: Union{LinearOperator, LRPrecond},
-    F <: FactorizationData{Tlow}} <: PreconditionerData{T, S}
+mutable struct LDLGPUData{
+  T <: Real,
+  S,
+  Tlow,
+  Op <: Union{LinearOperator, LRPrecond},
+  F <: FactorizationData{Tlow},
+} <: PreconditionerData{T, S}
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
   L::UnitLowerTriangular{Tlow, CUDA.CUSPARSE.CuSparseMatrixCSC{Tlow, Int32}} # T or Tlow?
   d::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
@@ -66,14 +71,18 @@ function PreconditionerData(
   K_fact.LDL.tol = Tlow(eps(Tlow))
   K_fact.LDL.n_d = id.nvar
   generic_factorize!(K, K_fact)
-  L = UnitLowerTriangular(CUDA.CUSPARSE.CuSparseMatrixCSC(
-    CuVector(K_fact.LDL.Lp),
-    CuVector(K_fact.LDL.Li),
-    CuVector{Tlow}(K_fact.LDL.Lx),
-    size(K),
-  ))
-  
-  if !(sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir || sp.kmethod == :ir)
+  L = UnitLowerTriangular(
+    CUDA.CUSPARSE.CuSparseMatrixCSC(
+      CuVector(K_fact.LDL.Lp),
+      CuVector(K_fact.LDL.Li),
+      CuVector{Tlow}(K_fact.LDL.Lx),
+      size(K),
+    ),
+  )
+
+  if !(
+    sp.kmethod == :gmres || sp.kmethod == :dqgmres || sp.kmethod == :gmresir || sp.kmethod == :ir
+  )
     d = abs.(CuVector(K_fact.LDL.d))
   else
     d = CuVector(K_fact.LDL.d)
@@ -152,7 +161,16 @@ function update_preconditioner!(
     return out
   end
   if pad.pdat.warm_start
-    ldl_ldiv_gpu!(pad.KS.x, pdat.L, pdat.d, pad.rhs, pdat.K_fact.LDL.P, pdat.K_fact.LDL.pinv, pdat.tmp_res, pdat.tmp_v)
+    ldl_ldiv_gpu!(
+      pad.KS.x,
+      pdat.L,
+      pdat.d,
+      pad.rhs,
+      pdat.K_fact.LDL.P,
+      pdat.K_fact.LDL.pinv,
+      pdat.tmp_res,
+      pdat.tmp_v,
+    )
     warm_start!(pad.KS, pad.KS.x)
   end
 end
@@ -282,7 +300,6 @@ function PreallocatedData(
   pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
-
   @assert fd.uplo == :U
   # init Regularization values
   D = similar(fd.c, id.nvar)
@@ -314,7 +331,8 @@ function PreallocatedData(
     id.nvar + id.ncon,
     true,
     true,
-    (res, v, α, β) -> opK2eqprod!(res, id.nvar, fd.Q, D, fd.A, δv, deq, v, vtmp, fd.uplo, sp.equilibrate),
+    (res, v, α, β) ->
+      opK2eqprod!(res, id.nvar, fd.Q, D, fd.A, δv, deq, v, vtmp, fd.uplo, sp.equilibrate),
   )
   diagQnz = similar(deq, length(diag_Q.nzval))
   copyto!(diagQnz, diag_Q.nzval)

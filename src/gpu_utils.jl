@@ -10,8 +10,12 @@ function get_mat_QPData(
   sp::K2KrylovGPUParams,
 ) where {T, Ti}
   # A is Aᵀ of QuadraticModel QM
-  fdA = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(A.colInd), Vector(A.rowInd), Vector(A.nzVal), nvar, ncon))
-  fdQ = CUDA.CUSPARSE.CuSparseMatrixCSC(sparse(Vector(H.colInd), Vector(H.rowInd), Vector(H.nzVal), nvar, nvar))
+  fdA = CUDA.CUSPARSE.CuSparseMatrixCSC(
+    sparse(Vector(A.colInd), Vector(A.rowInd), Vector(A.nzVal), nvar, ncon),
+  )
+  fdQ = CUDA.CUSPARSE.CuSparseMatrixCSC(
+    sparse(Vector(H.colInd), Vector(H.rowInd), Vector(H.nzVal), nvar, nvar),
+  )
   return fdA, Symmetric(fdQ, sp.uplo)
 end
 
@@ -214,7 +218,7 @@ function slackdata2(
       length(data.H.nzVal),
     ),
     CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti}(
-      CuVector{Ti}([Vector(data.A.rowInd); meta.jlow; meta.jupp;meta.jrng]),
+      CuVector{Ti}([Vector(data.A.rowInd); meta.jlow; meta.jupp; meta.jrng]),
       CuVector{Ti}([Vector(data.A.colInd); (meta.nvar + 1):(meta.nvar + ns)]),
       CuVector([Vector(data.A.nzVal); fill!(Vector{T}(undef, ns), -one(T))]),
       (meta.ncon, nvar_slack),
