@@ -226,7 +226,7 @@ mutable struct Point{T <: Real, S}
   end
 end
 
-convert(::Type{Point{T, S}}, pt) where {T <: Real, S} =
+convert(::Type{Point{T, S}}, pt::Point) where {T <: Real, S} =
   Point(convert(S, pt.x), convert(S, pt.y), convert(S, pt.s_l), convert(S, pt.s_u))
 
 abstract type AbstractResiduals{T <: Real, S} end
