@@ -69,11 +69,7 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
-  if iconf.mode == :mono
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
-  else
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
-  end
+  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
   K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
 
   K_fact = init_fact(K, sp.fact_alg)
