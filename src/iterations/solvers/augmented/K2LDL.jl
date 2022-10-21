@@ -27,8 +27,9 @@ mutable struct K2LDLParams{T, Fact} <: AugmentedParams{T}
   δ0::T
   ρ_min::T
   δ_min::T
-  function K2LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where {T}
-    return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min)
+  bypass_bound_dist_safety::Bool
+  function K2LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T, bypass_bound_dist_safety::Bool) where {T}
+    return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min, bypass_bound_dist_safety)
   end
 end
 
@@ -38,7 +39,8 @@ K2LDLParams{T}(;
   δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
-) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
+  bypass_bound_dist_safety::Bool = false,
+) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min, bypass_bound_dist_safety)
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
@@ -46,6 +48,7 @@ mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <:
                PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
+  bypass_bound_dist_safety::Bool
   diag_Q::SparseVector{T, Int} # Q diagonal
   K::Symmetric{T, M} # augmented matrix 
   K_fact::F # factorized matrix
@@ -87,6 +90,7 @@ function PreallocatedData(
   return PreallocatedDataK2LDL(
     D,
     regu,
+    sp.bypass_bound_dist_safety,
     diag_Q, #diag_Q
     K, #K
     K_fact, #K_fact
@@ -125,7 +129,8 @@ function update_pad!(
 ) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts)
+    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts,
+                              bypass_bound_dist_safety = pad.bypass_bound_dist_safety)
     out == 1 && return out
   end
 

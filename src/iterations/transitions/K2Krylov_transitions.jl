@@ -128,6 +128,7 @@ function convertpad(
   return PreallocatedDataK2LDL(
     D,
     regu,
+    sp_new.bypass_bound_dist_safety,
     convert(SparseVector{T, Int}, pad.mt.diag_Q), #diag_Q
     K, #K
     K_fact, #K_fact
