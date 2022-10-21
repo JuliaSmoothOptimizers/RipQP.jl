@@ -107,11 +107,11 @@ end
 end
 
 @testset "K3_5 structured" begin
-  for kmethod in [:trimr, :tricg, :gpmr]
+  for kmethod in [:gpmr, :trimr]
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,
-      sp = K3_5StructuredParams(kmethod = kmethod),
+      sp = K3_5StructuredParams(kmethod = :gpmr),
       solve_method = IPF(),
       history = true,
       itol = InputTol(
@@ -128,7 +128,7 @@ end
 end
 
 @testset "K3S structured" begin
-  for kmethod in [:tricg, :trimr, :gpmr]
+  for kmethod in [:gpmr, :trimr]
     stats3 = ripqp(
       QuadraticModel(qps3),
       display = false,

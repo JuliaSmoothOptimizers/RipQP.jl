@@ -158,8 +158,8 @@ end
 end
 
 @testset "K2 structured LP" begin
-  for kmethod in [:trimr, :gpmr]
-    for δ_min in [0.0, 1.0e-2]
+  for kmethod in [:gpmr, :trimr]
+    for δ_min in [1.0e-2, 0.0]
       stats4 = ripqp(
         QuadraticModel(qps4),
         display = false,
@@ -189,8 +189,8 @@ end
 end
 
 @testset "K2.5 structured LP" begin
-  for kmethod in [:trimr, :gpmr]
-    for δ_min in [0.0, 1.0e-2]
+  for kmethod in [:gpmr, :trimr]
+    for δ_min in [1.0e-2, 0.0]
       stats4 = ripqp(
         QuadraticModel(qps4),
         display = false,
