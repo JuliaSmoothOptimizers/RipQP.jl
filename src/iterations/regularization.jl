@@ -43,9 +43,10 @@ function update_regu_diagK2!(
   diagind_K,
   nvar::Int,
   itd::IterData,
-  cnts::Counters,
+  cnts::Counters;
+  safety_dist_bnd::Bool = true,
 ) where {T}
-  update_regu_diagK2!(regu, K.data.nzval, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts)
+  update_regu_diagK2!(regu, K.data.nzval, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
@@ -54,9 +55,10 @@ function update_regu_diagK2!(
   diagind_K,
   nvar::Int,
   itd::IterData,
-  cnts::Counters,
+  cnts::Counters;
+  safety_dist_bnd::Bool = false,
 ) where {T}
-  update_regu_diagK2!(regu, K.data.vals, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts)
+  update_regu_diagK2!(regu, K.data.vals, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
@@ -68,42 +70,45 @@ function update_regu_diagK2!(
   l_pdd::Vector{T},
   mean_pdd::T,
   cnts::Counters,
+  safety_dist_bnd::Bool,
 ) where {T}
   l_pdd[cnts.k % 6 + 1] = pdd
   mean_pdd = mean(l_pdd)
 
-  if T == Float64 &&
-     regu.regul == :classic &&
-     cnts.k > 10 &&
-     mean_pdd != zero(T) &&
-     std(l_pdd ./ mean_pdd) < T(1e-2) &&
-     cnts.c_pdd < 5
-    regu.δ_min /= 10
-    regu.δ /= 10
-    cnts.c_pdd += 1
-  end
-  if T == Float64 &&
-     regu.regul == :classic &&
-     cnts.k > 10 &&
-     cnts.c_catch <= 1 &&
-     regu.δ_min >= eps(T)^(4 / 5) &&
-     @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
-    regu.δ /= 10
-    regu.δ_min /= 10
-    cnts.c_pdd += 1
-  elseif !cnts.last_sp &&
-         cnts.c_pdd <= 2 &&
-         cnts.k ≥ 5 &&
-         @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / eps(T) &&
-                @views maximum(K_nzval[diagind_K[1:nvar]]) > -one(T) / 10
-    regu.regul == :classic && return 1
-  elseif T == Float128 &&
-         cnts.k > 10 &&
-         cnts.c_catch <= 1 &&
-         @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-15)
-    regu.δ /= 10
-    regu.δ_min /= 10
-    cnts.c_pdd += 1
+  if safety_dist_bnd
+    if T == Float64 &&
+      regu.regul == :classic &&
+      cnts.k > 10 &&
+      mean_pdd != zero(T) &&
+      std(l_pdd ./ mean_pdd) < T(1e-2) &&
+      cnts.c_pdd < 5
+      regu.δ_min /= 10
+      regu.δ /= 10
+      cnts.c_pdd += 1
+    end
+    if T == Float64 &&
+      regu.regul == :classic &&
+      cnts.k > 10 &&
+      cnts.c_catch <= 1 &&
+      regu.δ_min >= eps(T)^(4 / 5) &&
+      @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
+      regu.δ /= 10
+      regu.δ_min /= 10
+      cnts.c_pdd += 1
+    elseif !cnts.last_sp &&
+          cnts.c_pdd <= 2 &&
+          cnts.k ≥ 5 &&
+          @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / eps(T) &&
+                  @views maximum(K_nzval[diagind_K[1:nvar]]) > -one(T) / 10
+      regu.regul == :classic && return 1
+    elseif T == Float128 &&
+          cnts.k > 10 &&
+          cnts.c_catch <= 1 &&
+          @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-15)
+      regu.δ /= 10
+      regu.δ_min /= 10
+      cnts.c_pdd += 1
+    end
   end
 
   update_regu!(regu)

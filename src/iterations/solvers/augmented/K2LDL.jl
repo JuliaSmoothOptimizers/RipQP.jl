@@ -11,7 +11,8 @@ The outer constructor
 
     sp = K2LDLParams(; fact_alg = LDLFact(regul = :classic),
                      ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
-                     ρ_min = sqrt(eps()), δ_min = sqrt(eps())) 
+                     ρ_min = sqrt(eps()), δ_min = sqrt(eps()),
+                     safety_dist_bnd = true) 
 
 creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 
@@ -19,6 +20,9 @@ encounters a pivot that has a small magnitude).
 `regul = :none` uses no regularization (not recommended).
 When `regul = :classic`, the parameters `ρ0` and `δ0` are used to choose the initial regularization values.
 `fact_alg` should be a [`RipQP.AbstractFactorization`](@ref).
+`safety_dist_bnd = true`: boolean used to determine if the regularization values should be updated 
+(or if the algorithm should transition to another solver in multi mode) if the variables are too close 
+from their bound.
 """
 mutable struct K2LDLParams{T, Fact} <: AugmentedParams{T}
   uplo::Symbol
@@ -27,8 +31,9 @@ mutable struct K2LDLParams{T, Fact} <: AugmentedParams{T}
   δ0::T
   ρ_min::T
   δ_min::T
-  function K2LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T) where {T}
-    return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min)
+  safety_dist_bnd::Bool
+  function K2LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T, safety_dist_bnd::Bool) where {T}
+    return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min, safety_dist_bnd)
   end
 end
 
@@ -38,7 +43,8 @@ K2LDLParams{T}(;
   δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
-) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
+  safety_dist_bnd::Bool = false,
+) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min, safety_dist_bnd)
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
 
@@ -46,6 +52,7 @@ mutable struct PreallocatedDataK2LDL{T <: Real, S, F, M <: AbstractMatrix{T}} <:
                PreallocatedDataAugmentedLDL{T, S}
   D::S # temporary top-left diagonal
   regu::Regularization{T}
+  safety_dist_bnd::Bool
   diag_Q::SparseVector{T, Int} # Q diagonal
   K::Symmetric{T, M} # augmented matrix 
   K_fact::F # factorized matrix
@@ -69,11 +76,7 @@ function PreallocatedData(
   # init Regularization values
   D = similar(fd.c, id.nvar)
   D .= -T(1.0e0) / 2
-  if iconf.mode == :mono
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
-  else
-    regu = Regularization(T(sp.ρ0), T(sp.δ0), sqrt(eps(T)), sqrt(eps(T)), sp.fact_alg.regul)
-  end
+  regu = Regularization(T(sp.ρ0), T(sp.δ0), T(sp.ρ_min), T(sp.δ_min), sp.fact_alg.regul)
   K, diagind_K, diag_Q = get_K2_matrixdata(id, D, fd.Q, fd.A, regu, sp.uplo, T)
 
   K_fact = init_fact(K, sp.fact_alg)
@@ -91,6 +94,7 @@ function PreallocatedData(
   return PreallocatedDataK2LDL(
     D,
     regu,
+    sp.safety_dist_bnd,
     diag_Q, #diag_Q
     K, #K
     K_fact, #K_fact
@@ -129,7 +133,8 @@ function update_pad!(
 ) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts)
+    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts,
+                              safety_dist_bnd = pad.safety_dist_bnd)
     out == 1 && return out
   end
 
