@@ -18,7 +18,7 @@ function convertpad(
   )
 
   if pad.regu.regul == :classic
-      pad.regu.ρ_min, pad.regu.δ_min = T(sp_new.ρ_min), T(sp_new.ρ_min)
+    pad.regu.ρ_min, pad.regu.δ_min = T(sp_new.ρ_min), T(sp_new.ρ_min)
   elseif pad.regu.regul == :dynamic
     pad.regu.ρ, pad.regu.δ = T(eps(T)^(3 / 4)), T(eps(T)^(0.45))
     pad.K_fact.LDL.r1, pad.K_fact.LDL.r2 = -pad.regu.ρ, pad.regu.δ
