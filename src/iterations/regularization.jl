@@ -44,9 +44,9 @@ function update_regu_diagK2!(
   nvar::Int,
   itd::IterData,
   cnts::Counters;
-  bypass_bound_dist_safety::Bool = false,
+  safety_dist_bnd::Bool = true,
 ) where {T}
-  update_regu_diagK2!(regu, K.data.nzval, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, bypass_bound_dist_safety)
+  update_regu_diagK2!(regu, K.data.nzval, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
@@ -56,9 +56,9 @@ function update_regu_diagK2!(
   nvar::Int,
   itd::IterData,
   cnts::Counters;
-  bypass_bound_dist_safety::Bool = false,
+  safety_dist_bnd::Bool = false,
 ) where {T}
-  update_regu_diagK2!(regu, K.data.vals, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, bypass_bound_dist_safety)
+  update_regu_diagK2!(regu, K.data.vals, diagind_K, nvar, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
@@ -70,12 +70,12 @@ function update_regu_diagK2!(
   l_pdd::Vector{T},
   mean_pdd::T,
   cnts::Counters,
-  bypass_bound_dist_safety::Bool,
+  safety_dist_bnd::Bool,
 ) where {T}
   l_pdd[cnts.k % 6 + 1] = pdd
   mean_pdd = mean(l_pdd)
 
-  if !bypass_bound_dist_safety
+  if safety_dist_bnd
     if T == Float64 &&
       regu.regul == :classic &&
       cnts.k > 10 &&

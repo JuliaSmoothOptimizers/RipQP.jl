@@ -9,7 +9,7 @@ function convertpad(
   pad = PreallocatedDataK2LDL(
     convert(Array{T}, pad.D),
     convert(Regularization{T}, pad.regu),
-    sp_new.bypass_bound_dist_safety,
+    sp_new.safety_dist_bnd,
     convert(SparseVector{T, Int}, pad.diag_Q),
     Symmetric(convert_mat(pad.K.data, T), Symbol(pad.K.uplo)),
     convertldl(T, pad.K_fact),
