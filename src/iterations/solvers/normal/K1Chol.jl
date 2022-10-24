@@ -30,8 +30,8 @@ K1CholParams{T}(;
   fact_alg::AbstractFactorization = LDLFact(:classic),
   ρ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
   δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
-  ρ_min::T = sqrt(eps(T))*10,
-  δ_min::T = sqrt(eps(T))*10,
+  ρ_min::T = sqrt(eps(T)) * 10,
+  δ_min::T = sqrt(eps(T)) * 10,
 ) where {T} = K1CholParams(fact_alg, ρ0, δ0, ρ_min, δ_min)
 
 K1CholParams(; kwargs...) = K1CholParams{Float64}(; kwargs...)
@@ -77,16 +77,7 @@ function PreallocatedData(
   ξ1tmp = similar(D)
   Aj = similar(D)
 
-  return PreallocatedDataK1Chol(
-    D,
-    regu,
-    K,
-    K_fact,
-    diagind_K,
-    rhs,
-    ξ1tmp,
-    Aj,
-  )
+  return PreallocatedDataK1Chol(D, regu, K, K_fact, diagind_K, rhs, ξ1tmp, Aj)
 end
 
 # function used to solve problems
@@ -150,23 +141,30 @@ end
 
 # (AAᵀ)_(i,j) = ∑ A_(i,k) D_(k,k) A_(j,k)
 # transpose A if uplo = U
-function updateK1!(K::Symmetric{T, <:SparseMatrixCSC{T}}, D::AbstractVector{T}, A::SparseMatrixCSC{T}, Aj, δ, ncon) where {T}
+function updateK1!(
+  K::Symmetric{T, <:SparseMatrixCSC{T}},
+  D::AbstractVector{T},
+  A::SparseMatrixCSC{T},
+  Aj,
+  δ,
+  ncon,
+) where {T}
   K_colptr, K_rowval, K_nzval = K.data.colptr, K.data.rowval, K.data.nzval
   A_colptr, A_rowval, A_nzval = A.colptr, A.rowval, A.nzval
 
-  for j=1:ncon
+  for j = 1:ncon
     Aj .= zero(T)
-    for kA=A_colptr[j] : (A_colptr[j+1]-1)
+    for kA = A_colptr[j]:(A_colptr[j + 1] - 1)
       k = A_rowval[kA]
       Aj[k] = A_nzval[kA] / D[k]
     end
     # Aj is col j of A divided by D
 
-    for k2=K_colptr[j]:(K_colptr[j+1]-1)
+    for k2 = K_colptr[j]:(K_colptr[j + 1] - 1)
       i = K_rowval[k2]
       i ≤ j || continue
       K_nzval[k2] = (i == j) ? δ : zero(T)
-      for l=A_colptr[i] : (A_colptr[i+1]-1)
+      for l = A_colptr[i]:(A_colptr[i + 1] - 1)
         k = A_rowval[l]
         K_nzval[k2] += A_nzval[l] * Aj[k]
       end
