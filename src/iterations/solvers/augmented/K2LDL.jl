@@ -32,8 +32,23 @@ mutable struct K2LDLParams{T, Fact} <: AugmentedParams{T}
   ρ_min::T
   δ_min::T
   safety_dist_bnd::Bool
-  function K2LDLParams(fact_alg::AbstractFactorization, ρ0::T, δ0::T, ρ_min::T, δ_min::T, safety_dist_bnd::Bool) where {T}
-    return new{T, typeof(fact_alg)}(get_uplo(fact_alg), fact_alg, ρ0, δ0, ρ_min, δ_min, safety_dist_bnd)
+  function K2LDLParams(
+    fact_alg::AbstractFactorization,
+    ρ0::T,
+    δ0::T,
+    ρ_min::T,
+    δ_min::T,
+    safety_dist_bnd::Bool,
+  ) where {T}
+    return new{T, typeof(fact_alg)}(
+      get_uplo(fact_alg),
+      fact_alg,
+      ρ0,
+      δ0,
+      ρ_min,
+      δ_min,
+      safety_dist_bnd,
+    )
   end
 end
 
@@ -133,8 +148,15 @@ function update_pad!(
 ) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
     # update ρ and δ values, check K diag magnitude 
-    out = update_regu_diagK2!(pad.regu, pad.K, pad.diagind_K, id.nvar, itd, cnts,
-                              safety_dist_bnd = pad.safety_dist_bnd)
+    out = update_regu_diagK2!(
+      pad.regu,
+      pad.K,
+      pad.diagind_K,
+      id.nvar,
+      itd,
+      cnts,
+      safety_dist_bnd = pad.safety_dist_bnd,
+    )
     out == 1 && return out
   end
 
