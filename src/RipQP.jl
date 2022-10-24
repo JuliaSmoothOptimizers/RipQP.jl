@@ -102,7 +102,6 @@ function ripqp(
   perturb::Bool = false,
   mode::Symbol = :mono,
   early_multi_stop::Bool = true,
-  bypass_bound_dist_safety = false,
   sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
