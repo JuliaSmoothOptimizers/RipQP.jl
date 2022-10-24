@@ -8,8 +8,9 @@ export K1CholParams
 Type to use the K1 formulation with a Cholesky factorization.
 The outer constructor 
 
-    sp = K1CholDenseParams(; fact_alg = LDLFact(regul = :classic),
-                           ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
+    sp = K1CholParams(; fact_alg = LDLFact(regul = :classic),
+                      ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
+                      ρ_min = sqrt(eps()), δ_min = sqrt(eps()))
 
 creates a [`RipQP.SolverParams`](@ref).
 """

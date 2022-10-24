@@ -26,6 +26,7 @@ K3SKrylovParams
 K3SStructuredParams
 K3_5KrylovParams
 K3_5StructuredParams
+K1CholParams
 K1KrylovParams
 K1CholDenseParams
 K2LDLDenseParams
