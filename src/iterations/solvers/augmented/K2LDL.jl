@@ -10,7 +10,8 @@ is used by default.
 The outer constructor 
 
     sp = K2LDLParams(; fact_alg = LDLFact(regul = :classic),
-                     ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5) 
+                     ρ0 = sqrt(eps()) * 1e5, δ0 = sqrt(eps()) * 1e5,
+                     ρ_min = sqrt(eps()), δ_min = sqrt(eps())) 
 
 creates a [`RipQP.SolverParams`](@ref).
 `regul = :dynamic` uses a dynamic regularization (the regularization is only added if the LDLᵀ factorization 

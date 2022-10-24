@@ -9,6 +9,7 @@ abstract type PreallocatedDataNormalChol{T <: Real, S} <: PreallocatedDataNormal
 uses_krylov(pad::PreallocatedDataNormalChol) = false
 
 include("K1CholDense.jl")
+include("K1Chol.jl")
 
 abstract type PreallocatedDataNormalKrylov{T <: Real, S} <: PreallocatedDataNormal{T, S} end
 
