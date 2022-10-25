@@ -6,18 +6,18 @@ function update_regu_trycatch!(regu::Regularization{T}, cnts::Counters) where {T
   if cnts.c_pdd == 0 && cnts.c_catch == 0
     regu.δ *= T(1e2)
     regu.δ_min *= T(1e2)
-    regu.ρ *= T(1e5)
-    regu.ρ_min *= T(1e5)
+    regu.ρ *= T(1e3)
+    regu.ρ_min *= T(1e3)
   elseif cnts.c_pdd == 0 && cnts.c_catch != 0
     regu.δ *= T(1e1)
     regu.δ_min *= T(1e1)
     regu.ρ *= T(1e0)
     regu.ρ_min *= T(1e0)
   elseif cnts.c_pdd != 0 && cnts.c_catch == 0
-    regu.δ *= T(1e5)
-    regu.δ_min *= T(1e5)
-    regu.ρ *= T(1e5)
-    regu.ρ_min *= T(1e5)
+    regu.δ *= T(1e2)
+    regu.δ_min *= T(1e2)
+    regu.ρ *= T(1e2)
+    regu.ρ_min *= T(1e2)
   else
     regu.δ *= T(1e1)
     regu.δ_min *= T(1e1)
@@ -87,8 +87,8 @@ function update_regu_diagK2!(
       cnts.c_pdd < 20
       regu.δ_min /= 10
       regu.δ /= 10
-      regu.ρ_min *= 10
-      regu.ρ *= 10
+      # regu.ρ_min *= 10
+      # regu.ρ *= 10
       cnts.c_pdd += 1
     end
     if T == Float64 &&
@@ -97,10 +97,8 @@ function update_regu_diagK2!(
       cnts.c_catch <= 3 &&
       regu.δ_min >= eps(T)^(4 / 5) &&
       @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
-      if cnts.c_catch ≥ 2
-        regu.ρ /= 10
-        regu.ρ_min /= 10
-      end
+      regu.ρ /= 10
+      regu.ρ_min /= 10
       regu.δ /= 10
       regu.δ_min /= 10
       cnts.c_pdd += 1
