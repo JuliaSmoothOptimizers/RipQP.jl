@@ -571,7 +571,7 @@ function factorize_K2!(
       out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
-      cnts.c_catch >= 15 && return 1
+      cnts.c_catch >= 10 && return 1
       update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
       @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
