@@ -534,10 +534,10 @@ function update_K_dynamic!(
   if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
     if Tlow == Float32 && regu.regul == :dynamic
       return one(Int) # update to Float64
-    # elseif (qp || cnts.c_pdd < 4) && regu.regul == :dynamic
-    #   cnts.c_pdd += 1
-    #   regu.δ /= 10
-    #   K_fact.r2 = regu.δ
+    elseif (qp || cnts.c_pdd < 4) && regu.regul == :dynamic
+      cnts.c_pdd += 1
+      regu.δ /= 10
+      K_fact.r2 = regu.δ
     end
   end
   K_fact.tol = Tlow(Amax * eps(Tlow))

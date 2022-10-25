@@ -14,10 +14,10 @@ function update_regu_trycatch!(regu::Regularization{T}, cnts::Counters) where {T
     regu.ρ *= T(1e0)
     regu.ρ_min *= T(1e0)
   elseif cnts.c_pdd != 0 && cnts.c_catch == 0
-    regu.δ *= T(1e2)
-    regu.δ_min *= T(1e2)
-    regu.ρ *= T(1e2)
-    regu.ρ_min *= T(1e2)
+    regu.δ *= T(1e5)
+    regu.δ_min *= T(1e5)
+    regu.ρ *= T(1e5)
+    regu.ρ_min *= T(1e5)
   else
     regu.δ *= T(1e1)
     regu.δ_min *= T(1e1)
@@ -92,13 +92,13 @@ function update_regu_diagK2!(
       cnts.c_pdd += 1
     end
     if T == Float64 &&
-      regu.regul == :classic &&
-      cnts.k > 10 &&
-      cnts.c_catch <= 3 &&
-      regu.δ_min >= eps(T)^(4 / 5) &&
-      @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
-      regu.ρ /= 10
-      regu.ρ_min /= 10
+        regu.regul == :classic &&
+        cnts.k > 10 &&
+        cnts.c_catch <= 1 &&
+        regu.δ_min >= eps(T)^(4 / 5) &&
+        @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
+      # regu.ρ /= 10
+      # regu.ρ_min /= 10
       regu.δ /= 10
       regu.δ_min /= 10
       cnts.c_pdd += 1
