@@ -350,8 +350,6 @@ mutable struct IterDataCPU{T <: Real, S} <: IterData{T, S}
   dual_obj::T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
   μ::T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
   pdd::T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
-  l_pdd::Vector{T} # list of the 5 last pdd
-  mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
   perturb::Bool
@@ -372,8 +370,6 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
   dual_obj::T # -1/2 xᵀQx + yᵀb + s_lᵀlvar - s_uᵀuvar + c0
   μ::T # duality measure (s_lᵀ(x-lvar) + s_uᵀ(uvar-x)) / (nlow+nupp)
   pdd::T # primal dual difference (relative) pri_obj - dual_obj / pri_obj
-  l_pdd::Vector{T} # list of the 5 last pdd
-  mean_pdd::T # mean of the 5 last pdd
   qp::Bool # true if qp false if lp
   minimize::Bool
   perturb::Bool
@@ -395,8 +391,6 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     dual_obj::T,
     μ::T,
     pdd::T,
-    l_pdd::Vector{T},
-    mean_pdd::T,
     qp::Bool,
     minimize::Bool,
     perturb::Bool,
@@ -415,8 +409,6 @@ mutable struct IterDataGPU{T <: Real, S} <: IterData{T, S}
     dual_obj,
     μ,
     pdd,
-    l_pdd,
-    mean_pdd,
     qp,
     minimize,
     perturb,
@@ -441,8 +433,6 @@ function IterData(
   dual_obj,
   μ,
   pdd,
-  l_pdd,
-  mean_pdd,
   qp,
   minimize,
   perturb,
@@ -463,8 +453,6 @@ function IterData(
       dual_obj,
       μ,
       pdd,
-      l_pdd,
-      mean_pdd,
       qp,
       minimize,
       perturb,
@@ -485,8 +473,6 @@ function IterData(
       dual_obj,
       μ,
       pdd,
-      l_pdd,
-      mean_pdd,
       qp,
       minimize,
       perturb,
@@ -512,8 +498,6 @@ convert(
   convert(T, itd.dual_obj),
   convert(T, itd.μ),
   convert(T, itd.pdd),
-  convert(Array{T, 1}, itd.l_pdd),
-  convert(T, itd.mean_pdd),
   itd.qp,
   itd.minimize,
   itd.perturb,
@@ -583,7 +567,7 @@ end
 
 mutable struct Counters
   c_catch::Int # safety try:cath
-  c_pdd::Int # maximum number of δ_min reductions when pdd does not change
+  c_regu_dim::Int # number of δ_min reductions
   k::Int # iter count
   km::Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
   kc::Int # maximum corrector steps

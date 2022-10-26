@@ -154,7 +154,6 @@ function update_pad!(
       pad.diagind_K,
       itd.μ,
       id.nvar,
-      itd,
       cnts,
       safety_dist_bnd = pad.safety_dist_bnd,
     )
@@ -531,11 +530,11 @@ function update_K_dynamic!(
   qp::Bool,
 ) where {T, Tlow}
   Amax = @views norm(K.data.nzval[diagind_K], Inf)
-  if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
+  if Amax > T(1e6) / K_fact.r2 && cnts.c_regu_dim < 8
     if Tlow == Float32 && regu.regul == :dynamic
       return one(Int) # update to Float64
-    elseif (qp || cnts.c_pdd < 4) && regu.regul == :dynamic
-      cnts.c_pdd += 1
+    elseif (qp || cnts.c_regu_dim < 4) && regu.regul == :dynamic
+      cnts.c_regu_dim += 1
       regu.δ /= 10
       K_fact.r2 = regu.δ
     end
