@@ -58,7 +58,7 @@ K2LDLParams{T}(;
   δ0::T = (T == Float16) ? one(T) : T(sqrt(eps()) * 1e5),
   ρ_min::T = (T == Float64) ? 1e-5 * sqrt(eps()) : sqrt(eps(T)),
   δ_min::T = (T == Float64) ? 1e0 * sqrt(eps()) : sqrt(eps(T)),
-  safety_dist_bnd::Bool = false,
+  safety_dist_bnd::Bool = true,
 ) where {T} = K2LDLParams(fact_alg, ρ0, δ0, ρ_min, δ_min, safety_dist_bnd)
 
 K2LDLParams(; kwargs...) = K2LDLParams{Float64}(; kwargs...)
@@ -147,13 +147,13 @@ function update_pad!(
   cnts::Counters,
 ) where {T <: Real}
   if (pad.regu.regul == :classic || pad.regu.regul == :hybrid) && cnts.k != 0
-    # update ρ and δ values, check K diag magnitude 
+    # update ρ and δ values, check K diag magnitude
     out = update_regu_diagK2!(
       pad.regu,
       pad.K,
       pad.diagind_K,
+      itd.μ,
       id.nvar,
-      itd,
       cnts,
       safety_dist_bnd = pad.safety_dist_bnd,
     )
@@ -530,11 +530,11 @@ function update_K_dynamic!(
   qp::Bool,
 ) where {T, Tlow}
   Amax = @views norm(K.data.nzval[diagind_K], Inf)
-  if Amax > T(1e6) / K_fact.r2 && cnts.c_pdd < 8
+  if Amax > T(1e6) / K_fact.r2 && cnts.c_regu_dim < 8
     if Tlow == Float32 && regu.regul == :dynamic
       return one(Int) # update to Float64
-    elseif (qp || cnts.c_pdd < 4) && regu.regul == :dynamic
-      cnts.c_pdd += 1
+    elseif (qp || cnts.c_regu_dim < 4) && regu.regul == :dynamic
+      cnts.c_regu_dim += 1
       regu.δ /= 10
       K_fact.r2 = regu.δ
     end
@@ -570,7 +570,7 @@ function factorize_K2!(
       out = update_regu_trycatch!(regu, cnts)
       out == 1 && return out
       cnts.c_catch += 1
-      cnts.c_catch >= 4 && return 1
+      cnts.c_catch >= 10 && return 1
       update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
       @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end

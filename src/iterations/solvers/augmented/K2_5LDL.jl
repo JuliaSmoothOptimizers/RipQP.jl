@@ -126,7 +126,7 @@ function solver!(
   if step == :cc || step == :IPF  # update regularization and restore K. Cannot be done in update_pad since x-lvar and uvar-x will change.
     out = 0
     if pad.regu.regul == :classic # update ρ and δ values, check K diag magnitude 
-      out = update_regu_diagK2_5!(pad.regu, pad.D, itd.pdd, itd.l_pdd, itd.mean_pdd, cnts)
+      out = update_regu_diagK2_5!(pad.regu, pad.D, itd.μ, cnts)
     end
 
     # restore J for next iteration
@@ -261,14 +261,14 @@ function factorize_K2_5!(
   if regu.regul == :dynamic
     # Amax = @views norm(K.nzval[diagind_K], Inf)
     Amax = minimum(D)
-    if Amax < sqrt(eps(T)) && cnts.c_pdd < 8
+    if Amax < sqrt(eps(T)) && cnts.c_regu_dim < 8
       if cnts.last_sp
         # restore K for next iteration
         X1X2_to_D!(D, x_m_lvar, uvar_m_x, ilow, iupp)
         lrmultilply_K!(K, D, nvar)
         return one(Int) # update to Float64
-      elseif qp || cnts.c_pdd < 4
-        cnts.c_pdd += 1
+      elseif qp || cnts.c_regu_dim < 4
+        cnts.c_regu_dim += 1
         regu.δ /= 10
         K_fact.LDL.r2 = max(sqrt(Amax), regu.δ)
         # regu.ρ /= 10

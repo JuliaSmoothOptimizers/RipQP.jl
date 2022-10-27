@@ -3,17 +3,17 @@
 # update regularization values in classic mode if there is a failure during factorization
 function update_regu_trycatch!(regu::Regularization{T}, cnts::Counters) where {T}
   !cnts.last_sp && return 1
-  if cnts.c_pdd == 0 && cnts.c_catch == 0
+  if cnts.c_regu_dim == 0 && cnts.c_catch == 0
     regu.δ *= T(1e2)
     regu.δ_min *= T(1e2)
-    regu.ρ *= T(1e5)
-    regu.ρ_min *= T(1e5)
-  elseif cnts.c_pdd == 0 && cnts.c_catch != 0
+    regu.ρ *= T(1e3)
+    regu.ρ_min *= T(1e3)
+  elseif cnts.c_regu_dim == 0 && cnts.c_catch != 0
     regu.δ *= T(1e1)
     regu.δ_min *= T(1e1)
     regu.ρ *= T(1e0)
     regu.ρ_min *= T(1e0)
-  elseif cnts.c_pdd != 0 && cnts.c_catch == 0
+  elseif cnts.c_regu_dim != 0 && cnts.c_catch == 0
     regu.δ *= T(1e5)
     regu.δ_min *= T(1e5)
     regu.ρ *= T(1e5)
@@ -41,8 +41,8 @@ function update_regu_diagK2!(
   regu::Regularization{T},
   K::Symmetric{<:Real, <:SparseMatrixCSC},
   diagind_K,
+  μ::T,
   nvar::Int,
-  itd::IterData,
   cnts::Counters;
   safety_dist_bnd::Bool = true,
 ) where {T}
@@ -50,10 +50,8 @@ function update_regu_diagK2!(
     regu,
     K.data.nzval,
     diagind_K,
+    μ,
     nvar,
-    itd.pdd,
-    itd.l_pdd,
-    itd.mean_pdd,
     cnts,
     safety_dist_bnd,
   )
@@ -63,8 +61,8 @@ function update_regu_diagK2!(
   regu::Regularization{T},
   K::Symmetric{<:Real, <:SparseMatrixCOO},
   diagind_K,
+  μ,
   nvar::Int,
-  itd::IterData,
   cnts::Counters;
   safety_dist_bnd::Bool = false,
 ) where {T}
@@ -72,10 +70,8 @@ function update_regu_diagK2!(
     regu,
     K.data.vals,
     diagind_K,
+    μ,
     nvar,
-    itd.pdd,
-    itd.l_pdd,
-    itd.mean_pdd,
     cnts,
     safety_dist_bnd,
   )
@@ -85,26 +81,16 @@ function update_regu_diagK2!(
   regu::Regularization{T},
   K_nzval::AbstractVector{T},
   diagind_K,
+  μ::T,
   nvar::Int,
-  pdd::T,
-  l_pdd::Vector{T},
-  mean_pdd::T,
   cnts::Counters,
   safety_dist_bnd::Bool,
 ) where {T}
-  l_pdd[cnts.k % 6 + 1] = pdd
-  mean_pdd = mean(l_pdd)
-
   if safety_dist_bnd
-    if T == Float64 &&
-       regu.regul == :classic &&
-       cnts.k > 10 &&
-       mean_pdd != zero(T) &&
-       std(l_pdd ./ mean_pdd) < T(1e-2) &&
-       cnts.c_pdd < 5
+    if T == Float64 && regu.regul == :classic && cnts.k > 10 && μ ≤ eps(T) && cnts.c_regu_dim < 20
       regu.δ_min /= 10
       regu.δ /= 10
-      cnts.c_pdd += 1
+      cnts.c_regu_dim += 1
     end
     if T == Float64 &&
        regu.regul == :classic &&
@@ -114,9 +100,9 @@ function update_regu_diagK2!(
        @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-6)
       regu.δ /= 10
       regu.δ_min /= 10
-      cnts.c_pdd += 1
+      cnts.c_regu_dim += 1
     elseif !cnts.last_sp &&
-           cnts.c_pdd <= 2 &&
+           cnts.c_regu_dim <= 2 &&
            cnts.k ≥ 5 &&
            @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / eps(T) &&
                   @views maximum(K_nzval[diagind_K[1:nvar]]) > -one(T) / 10
@@ -127,7 +113,7 @@ function update_regu_diagK2!(
            @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-15)
       regu.δ /= 10
       regu.δ_min /= 10
-      cnts.c_pdd += 1
+      cnts.c_regu_dim += 1
     end
   end
 
@@ -139,22 +125,13 @@ end
 function update_regu_diagK2_5!(
   regu::Regularization{T},
   D::AbstractVector{T},
-  pdd::T,
-  l_pdd::Vector{T},
-  mean_pdd::T,
+  μ::T,
   cnts::Counters,
 ) where {T}
-  l_pdd[cnts.k % 6 + 1] = pdd
-  mean_pdd = mean(l_pdd)
-
-  if T == Float64 &&
-     cnts.k > 10 &&
-     mean_pdd != zero(T) &&
-     std(l_pdd ./ mean_pdd) < T(1e-2) &&
-     cnts.c_pdd < 5
+  if T == Float64 && cnts.k > 10 && μ ≤ eps(T) && cnts.c_regu_dim < 5
     regu.δ_min /= 10
     regu.δ /= 10
-    cnts.c_pdd += 1
+    cnts.c_regu_dim += 1
   end
   if T == Float64 &&
      cnts.k > 10 &&
@@ -162,8 +139,8 @@ function update_regu_diagK2_5!(
      @views minimum(D) < -one(T) / regu.δ / T(1e-6)
     regu.δ /= 10
     regu.δ_min /= 10
-    cnts.c_pdd += 1
-  elseif !cnts.last_sp && cnts.c_pdd < 2 && @views minimum(D) < -one(T) / regu.δ / T(1e-5)
+    cnts.c_regu_dim += 1
+  elseif !cnts.last_sp && cnts.c_regu_dim < 2 && @views minimum(D) < -one(T) / regu.δ / T(1e-5)
     return 1
   elseif T == Float128 &&
          cnts.k > 10 &&
@@ -171,7 +148,7 @@ function update_regu_diagK2_5!(
          @views minimum(D) < -one(T) / regu.δ / T(1e-15)
     regu.δ /= 10
     regu.δ_min /= 10
-    cnts.c_pdd += 1
+    cnts.c_regu_dim += 1
   end
 
   update_regu!(regu)
