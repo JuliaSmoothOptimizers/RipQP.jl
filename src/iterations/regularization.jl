@@ -46,15 +46,7 @@ function update_regu_diagK2!(
   cnts::Counters;
   safety_dist_bnd::Bool = true,
 ) where {T}
-  update_regu_diagK2!(
-    regu,
-    K.data.nzval,
-    diagind_K,
-    μ,
-    nvar,
-    cnts,
-    safety_dist_bnd,
-  )
+  update_regu_diagK2!(regu, K.data.nzval, diagind_K, μ, nvar, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
@@ -66,15 +58,7 @@ function update_regu_diagK2!(
   cnts::Counters;
   safety_dist_bnd::Bool = false,
 ) where {T}
-  update_regu_diagK2!(
-    regu,
-    K.data.vals,
-    diagind_K,
-    μ,
-    nvar,
-    cnts,
-    safety_dist_bnd,
-  )
+  update_regu_diagK2!(regu, K.data.vals, diagind_K, μ, nvar, cnts, safety_dist_bnd)
 end
 
 function update_regu_diagK2!(
