@@ -1,11 +1,3 @@
-get_mat_QPData(
-  A::SparseMatrixCOO{T, Int},
-  H::SparseMatrixCOO{T, Int},
-  nvar::Int,
-  ncon::Int,
-  sp::Union{K2LDLParams{T0, F}, K2_5LDLParams{T0, F}, K2KrylovParams{T0, LDL{DataType, F}}},
-) where {T, T0, F <: HSLMA57Fact} = A, Symmetric(H, sp.uplo)
-
 get_uplo(fact_alg::HSLMA57Fact) = :L
 
 mutable struct Ma57Factorization{T} <: FactorizationData{T}
