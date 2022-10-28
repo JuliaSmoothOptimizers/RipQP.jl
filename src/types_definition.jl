@@ -570,6 +570,8 @@ mutable struct Counters
   c_regu_dim::Int # number of δ_min reductions
   k::Int # iter count
   km::Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
+  tfact::UInt64
+  tsolve::UInt64
   kc::Int # maximum corrector steps
   c_ref::Int # current number of refinements
   w::SystemWrite # store SystemWrite data

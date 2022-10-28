@@ -232,16 +232,15 @@ function iter!(
   # false if there are several solvers sp and the current solve does not uses the last one
 ) where {T <: Real, Tc <: Real}
   @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired
-    time_fact = (cnts.kc == -1) ? time_ns() : UInt(0) # timer centrality_corr factorization
+    (cnts.kc == -1) && (cnts.tfact = time_ns()) # timer centrality_corr factorization
     out = @timeit_debug to "update solver" update_pad!(pad, dda, pt, itd, fd, id, res, cnts) # update data for the solver! function used
-    time_fact = (cnts.kc == -1) ? time_ns() - time_fact : 0.0
+    (cnts.kc == -1) && (cnts.tfact = time_ns() - cnts.tfact)
     out == 1 && break
-
-    time_solve = (cnts.kc == -1) ? time_ns() : 0.0 # timer centrality_corr solve
 
     # Solve system to find a direction of descent 
     out = update_dd!(dda, pt, itd, fd, id, res, pad, cnts)
     out == 1 && break
+    (cnts.kc == -1) && nb_corrector_steps!(cnts)
 
     if typeof(pt.x) <: Vector
       α_pri, α_dual =
@@ -269,8 +268,6 @@ function iter!(
     end
 
     update_data!(pt, α_pri, α_dual, itd, pad, res, fd, id) # update point, residuals, objectives...
-    time_solve = (cnts.kc == -1) ? time_ns() - time_solve : UInt(0)
-    (cnts.kc == -1) && nb_corrector_steps!(cnts, time_fact, time_solve)
 
     sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
     sc.small_μ = itd.μ < ϵ.μ

@@ -200,7 +200,7 @@ function allocate_workspace(
   dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
   dda = DescentDirectionAllocs(id, iconf.solve_method, S)
 
-  cnts = Counters(0, 0, 0, 0, iconf.kc, 0, iconf.w, true)
+  cnts = Counters(0, 0, 0, 0, zero(UInt64), zero(UInt64), iconf.kc, 0, iconf.w, true)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 

@@ -191,7 +191,9 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
+  (cnts.kc == -1) && (cnts.tsolve = time_ns()) # timer centrality_corr solve
   out = @timeit_debug to "solver cc" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
+  (cnts.kc == -1) && (cnts.tsolve = time_ns() - cnts.tsolve)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     @. itd.Δs_l = @views -(dda.rxs_l + pt.s_l * itd.Δxy[id.ilow]) / itd.x_m_lvar
