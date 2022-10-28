@@ -7,6 +7,18 @@
   @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
   @test stats1.status == :first_order
 
+  if isdefined(HSL, :libhsl_ma57)
+    stats2 = ripqp(QuadraticModel(qps2), sp = K2LDLParams(fact_alg = HSLMA57Fact()), display = false)
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
+    @test stats1.status == :first_order
+  end
+
+  if isdefined(HSL, :libhsl_ma97)
+    stats2 = ripqp(QuadraticModel(qps2), sp = K2LDLParams(fact_alg = HSLMA97Fact()), display = false)
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
+    @test stats1.status == :first_order
+  end
+
   stats3 = ripqp(QuadraticModel(qps3), display = false)
   @test isapprox(stats3.objective, 5.32664756, atol = 1e-2)
   @test stats3.status == :first_order
