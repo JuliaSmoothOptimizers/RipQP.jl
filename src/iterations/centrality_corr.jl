@@ -123,15 +123,15 @@ function multi_centrality_corr!(
 end
 
 # function to determine the number of centrality corrections 
-function nb_corrector_steps!(cnts::Counters, time_fact::T, time_solve::T) where {T <: Real}
-  rfs = time_fact / time_solve
-  if rfs <= T(10)
+function nb_corrector_steps!(cnts::Counters)
+  rfs = cnts.tfact / cnts.tsolve
+  if rfs <= 10
     cnts.kc = 0
-  elseif T(10) < rfs <= T(30)
+  elseif 10 < rfs <= 30
     cnts.kc = 1
-  elseif T(30) < rfs <= T(50)
+  elseif 30 < rfs <= 50
     cnts.kc = 2
-  elseif rfs > T(50)
+  elseif rfs > 50
     cnts.kc = 3
   else
     p = Int(round(rfs / 50))
