@@ -37,6 +37,8 @@ include("utils.jl")
 
 const to = TimerOutput()
 
+keep_init_prec(mode::Symbol) = (mode == :mono || mode == :ref || mode == :zoom)
+
 function RipQPSolver(
   QM::AbstractQuadraticModel{T0, S0};
   itol::InputTol{T0, Int} = InputTol(T0),
@@ -47,7 +49,7 @@ function RipQPSolver(
   perturb::Bool = false,
   mode::Symbol = :mono,
   early_multi_stop::Bool = true,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
+  sp::SolverParams = keep_init_prec(mode) ? K2LDLParams{T0}() : K2LDLParams{Float32}(),
   sp2::Union{Nothing, SolverParams} = nothing,
   sp3::Union{Nothing, SolverParams} = nothing,
   solve_method::SolveMethod = PC(),
@@ -180,6 +182,31 @@ function RipQPSolver(
         ϵ_T0,
         sp2,
         solve_method2,
+        pfd,
+      )
+    else
+      solver = RipQPTripleSolver(
+        QM,
+        id,
+        iconf,
+        itol,
+        sd,
+        spd,
+        sc,
+        cnts,
+        display,
+        fd1,
+        ϵ1,
+        sp,
+        solve_method,
+        fd2,
+        ϵ2,
+        sp2,
+        solve_method2,
+        fd_T0,
+        ϵ_T0,
+        sp3,
+        solve_method3,
         pfd,
       )
     end
@@ -353,6 +380,102 @@ end
 #   return stats
 # end
 
+function SolverCore.solve!(
+  solver::RipQPTripleSolver{T},
+  QM::AbstractQuadraticModel{T},
+  stats::GenericExecutionStats{T};
+) where {T}
+  id = solver.id
+  iconf, itol = solver.iconf, solver.itol
+  sd, spd = solver.sd, solver.spd
+  sc, cnts = solver.sc, solver.cnts
+  display = solver.display
+  sp, sp2, sp3 = solver.sp, solver.sp2, solver.sp3
+  solve_method, solve_method2, solve_method3 = solver.solve_method, solver.solve_method2, solver.solve_method3
+  pfd = solver.pfd
+  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad 
+  fd1, ϵ1 = solver.fd1, solver.ϵ1
+  fd2, ϵ2 = solver.fd2, solver.ϵ2
+  fd3, ϵ3 = solver.fd3, solver.ϵ3
+  cnts.time_solve = time()
+  sc.max_iter = itol.max_iter1 # set max_iter for 1st solver
+  cnts.last_sp = false # sp is not the last sp because sp2 is not nothing
+  mode = iconf.mode
+
+  T2, T3 = solver_type(sp2), solver_type(sp3)
+  @assert T3 == T
+  # initialize data
+  initialize!(fd1, id, res, itd, dda, pad, pt, spd, ϵ1, sc, cnts, itol.max_time, display, T)
+  if (iconf.mode == :multi || iconf.mode == :multizoom || iconf.mode == :multiref)
+    set_tol_residuals!(ϵ2, T2(res.rbNorm), T2(res.rcNorm))
+    set_tol_residuals!(ϵ3, T3(res.rbNorm), T3(res.rcNorm))
+  end
+
+  # IPM iterations 1st solver (mono mode: only this call to the iter! function)
+  iter!(pt, itd, fd1, id, res, sc, dda, pad, ϵ1, cnts, iconf, display, last_iter = false)
+  cnts.iters_sp = cnts.k
+
+  sc.max_iter = itol.max_iter # set max_iter for 2nd solver
+  cnts.last_sp = true # sp2 is the last sp because sp3 is nothing
+  pt, itd, res, dda, pad =
+    convert_types(T2, pt, itd, res, dda, pad, sp, sp2, id, fd2, solve_method, solve_method2)
+  sc.optimal = itd.pdd < ϵ2.pdd && res.rbNorm < ϵ2.tol_rb && res.rcNorm < ϵ2.tol_rc
+  sc.small_μ = itd.μ < ϵ2.μ
+  display && show_used_solver(pad)
+  display && setup_log_header(pad)
+
+  iter!(pt, itd, fd2, id, res, sc, dda, pad, ϵ2, cnts, iconf, display, last_iter = false)
+
+  cnts.iters_sp2 = cnts.k - cnts.iters_sp
+  pt, itd, res, dda, pad =
+    convert_types(T3, pt, itd, res, dda, pad, sp2, sp3, id, fd3, solve_method2, solve_method3)
+  sc.optimal = itd.pdd < ϵ3.pdd && res.rbNorm < ϵ3.tol_rb && res.rcNorm < ϵ3.tol_rc
+  sc.small_μ = itd.μ < ϵ3.μ
+  display && show_used_solver(pad)
+  display && setup_log_header(pad)
+
+  # set max_iter for 3rd solver
+  sc.max_iter = itol.max_iter
+  cnts.last_sp = true # sp3 is the last sp
+
+  if !sc.optimal && mode == :multi
+    iter!(pt, itd, fd3, id, res, sc, dda, pad, ϵ3, cnts, iconf, display)
+  elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
+    spd = convert(StartingPointData{T, typeof(pt.x)}, spd)
+    fd_ref, pt_ref = fd_refinement(
+      fd3,
+      id,
+      res,
+      itd.Δxy,
+      pt,
+      itd,
+      ϵ3,
+      dda,
+      pad,
+      spd,
+      cnts,
+      iconf.mode,
+      centering = true,
+    )
+    iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ3, cnts, iconf, display)
+    update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd3, itd)
+  elseif iconf.mode == :zoom || iconf.mode == :ref
+    sc.optimal = false
+    fd_ref, pt_ref =
+      fd_refinement(fd3, id, res, itd.Δxy, pt, itd, ϵ3, dda, pad, spd, cnts, iconf.mode)
+    iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ3, cnts, iconf, display)
+    update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd3, itd)
+  end
+  cnts.iters_sp3 = cnts.k - cnts.iters_sp2
+
+  if iconf.scaling
+    post_scale!(sd, pt, res, fd3, id, itd)
+  end
+
+  set_ripqp_stats!(stats, pt, res, pad, itd, id, sc, cnts, itol.max_iter)
+  return stats
+end
+
 
 function SolverCore.solve!(
   solver::RipQPDoubleSolver{T},
@@ -399,7 +522,7 @@ function SolverCore.solve!(
   if !sc.optimal && mode == :multi
     iter!(pt, itd, fd2, id, res, sc, dda, pad, ϵ2, cnts, iconf, display)
   elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
-    spd = convert(StartingPointData{T0, typeof(pt.x)}, spd)
+    spd = convert(StartingPointData{T, typeof(pt.x)}, spd)
     fd_ref, pt_ref = fd_refinement(
       fd2,
       id,
@@ -418,7 +541,6 @@ function SolverCore.solve!(
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ2, cnts, iconf, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd2, itd)
   elseif iconf.mode == :zoom || iconf.mode == :ref
-    ϵ = ϵ_T0
     sc.optimal = false
     fd_ref, pt_ref =
       fd_refinement(fd2, id, res, itd.Δxy, pt, itd, ϵ2, dda, pad, spd, cnts, iconf.mode)
@@ -434,7 +556,6 @@ function SolverCore.solve!(
   set_ripqp_stats!(stats, pt, res, pad, itd, id, sc, cnts, itol.max_iter)
   return stats
 end
-
 
 function SolverCore.solve!(
   solver::RipQPSolver{T},
@@ -523,8 +644,8 @@ function ripqp(
   ps::Bool = true,
   scaling::Bool = true,
   history::Bool = false,
-  mode = :mono,
-  sp::SolverParams = (mode == :mono) ? K2LDLParams{T}() : K2LDLParams{Float32}(),
+  mode::Symbol = :mono,
+  sp::SolverParams = keep_init_prec(mode) ? K2LDLParams{T}() : K2LDLParams{Float32}(),
   display::Bool = true,
   kwargs...,
 ) where {T, S}
@@ -548,7 +669,7 @@ function ripqp(
   if QM_inner.meta.ncon == length(QM_inner.meta.jfix) && !ps && scaling
     QM_inner = deepcopy(QM_inner) # if not modified by SlackModel and presolve
   end
-  if !QM.meta.minimize && presolve # switch to min problem if not modified by presolve
+  if !QM.meta.minimize && !ps # switch to min problem if not modified by presolve
     QuadraticModels.switch_H_to_max!(QM_inner.data)
     QM_inner.data.c .= .-QM_inner.data.c
     QM_inner.data.c0 = -QM_inner.data.c0
@@ -576,9 +697,7 @@ function ripqp(
     stats_inner.multipliers,
     stats_inner.multipliers_L,
     stats_inner.multipliers_U,
-    solver.pfd.pt.s_l,
-    solver.pfd.pt.s_u,
-    QMps.meta.nvar,
+    solver.id,
     idi,
   ) 
   if ps

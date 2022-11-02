@@ -562,6 +562,7 @@ function ScaleData(fd::QM_FloatData{T, S}, id::QM_IntData, scaling::Bool) where 
     empty_v = S(undef, 0)
     sd = ScaleDataQP{T, S}(empty_v, empty_v)
   end
+  return sd
 end
 
 convert(
@@ -730,6 +731,56 @@ mutable struct RipQPDoubleSolver{
   ϵ2::Tolerances{T}
   sp2::Sp2
   solve_method2::SM2
+
+  pfd::Pfd # initial data in type of 1st solver
+end
+
+mutable struct RipQPTripleSolver{
+  T,
+  S,
+  I,
+  QMType <: AbstractQuadraticModel{T, S},
+  Sd <: ScaleData{T, S},
+  Tsc <: Real,
+  T1,
+  S1,
+  QMfd1 <: Abstract_QM_FloatData{T1, S1},
+  Sp1 <: SolverParams{T1},
+  SM1 <: SolveMethod,
+  T2,
+  S2,
+  QMfd2 <: Abstract_QM_FloatData{T2, S2},
+  Sp2 <: SolverParams{T2},
+  SM2 <: SolveMethod,
+  QMfd3 <: Abstract_QM_FloatData{T, S},
+  Sp3 <: SolverParams{T},
+  SM3 <: SolveMethod,
+  Pfd <: PreallocatedFloatData{T1, S1},
+} <: AbstractRipQPSolver{T, S}
+  QM::QMType
+  id::QM_IntData
+  iconf::InputConfig{I}
+  itol::InputTol{T, I}
+  sd::Sd
+  spd::StartingPointData{T1, S1}
+  sc::StopCrit{Tsc}
+  cnts::Counters
+  display::Bool
+
+  fd1::QMfd1
+  ϵ1::Tolerances{T1}
+  sp::Sp1
+  solve_method::SM1
+
+  fd2::QMfd2
+  ϵ2::Tolerances{T2}
+  sp2::Sp2
+  solve_method2::SM2
+
+  fd3::QMfd3
+  ϵ3::Tolerances{T}
+  sp3::Sp3
+  solve_method3::SM3
 
   pfd::Pfd # initial data in type of 1st solver
 end

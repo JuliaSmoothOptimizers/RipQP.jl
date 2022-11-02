@@ -38,19 +38,17 @@ function push_history_residuals!(
 end
 
 function get_slack_multipliers(
+  multipliers_in::AbstractVector{T},
   multipliers_L_in::AbstractVector{T},
   multipliers_U_in::AbstractVector{T},
-  multipliers_in::AbstractVector{T},
-  s_l::AbstractVector{T},
-  s_u::AbstractVector{T},
-  nvar::Int,
+  id::QM_IntData,
   idi::IntDataInit{Int},
 ) where {T <: Real}
   nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
   njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
 
   S = typeof(multipliers_in)
-  if idi.nvar != nvar
+  if idi.nvar != id.nvar
     multipliers_L = multipliers_L_in[1:(idi.nvar)]
     multipliers_U = multipliers_U_in[1:(idi.nvar)]
   else
@@ -60,10 +58,11 @@ function get_slack_multipliers(
 
   multipliers = fill!(S(undef, idi.ncon), zero(T))
   multipliers[idi.jfix] .= @views multipliers_in[idi.jfix]
-  multipliers[idi.jlow] .+= @views s_l[(nlow + nrng + 1):(nlow + nrng + njlow)]
-  multipliers[idi.jupp] .-= @views s_u[(nupp + nrng + 1):(nupp + nrng + njupp)]
+  multipliers[idi.jlow] .+= @views multipliers_L_in[id.ilow[(nlow + nrng + 1):(nlow + nrng + njlow)]]
+  multipliers[idi.jupp] .-= @views multipliers_U_in[id.iupp[(nupp + nrng + 1):(nupp + nrng + njupp)]]
   multipliers[idi.jrng] .+=
-    @views s_l[(nlow + nrng + njlow + 1):end] .- s_u[(nupp + nrng + njupp + 1):end]
+    @views multipliers_L_in[id.ilow[(nlow + nrng + njlow + 1):end]] .-
+      multipliers_U_in[id.iupp[(nupp + nrng + njupp + 1):end]]
 
   return multipliers, multipliers_L, multipliers_U
 end

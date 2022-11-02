@@ -23,7 +23,7 @@ b = [0.0; 3]
 l = [0.0; 0; 0]
 u = [Inf; Inf; Inf]
 
-# include("solvers/test_augmented.jl")
+include("solvers/test_augmented.jl")
 include("solvers/test_newton.jl")
 include("solvers/test_normal.jl")
 
