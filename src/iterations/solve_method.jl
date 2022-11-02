@@ -4,8 +4,6 @@ mutable struct PC <: SolveMethod end
 
 Base.isequal(sm1::PC, sm2::PC) = true
 
-abstract type DescentDirectionAllocs{T <: Real, S} end
-
 mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{T, S}
   Δxy_aff::S # affine-step solution of the augmented system [Δx_aff; Δy_aff], size nvar + ncon 
   Δs_l_aff::S # size nlow
@@ -117,8 +115,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, dda.Δxy_aff, :aff, cnts.k)
-  out =
-    @timeit_debug to "solver aff" solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, :aff)
+  out = solver!(dda.Δxy_aff, pad, dda, pt, itd, fd, id, res, cnts, :aff)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     @. dda.Δs_l_aff = @views -pt.s_l - pt.s_l * dda.Δxy_aff[id.ilow] / itd.x_m_lvar
@@ -192,7 +189,7 @@ function update_dd!(
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :cc, cnts.k)
   (cnts.kc == -1) && (cnts.tsolve = time_ns()) # timer centrality_corr solve
-  out = @timeit_debug to "solver cc" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
+  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :cc)
   (cnts.kc == -1) && (cnts.tsolve = time_ns() - cnts.tsolve)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
@@ -273,7 +270,7 @@ function update_dd!(
   end
 
   cnts.w.write == true && write_system(cnts.w, pad.K, itd.Δxy, :IPF, cnts.k)
-  out = @timeit_debug to "solver IPF" solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :IPF)
+  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :IPF)
   out == 1 && return out
   if typeof(pad) <: PreallocatedDataAugmented || typeof(pad) <: PreallocatedDataNormal
     itd.Δs_l .= @views ((σ * itd.μ) .- pt.s_l .* itd.Δxy[id.ilow]) ./ itd.x_m_lvar .- pt.s_l

@@ -37,46 +37,29 @@ function push_history_residuals!(
   end
 end
 
-struct IntDataInit{I <: Integer}
-  nvar::I
-  ncon::I
-  ilow::Vector{I}
-  iupp::Vector{I}
-  irng::Vector{I}
-  ifix::Vector{I}
-  jlow::Vector{I}
-  jupp::Vector{I}
-  jrng::Vector{I}
-  jfix::Vector{I}
-end
-
-function get_multipliers(
+function get_slack_multipliers(
+  multipliers_L_in::AbstractVector{T},
+  multipliers_U_in::AbstractVector{T},
+  multipliers_in::AbstractVector{T},
   s_l::AbstractVector{T},
   s_u::AbstractVector{T},
-  ilow::Vector{Int},
-  iupp::Vector{Int},
   nvar::Int,
-  y::AbstractVector{T},
   idi::IntDataInit{Int},
 ) where {T <: Real}
   nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
   njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
 
-  S = typeof(y)
-  s_l_dense, s_u_dense = fill!(S(undef, nvar), zero(T)), fill!(S(undef, nvar), zero(T))
-  s_l_dense[ilow] .= s_l
-  s_u_dense[iupp] .= s_u
-
+  S = typeof(multipliers_in)
   if idi.nvar != nvar
-    multipliers_L = s_l_dense[1:(idi.nvar)]
-    multipliers_U = s_u_dense[1:(idi.nvar)]
+    multipliers_L = multipliers_L_in[1:(idi.nvar)]
+    multipliers_U = multipliers_U_in[1:(idi.nvar)]
   else
-    multipliers_L = s_l_dense
-    multipliers_U = s_u_dense
+    multipliers_L = multipliers_L_in
+    multipliers_U = multipliers_U_in
   end
 
   multipliers = fill!(S(undef, idi.ncon), zero(T))
-  multipliers[idi.jfix] .= @views y[idi.jfix]
+  multipliers[idi.jfix] .= @views multipliers_in[idi.jfix]
   multipliers[idi.jlow] .+= @views s_l[(nlow + nrng + 1):(nlow + nrng + njlow)]
   multipliers[idi.jupp] .-= @views s_u[(nupp + nrng + 1):(nupp + nrng + njupp)]
   multipliers[idi.jrng] .+=
@@ -84,6 +67,7 @@ function get_multipliers(
 
   return multipliers, multipliers_L, multipliers_U
 end
+
 
 uses_krylov(pad::PreallocatedData) = false
 
@@ -195,4 +179,107 @@ function next_type(::Type{T}, ::Type{T0}) where {T, T0}
   T == T0 && return T0
   T == Float32 && return Float64
   T == Float64 && return T0
+end
+
+function set_ripqp_solver_specific!(stats::GenericExecutionStats, field::Symbol, value)
+  stats.solver_specific[field] = value
+end
+
+function set_ripqp_bounds_multipliers!(
+  stats::GenericExecutionStats,
+  s_l::AbstractVector{T},
+  s_u::AbstractVector{T},
+  ilow::AbstractVector{Int},
+  iupp::AbstractVector{Int},
+) where {T}
+  stats.multipliers_L[ilow] .= s_l
+  stats.multipliers_U[iupp] .= s_u
+end
+
+function ripqp_solver_specific(QM::AbstractQuadraticModel{T}, history::Bool) where {T}
+  if history
+    solver_specific = Dict(
+      :relative_iter_cnt => -1,
+      :iters_sp => -1,
+      :iters_sp2 => -1,
+      :iters_sp3 => -1,
+      :pdd => T(Inf),
+      :psoperations => (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
+      :rbNormH => T[],
+      :rcNormH => T[],
+      :pddH => T[],
+      :nprodH => Int[],
+      :min_bound_distH => T[],
+      :KresNormH => T[],
+      :KresPNormH => T[],
+      :KresDNormH => T[],
+    )
+  else
+    solver_specific = Dict(
+      :relative_iter_cnt => -1,
+      :iters_sp => -1,
+      :iters_sp2 => -1,
+      :iters_sp3 => -1,
+      :pdd => T(Inf),
+      :psoperations => (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
+    )
+  end
+  return solver_specific
+end
+
+function set_ripqp_stats!(
+  stats::GenericExecutionStats,
+  pt::Point{T},
+  res::AbstractResiduals{T},
+  pad::PreallocatedData{T},
+  itd::IterData{T},
+  id::QM_IntData,
+  sc::StopCrit,
+  cnts::Counters,
+  max_iter::Int,
+) where {T}
+
+  if cnts.k >= max_iter
+    status = :max_iter
+  elseif sc.tired
+    status = :max_time
+  elseif sc.optimal
+    status = :first_order
+  else
+    status = :unknown
+  end
+  set_status!(stats, status)
+  set_solution!(stats, pt.x)
+  set_constraint_multipliers!(stats, pt.y)
+  set_ripqp_bounds_multipliers!(stats, pt.s_l, pt.s_u, id.ilow, id.iupp)
+  set_objective!(stats, itd.minimize ? itd.pri_obj : -itd.pri_obj)
+  set_primal_residual!(stats, res.rbNorm)
+  set_dual_residual!(stats, res.rcNorm)
+  set_iter!(stats, cnts.k)
+  elapsed_time = time() - cnts.time_solve
+  set_time!(stats, elapsed_time)
+  # set stats.solver_specific
+  set_ripqp_solver_specific!(stats, :relative_iter_cnt, cnts.km)
+  set_ripqp_solver_specific!(stats, :iters_sp, cnts.iters_sp)
+  set_ripqp_solver_specific!(stats, :iters_sp2, cnts.iters_sp2)
+  set_ripqp_solver_specific!(stats, :iters_sp3, cnts.iters_sp3)
+  set_ripqp_solver_specific!(stats, :pdd, itd.pdd)
+  if typeof(res) <: ResidualsHistory
+    set_ripqp_solver_specific!(stats, :rbNormH, res.rbNormH)
+    set_ripqp_solver_specific!(stats, :rcNormH, res.rcNormH)
+    set_ripqp_solver_specific!(stats, :pddH, res.pddH)
+    set_ripqp_solver_specific!(stats, :nprodH, res.kiterH)
+    set_ripqp_solver_specific!(stats, :μH, res.μH)
+    set_ripqp_solver_specific!(stats, :min_bound_distH, res.min_bound_distH)
+    set_ripqp_solver_specific!(stats, :KresNormH, res.KresNormH)
+    set_ripqp_solver_specific!(stats, :KresPNormH, res.KresPNormH)
+    set_ripqp_solver_specific!(stats, :KresDNormH, res.KresDNormH)
+  end
+  if pad isa PreallocatedDataK2Krylov &&
+      pad.pdat isa LDLData &&
+      pad.pdat.K_fact isa LDLFactorizationData
+    nnzLDL = length(pad.pdat.K_fact.LDL.Lx) + length(pad.pdat.K_fact.LDL.d)
+    set_ripqp_solver_specific!(stats, :nnzLDL, nnzLDL)
+  end
+
 end
