@@ -145,11 +145,10 @@ function allocate_workspace(
   sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
-  T = (iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom) ? Ti : T0
   S0 = typeof(fd_T0.c)
-  S = change_vector_eltype(S0, T)
+  S = change_vector_eltype(S0, Ti)
 
-  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf, sp, id)
+  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(Ti), zero(Ti), iconf, sp, id)
 
   itd = IterData(
     S(undef, id.nvar + id.ncon), # Δxy
@@ -160,12 +159,12 @@ function allocate_workspace(
     S(undef, id.nvar), # init Qx
     S(undef, id.nvar), # init ATy
     S(undef, id.ncon), # Ax
-    zero(T), #xTQx
-    zero(T), #cTx
-    zero(T), #pri_obj
-    zero(T), #dual_obj
-    zero(T), #μ
-    zero(T),#pdd
+    zero(Ti), #xTQx
+    zero(Ti), #cTx
+    zero(Ti), #pri_obj
+    zero(Ti), #dual_obj
+    zero(Ti), #μ
+    zero(Ti),#pdd
     typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     iconf.minimize,
     iconf.perturb,
@@ -175,9 +174,9 @@ function allocate_workspace(
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 
-  spd = StartingPointData{T, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
+  spd = StartingPointData{Ti, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
 
-  return sc, fd_T0, id, ϵ, res, itd, pt, sd, spd, cnts, T
+  return sc, fd_T0, id, ϵ, res, itd, pt, sd, spd, cnts
 end
 
 function allocate_extra_workspace1(

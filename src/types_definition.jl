@@ -98,7 +98,6 @@ mutable struct InputConfig{I <: Integer}
   mode::Symbol
   early_multi_stop::Bool # stop earlier in multi-precision, based on some quantities of the algorithm
   scaling::Bool
-  presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
   perturb::Bool
@@ -705,11 +704,7 @@ mutable struct RipQPDoubleSolver{
   T1,
   S1,
   QMfd1 <: Abstract_QM_FloatData{T1, S1},
-  Sp1 <: SolverParams{T1},
-  SM1 <: SolveMethod,
   QMfd2 <: Abstract_QM_FloatData{T, S},
-  Sp2 <: SolverParams{T},
-  SM2 <: SolveMethod,
   Pfd <: PreallocatedFloatData{T1, S1},
 } <: AbstractRipQPSolver{T, S}
   QM::QMType
@@ -724,13 +719,9 @@ mutable struct RipQPDoubleSolver{
 
   fd1::QMfd1
   ϵ1::Tolerances{T1}
-  sp::Sp1
-  solve_method::SM1
 
   fd2::QMfd2
   ϵ2::Tolerances{T}
-  sp2::Sp2
-  solve_method2::SM2
 
   pfd::Pfd # initial data in type of 1st solver
 end
@@ -745,16 +736,9 @@ mutable struct RipQPTripleSolver{
   T1,
   S1,
   QMfd1 <: Abstract_QM_FloatData{T1, S1},
-  Sp1 <: SolverParams{T1},
-  SM1 <: SolveMethod,
   T2,
-  S2,
-  QMfd2 <: Abstract_QM_FloatData{T2, S2},
-  Sp2 <: SolverParams{T2},
-  SM2 <: SolveMethod,
+  QMfd2 <: Abstract_QM_FloatData{T2},
   QMfd3 <: Abstract_QM_FloatData{T, S},
-  Sp3 <: SolverParams{T},
-  SM3 <: SolveMethod,
   Pfd <: PreallocatedFloatData{T1, S1},
 } <: AbstractRipQPSolver{T, S}
   QM::QMType
@@ -769,18 +753,43 @@ mutable struct RipQPTripleSolver{
 
   fd1::QMfd1
   ϵ1::Tolerances{T1}
-  sp::Sp1
-  solve_method::SM1
 
   fd2::QMfd2
   ϵ2::Tolerances{T2}
-  sp2::Sp2
-  solve_method2::SM2
 
   fd3::QMfd3
   ϵ3::Tolerances{T}
-  sp3::Sp3
-  solve_method3::SM3
 
   pfd::Pfd # initial data in type of 1st solver
+end
+
+abstract type AbstractRipQPParameters end
+
+struct RipQPParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <: AbstractRipQPParameters
+  sp::SP1
+  solve_method::SM1
+end
+
+struct RipQPDoubleParameters{
+  T <: Real,
+  SP1 <: SolverParams, SP2 <: SolverParams{T}, 
+  SM1 <: SolveMethod, SM2 <: SolveMethod,
+} <: AbstractRipQPParameters
+  sp::SP1
+  sp2::SP2
+  solve_method::SM1
+  solve_method2::SM2
+end
+
+struct RipQPTripleParameters{
+  T <: Real,
+  SP1 <: SolverParams, SP2 <: SolverParams, SP3 <: SolverParams{T}, 
+  SM1 <: SolveMethod, SM2 <: SolveMethod, SM3 <: SolveMethod,
+} <: AbstractRipQPParameters
+  sp::SP1
+  sp2::SP2
+  sp3::SP3
+  solve_method::SM1
+  solve_method2::SM2
+  solve_method3::SM3
 end

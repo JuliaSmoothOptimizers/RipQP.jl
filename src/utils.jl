@@ -280,5 +280,75 @@ function set_ripqp_stats!(
     nnzLDL = length(pad.pdat.K_fact.LDL.Lx) + length(pad.pdat.K_fact.LDL.d)
     set_ripqp_solver_specific!(stats, :nnzLDL, nnzLDL)
   end
+end
 
+function get_inner_model_data(
+  QM::QuadraticModel{T},
+  QMps::AbstractQuadraticModel{T},
+  ps::Bool,
+  scaling::Bool,
+  history::Bool,
+) where {T <: Real}
+  # save inital IntData to compute multipliers at the end of the algorithm
+  idi = IntDataInit(QM)
+  QM_inner = SlackModel(QMps)
+  if QM_inner.meta.ncon == length(QM_inner.meta.jfix) && !ps && scaling
+    QM_inner = deepcopy(QM_inner) # if not modified by SlackModel and presolve
+  end
+  if !QM.meta.minimize && !ps # switch to min problem if not modified by presolve
+    QuadraticModels.switch_H_to_max!(QM_inner.data)
+    QM_inner.data.c .= .-QM_inner.data.c
+    QM_inner.data.c0 = -QM_inner.data.c0
+  end
+  stats_inner = GenericExecutionStats(
+    QM_inner;
+    solution = QM_inner.meta.x0,
+    multipliers = QM_inner.meta.y0,
+    multipliers_L = fill!(similar(QM_inner.meta.x0), zero(T)),
+    multipliers_U = fill!(similar(QM_inner.meta.x0), zero(T)),
+    solver_specific = ripqp_solver_specific(QM_inner, history),
+  )
+  return QM_inner, stats_inner, idi
+end
+
+function get_stats_outer(
+  stats_inner::GenericExecutionStats{T},
+  QM::QuadraticModel{T},
+  QMps::AbstractQuadraticModel{T},
+  id::QM_IntData,
+  idi::IntDataInit,
+  start_time::Float64,
+  ps::Bool,
+) where {T <: Real}
+  multipliers, multipliers_L, multipliers_U = get_slack_multipliers(
+    stats_inner.multipliers,
+    stats_inner.multipliers_L,
+    stats_inner.multipliers_U,
+    id,
+    idi,
+  ) 
+  if ps
+    sol_in = QMSolution(stats_inner.solution, stats_inner.multipliers, stats_inner.multipliers_L, stats_inner.multipliers_U)
+    sol = postsolve(QM, QMps, sol_in)
+    x, multipliers, multipliers_L, multipliers_U = sol.x, sol.y, sol.s_l, sol.s_u
+  else
+    x = stats_inner.solution[1:(idi.nvar)]
+  end
+  solver_specific = stats_inner.solver_specific
+  solver_specific[:psoperations] = QMps isa QuadraticModels.PresolvedQuadraticModel ? QMps.psd.operations : []
+  elapsed_time = time() - start_time
+  return GenericExecutionStats(
+    QM,
+    status = stats_inner.status,
+    solution = x,
+    objective = stats_inner.objective,
+    dual_feas = stats_inner.dual_feas,
+    primal_feas = stats_inner.primal_feas,
+    multipliers = multipliers,
+    multipliers_L = multipliers_L,
+    multipliers_U = multipliers_U,
+    iter = stats_inner.iter,
+    elapsed_time = elapsed_time,
+    solver_specific = solver_specific,
+  )
 end
