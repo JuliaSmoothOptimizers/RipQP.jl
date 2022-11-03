@@ -65,6 +65,14 @@ Each solver has its own `SolverParams` type.
 """
 abstract type SolverParams{T} end
 
+solver_type(::SolverParams{T}) where {T} = T
+
+function next_type(::Type{T}, ::Type{T0}) where {T, T0}
+  T == T0 && return T0
+  T == Float32 && return Float64
+  T == Float64 && return T0
+end
+
 """
 Type to write the matrix (.mtx format) and the right hand side (.rhs format) of the system to solve at each iteration.
 
@@ -614,61 +622,9 @@ mutable struct PreallocatedFloatData{
   pad::Pad
 end
 
-# mutable struct RipQPSolver{
-#     T,
-#     S,
-#     I,
-#     QMType <: AbstractQuadraticModel{T, S},
-#     Iconf <: InputConfig,
-#     Sd <: ScaleData{T, S},
-#     Tsc <: Real,
-#     Ti,
-#     Si,
-#     QMfd1 <: Union{Nothing, Abstract_QM_FloatData},
-#     Tol1 <: Union{Nothing, Tolerances},
-#     Sp2 <: Union{Nothing, SolverParams},
-#     SM2 <: Union{Nothing, SolveMethod},
-#     QMfd2 <: Union{Nothing, Abstract_QM_FloatData},
-#     Tol2 <: Union{Nothing, Tolerances},
-#     Sp3 <: Union{Nothing, SolverParams{T}},
-#     SM3 <: Union{Nothing, SolveMethod},
-#     QMfd <: Abstract_QM_FloatData{T, S},
-#     Tol <: Tolerances{T},
-#     Sp <: SolverParams,
-#     SM <: SolveMethod,
-#     Pfd <: PreallocatedFloatData{Ti, Si},
-#   } <: SolverCore.AbstractOptimizationSolver
-#   QM::QMType
-#   id::QM_IntData
-#   iconf::Iconf
-#   itol::InputTol{T, I}
-#   sd::Sd
-#   spd::StartingPointData{Ti, Si}
-#   sc::StopCrit{Tsc}
-#   cnts::Counters
-#   display::Bool
-
-#   fd1::QMfd1
-#   ϵ1::Tol1
-#   sp2::Sp2
-#   solve_method2::SM2
-
-#   fd2::QMfd2
-#   ϵ2::Tol2
-#   sp3::Sp3
-#   solve_method3::SM3
-
-#   fd_T0::QMfd
-#   ϵ_T0::Tol
-#   sp::Sp
-#   solve_method::SM
-
-#   pfd::Pfd # initial data in type of 1st solver
-# end
-
 abstract type AbstractRipQPSolver{T, S} <: SolverCore.AbstractOptimizationSolver end
 
-mutable struct RipQPSolver{
+mutable struct RipQPMonoSolver{
   T,
   S,
   I,
@@ -763,9 +719,9 @@ mutable struct RipQPTripleSolver{
   pfd::Pfd # initial data in type of 1st solver
 end
 
-abstract type AbstractRipQPParameters end
+abstract type AbstractRipQPParameters{T} end
 
-struct RipQPParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <: AbstractRipQPParameters
+struct RipQPMonoParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <: AbstractRipQPParameters{T}
   sp::SP1
   solve_method::SM1
 end
@@ -774,7 +730,7 @@ struct RipQPDoubleParameters{
   T <: Real,
   SP1 <: SolverParams, SP2 <: SolverParams{T}, 
   SM1 <: SolveMethod, SM2 <: SolveMethod,
-} <: AbstractRipQPParameters
+} <: AbstractRipQPParameters{T}
   sp::SP1
   sp2::SP2
   solve_method::SM1
@@ -785,7 +741,7 @@ struct RipQPTripleParameters{
   T <: Real,
   SP1 <: SolverParams, SP2 <: SolverParams, SP3 <: SolverParams{T}, 
   SM1 <: SolveMethod, SM2 <: SolveMethod, SM3 <: SolveMethod,
-} <: AbstractRipQPParameters
+} <: AbstractRipQPParameters{T}
   sp::SP1
   sp2::SP2
   sp3::SP3

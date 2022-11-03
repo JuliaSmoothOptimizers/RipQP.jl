@@ -34,7 +34,7 @@ end
 @testset "Float16, Float32, Float128, BigFloat" begin
   qm16 = QuadraticModel(
     Float16.(c),
-    Float16.(Q),
+    Float16.(tril(Q)),
     A = Float16.(A),
     lcon = Float16.(b),
     ucon = Float16.(b),
@@ -44,7 +44,7 @@ end
     x0 = zeros(Float16, 3),
     name = "QM16",
   )
-  stats_dense = ripqp(qm16, itol = InputTol(Float16), display = false)
+  stats_dense = ripqp(qm16, itol = InputTol(Float16), display = false, ps = false)
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 

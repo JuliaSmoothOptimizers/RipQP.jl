@@ -37,40 +37,9 @@ function push_history_residuals!(
   end
 end
 
-function get_slack_multipliers(
-  multipliers_in::AbstractVector{T},
-  multipliers_L_in::AbstractVector{T},
-  multipliers_U_in::AbstractVector{T},
-  id::QM_IntData,
-  idi::IntDataInit{Int},
-) where {T <: Real}
-  nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
-  njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
-
-  S = typeof(multipliers_in)
-  if idi.nvar != id.nvar
-    multipliers_L = multipliers_L_in[1:(idi.nvar)]
-    multipliers_U = multipliers_U_in[1:(idi.nvar)]
-  else
-    multipliers_L = multipliers_L_in
-    multipliers_U = multipliers_U_in
-  end
-
-  multipliers = fill!(S(undef, idi.ncon), zero(T))
-  multipliers[idi.jfix] .= @views multipliers_in[idi.jfix]
-  multipliers[idi.jlow] .+= @views multipliers_L_in[id.ilow[(nlow + nrng + 1):(nlow + nrng + njlow)]]
-  multipliers[idi.jupp] .-= @views multipliers_U_in[id.iupp[(nupp + nrng + 1):(nupp + nrng + njupp)]]
-  multipliers[idi.jrng] .+=
-    @views multipliers_L_in[id.ilow[(nlow + nrng + njlow + 1):end]] .-
-      multipliers_U_in[id.iupp[(nupp + nrng + njupp + 1):end]]
-
-  return multipliers, multipliers_L, multipliers_U
-end
-
-
+# log utils
 uses_krylov(pad::PreallocatedData) = false
 
-# logs
 function setup_log_header(pad::PreallocatedData{T}) where {T}
   if uses_krylov(pad)
     @info log_header(
@@ -172,18 +141,11 @@ function show_used_solver(pad::PreallocatedData{T}) where {T}
   @info "Solving in $T using $slv_name"
 end
 
-solver_type(sp::SolverParams{T}) where {T} = T
-
-function next_type(::Type{T}, ::Type{T0}) where {T, T0}
-  T == T0 && return T0
-  T == Float32 && return Float64
-  T == Float64 && return T0
-end
-
 function set_ripqp_solver_specific!(stats::GenericExecutionStats, field::Symbol, value)
   stats.solver_specific[field] = value
 end
 
+# inner stats multipliers
 function set_ripqp_bounds_multipliers!(
   stats::GenericExecutionStats,
   s_l::AbstractVector{T},
@@ -193,6 +155,37 @@ function set_ripqp_bounds_multipliers!(
 ) where {T}
   stats.multipliers_L[ilow] .= s_l
   stats.multipliers_U[iupp] .= s_u
+end
+
+# outer stats multipliers
+function get_slack_multipliers(
+  multipliers_in::AbstractVector{T},
+  multipliers_L_in::AbstractVector{T},
+  multipliers_U_in::AbstractVector{T},
+  id::QM_IntData,
+  idi::IntDataInit{Int},
+) where {T <: Real}
+  nlow, nupp, nrng = length(idi.ilow), length(idi.iupp), length(idi.irng)
+  njlow, njupp, njrng = length(idi.jlow), length(idi.jupp), length(idi.jrng)
+
+  S = typeof(multipliers_in)
+  if idi.nvar != id.nvar
+    multipliers_L = multipliers_L_in[1:(idi.nvar)]
+    multipliers_U = multipliers_U_in[1:(idi.nvar)]
+  else
+    multipliers_L = multipliers_L_in
+    multipliers_U = multipliers_U_in
+  end
+
+  multipliers = fill!(S(undef, idi.ncon), zero(T))
+  multipliers[idi.jfix] .= @views multipliers_in[idi.jfix]
+  multipliers[idi.jlow] .+= @views multipliers_L_in[id.ilow[(nlow + nrng + 1):(nlow + nrng + njlow)]]
+  multipliers[idi.jupp] .-= @views multipliers_U_in[id.iupp[(nupp + nrng + 1):(nupp + nrng + njupp)]]
+  multipliers[idi.jrng] .+=
+    @views multipliers_L_in[id.ilow[(nlow + nrng + njlow + 1):end]] .-
+      multipliers_U_in[id.iupp[(nupp + nrng + njupp + 1):end]]
+
+  return multipliers, multipliers_L, multipliers_U
 end
 
 function ripqp_solver_specific(QM::AbstractQuadraticModel{T}, history::Bool) where {T}
@@ -290,7 +283,7 @@ function get_inner_model_data(
   history::Bool,
 ) where {T <: Real}
   # save inital IntData to compute multipliers at the end of the algorithm
-  idi = IntDataInit(QM)
+  idi = IntDataInit(QMps)
   QM_inner = SlackModel(QMps)
   if QM_inner.meta.ncon == length(QM_inner.meta.jfix) && !ps && scaling
     QM_inner = deepcopy(QM_inner) # if not modified by SlackModel and presolve
