@@ -179,11 +179,12 @@ function get_slack_multipliers(
 
   multipliers = fill!(S(undef, idi.ncon), zero(T))
   multipliers[idi.jfix] .= @views multipliers_in[idi.jfix]
-  multipliers[idi.jlow] .+= @views multipliers_L_in[id.ilow[(nlow + nrng + 1):(nlow + nrng + njlow)]]
-  multipliers[idi.jupp] .-= @views multipliers_U_in[id.iupp[(nupp + nrng + 1):(nupp + nrng + njupp)]]
-  multipliers[idi.jrng] .+=
-    @views multipliers_L_in[id.ilow[(nlow + nrng + njlow + 1):end]] .-
-      multipliers_U_in[id.iupp[(nupp + nrng + njupp + 1):end]]
+  multipliers[idi.jlow] .+=
+    @views multipliers_L_in[id.ilow[(nlow + nrng + 1):(nlow + nrng + njlow)]]
+  multipliers[idi.jupp] .-=
+    @views multipliers_U_in[id.iupp[(nupp + nrng + 1):(nupp + nrng + njupp)]]
+  multipliers[idi.jrng] .+= @views multipliers_L_in[id.ilow[(nlow + nrng + njlow + 1):end]] .-
+         multipliers_U_in[id.iupp[(nupp + nrng + njupp + 1):end]]
 
   return multipliers, multipliers_L, multipliers_U
 end
@@ -196,7 +197,8 @@ function ripqp_solver_specific(QM::AbstractQuadraticModel{T}, history::Bool) whe
       :iters_sp2 => -1,
       :iters_sp3 => -1,
       :pdd => T(Inf),
-      :psoperations => (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
+      :psoperations =>
+        (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
       :rbNormH => T[],
       :rcNormH => T[],
       :pddH => T[],
@@ -213,7 +215,8 @@ function ripqp_solver_specific(QM::AbstractQuadraticModel{T}, history::Bool) whe
       :iters_sp2 => -1,
       :iters_sp3 => -1,
       :pdd => T(Inf),
-      :psoperations => (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
+      :psoperations =>
+        (typeof(QM) <: QuadraticModels.PresolvedQuadraticModel) ? QM.psd.operations : [],
     )
   end
   return solver_specific
@@ -230,7 +233,6 @@ function set_ripqp_stats!(
   cnts::Counters,
   max_iter::Int,
 ) where {T}
-
   if cnts.k >= max_iter
     status = :max_iter
   elseif sc.tired
@@ -268,8 +270,8 @@ function set_ripqp_stats!(
     set_ripqp_solver_specific!(stats, :KresDNormH, res.KresDNormH)
   end
   if pad isa PreallocatedDataK2Krylov &&
-      pad.pdat isa LDLData &&
-      pad.pdat.K_fact isa LDLFactorizationData
+     pad.pdat isa LDLData &&
+     pad.pdat.K_fact isa LDLFactorizationData
     nnzLDL = length(pad.pdat.K_fact.LDL.Lx) + length(pad.pdat.K_fact.LDL.d)
     set_ripqp_solver_specific!(stats, :nnzLDL, nnzLDL)
   end
@@ -319,16 +321,22 @@ function get_stats_outer(
     stats_inner.multipliers_U,
     id,
     idi,
-  ) 
+  )
   if ps
-    sol_in = QMSolution(stats_inner.solution, stats_inner.multipliers, stats_inner.multipliers_L, stats_inner.multipliers_U)
+    sol_in = QMSolution(
+      stats_inner.solution,
+      stats_inner.multipliers,
+      stats_inner.multipliers_L,
+      stats_inner.multipliers_U,
+    )
     sol = postsolve(QM, QMps, sol_in)
     x, multipliers, multipliers_L, multipliers_U = sol.x, sol.y, sol.s_l, sol.s_u
   else
     x = stats_inner.solution[1:(idi.nvar)]
   end
   solver_specific = stats_inner.solver_specific
-  solver_specific[:psoperations] = QMps isa QuadraticModels.PresolvedQuadraticModel ? QMps.psd.operations : []
+  solver_specific[:psoperations] =
+    QMps isa QuadraticModels.PresolvedQuadraticModel ? QMps.psd.operations : []
   elapsed_time = time() - start_time
   return GenericExecutionStats(
     QM,

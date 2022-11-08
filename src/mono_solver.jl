@@ -19,26 +19,17 @@ function RipQPMonoSolver(
   w::SystemWrite = SystemWrite(),
   display::Bool = true,
 ) where {T <: Real, S <: AbstractVector{T}, I <: Integer}
-
   start_time = time()
   elapsed_time = 0.0
   typeof(ap.solve_method) <: IPF &&
     kc != 0 &&
     error("IPF method should not be used with centrality corrections")
-  iconf = InputConfig(
-    mode,
-    true,
-    scaling,
-    normalize_rtol,
-    kc,
-    perturb,
-    QM.meta.minimize,
-    history,
-    w,
-  )
+  iconf =
+    InputConfig(mode, true, scaling, normalize_rtol, kc, perturb, QM.meta.minimize, history, w)
 
   # allocate workspace
-  sc, fd, id, ϵ, res, itd, pt, sd, spd, cnts = allocate_workspace(QM, iconf, itol, start_time, T, ap.sp)
+  sc, fd, id, ϵ, res, itd, pt, sd, spd, cnts =
+    allocate_workspace(QM, iconf, itol, start_time, T, ap.sp)
 
   if iconf.scaling
     scaling!(fd, id, sd, T(1.0e-5))
@@ -67,7 +58,7 @@ function SolverCore.solve!(
   sc, cnts = solver.sc, solver.cnts
   display = solver.display
   pfd = solver.pfd
-  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad 
+  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad
   fd, ϵ = solver.fd, solver.ϵ
   cnts.time_solve = time()
 

@@ -47,17 +47,17 @@ struct IntDataInit{I <: Integer}
 end
 
 IntDataInit(QM::AbstractQuadraticModel) = IntDataInit(
-    QM.meta.nvar,
-    QM.meta.ncon,
-    QM.meta.ilow,
-    QM.meta.iupp,
-    QM.meta.irng,
-    QM.meta.ifix,
-    QM.meta.jlow,
-    QM.meta.jupp,
-    QM.meta.jrng,
-    QM.meta.jfix,
-  )
+  QM.meta.nvar,
+  QM.meta.ncon,
+  QM.meta.ilow,
+  QM.meta.iupp,
+  QM.meta.irng,
+  QM.meta.ifix,
+  QM.meta.jlow,
+  QM.meta.jupp,
+  QM.meta.jrng,
+  QM.meta.jfix,
+)
 
 """
 Abstract type for tuning the parameters of the different solvers. 
@@ -609,12 +609,12 @@ mutable struct Counters
 end
 
 mutable struct PreallocatedFloatData{
-    T,
-    S,
-    Res <: AbstractResiduals{T, S},
-    Dda <: DescentDirectionAllocs{T, S},
-    Pad <: PreallocatedData{T, S},
-  }
+  T,
+  S,
+  Res <: AbstractResiduals{T, S},
+  Dda <: DescentDirectionAllocs{T, S},
+  Pad <: PreallocatedData{T, S},
+}
   pt::Point{T, S}
   res::Res
   itd::IterData{T, S}
@@ -721,15 +721,18 @@ end
 
 abstract type AbstractRipQPParameters{T} end
 
-struct RipQPMonoParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <: AbstractRipQPParameters{T}
+struct RipQPMonoParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <:
+       AbstractRipQPParameters{T}
   sp::SP1
   solve_method::SM1
 end
 
 struct RipQPDoubleParameters{
   T <: Real,
-  SP1 <: SolverParams, SP2 <: SolverParams{T}, 
-  SM1 <: SolveMethod, SM2 <: SolveMethod,
+  SP1 <: SolverParams,
+  SP2 <: SolverParams{T},
+  SM1 <: SolveMethod,
+  SM2 <: SolveMethod,
 } <: AbstractRipQPParameters{T}
   sp::SP1
   sp2::SP2
@@ -739,8 +742,12 @@ end
 
 struct RipQPTripleParameters{
   T <: Real,
-  SP1 <: SolverParams, SP2 <: SolverParams, SP3 <: SolverParams{T}, 
-  SM1 <: SolveMethod, SM2 <: SolveMethod, SM3 <: SolveMethod,
+  SP1 <: SolverParams,
+  SP2 <: SolverParams,
+  SP3 <: SolverParams{T},
+  SM1 <: SolveMethod,
+  SM2 <: SolveMethod,
+  SM3 <: SolveMethod,
 } <: AbstractRipQPParameters{T}
   sp::SP1
   sp2::SP2

@@ -24,7 +24,6 @@ function RipQPTripleSolver(
   w::SystemWrite = SystemWrite(),
   display::Bool = true,
 ) where {T0 <: Real, S0 <: AbstractVector{T0}, I <: Integer}
-
   start_time = time()
   elapsed_time = 0.0
   # config
@@ -67,7 +66,7 @@ function RipQPTripleSolver(
   T2 = next_type(T, T0) # eltype of sp2
   fd, ϵ = allocate_extra_workspace1(T, itol, iconf, fd_T0)
   fd2, ϵ2 = allocate_extra_workspace2(T2, itol, iconf, fd_T0)
-  
+
   S = change_vector_eltype(S0, T)
   dda = DescentDirectionAllocs(id, ap.solve_method, S)
 
@@ -111,7 +110,7 @@ function SolverCore.solve!(
   sp, sp2, sp3 = ap.sp, ap.sp2, ap.sp3
   solve_method, solve_method2, solve_method3 = ap.solve_method, ap.solve_method2, ap.solve_method3
   pfd = solver.pfd
-  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad 
+  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad
   fd1, ϵ1 = solver.fd1, solver.ϵ1
   fd2, ϵ2 = solver.fd2, solver.ϵ2
   fd3, ϵ3 = solver.fd3, solver.ϵ3
@@ -160,21 +159,8 @@ function SolverCore.solve!(
     iter!(pt, itd, fd3, id, res, sc, dda, pad, ϵ3, cnts, iconf, display)
   elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
     spd = convert(StartingPointData{T, typeof(pt.x)}, spd)
-    fd_ref, pt_ref = fd_refinement(
-      fd3,
-      id,
-      res,
-      itd.Δxy,
-      pt,
-      itd,
-      ϵ3,
-      dda,
-      pad,
-      spd,
-      cnts,
-      mode,
-      centering = true,
-    )
+    fd_ref, pt_ref =
+      fd_refinement(fd3, id, res, itd.Δxy, pt, itd, ϵ3, dda, pad, spd, cnts, mode, centering = true)
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ3, cnts, iconf, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd3, itd)
   end

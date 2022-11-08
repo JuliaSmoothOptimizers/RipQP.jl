@@ -22,7 +22,6 @@ function RipQPDoubleSolver(
   w::SystemWrite = SystemWrite(),
   display::Bool = true,
 ) where {T0 <: Real, S0 <: AbstractVector{T0}, I <: Integer}
-
   start_time = time()
   elapsed_time = 0.0
   # config
@@ -77,7 +76,7 @@ function RipQPDoubleSolver(
   else
     fd, ϵ = allocate_extra_workspace1(T, itol, iconf, fd_T0)
   end
-  
+
   S = change_vector_eltype(S0, T)
   dda = DescentDirectionAllocs(id, ap.solve_method, S)
 
@@ -87,22 +86,7 @@ function RipQPDoubleSolver(
 
   cnts.time_allocs = time() - start_time
 
-  return RipQPDoubleSolver(
-    QM,
-    id,
-    iconf,
-    itol,
-    sd,
-    spd,
-    sc,
-    cnts,
-    display,
-    fd,
-    ϵ,
-    fd_T0,
-    ϵ_T0,
-    pfd,
-  )
+  return RipQPDoubleSolver(QM, id, iconf, itol, sd, spd, sc, cnts, display, fd, ϵ, fd_T0, ϵ_T0, pfd)
 end
 
 function SolverCore.solve!(
@@ -119,7 +103,7 @@ function SolverCore.solve!(
   sp, sp2 = ap.sp, ap.sp2
   solve_method, solve_method2 = ap.solve_method, ap.solve_method2
   pfd = solver.pfd
-  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad 
+  pt, res, itd, dda, pad = pfd.pt, pfd.res, pfd.itd, pfd.dda, pfd.pad
   fd1, ϵ1 = solver.fd1, solver.ϵ1
   fd2, ϵ2 = solver.fd2, solver.ϵ2
   cnts.time_solve = time()
@@ -152,27 +136,13 @@ function SolverCore.solve!(
     iter!(pt, itd, fd2, id, res, sc, dda, pad, ϵ2, cnts, iconf, display)
   elseif !sc.optimal && (mode == :multizoom || mode == :multiref)
     spd = convert(StartingPointData{T, typeof(pt.x)}, spd)
-    fd_ref, pt_ref = fd_refinement(
-      fd2,
-      id,
-      res,
-      itd.Δxy,
-      pt,
-      itd,
-      ϵ2,
-      dda,
-      pad,
-      spd,
-      cnts,
-      mode,
-      centering = true,
-    )
+    fd_ref, pt_ref =
+      fd_refinement(fd2, id, res, itd.Δxy, pt, itd, ϵ2, dda, pad, spd, cnts, mode, centering = true)
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ2, cnts, iconf, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd2, itd)
   elseif mode == :zoom || mode == :ref
     sc.optimal = false
-    fd_ref, pt_ref =
-      fd_refinement(fd2, id, res, itd.Δxy, pt, itd, ϵ2, dda, pad, spd, cnts, mode)
+    fd_ref, pt_ref = fd_refinement(fd2, id, res, itd.Δxy, pt, itd, ϵ2, dda, pad, spd, cnts, mode)
     iter!(pt_ref, itd, fd_ref, id, res, sc, dda, pad, ϵ2, cnts, iconf, display)
     update_pt_ref!(fd_ref.Δref, pt, pt_ref, res, id, fd2, itd)
   end

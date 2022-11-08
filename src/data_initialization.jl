@@ -17,12 +17,14 @@ function convert_QM(
   M12, M22 = typeof(QM.data.H), typeof(QM.data.A)
   presolve_out, scaling_out = presolve, scaling
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
-    display && presolve &&
+    display &&
+      presolve &&
       @warn "No presolve operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
     presolve_out = false
   end
   if M12 <: AbstractLinearOperator || M22 <: AbstractLinearOperator
-    display && scaling &&
+    display &&
+      scaling &&
       @warn "No scaling operations available if QM.data.H and QM.data.A are LinearOperators"
     scaling_out = false
   end
@@ -170,7 +172,8 @@ function allocate_workspace(
     iconf.perturb,
   )
 
-  cnts = Counters(0.0, 0.0, 0, 0, 0, 0, zero(UInt64), zero(UInt64), iconf.kc, 0, iconf.w, true, 0, 0, 0)
+  cnts =
+    Counters(0.0, 0.0, 0, 0, 0, 0, zero(UInt64), zero(UInt64), iconf.kc, 0, iconf.w, true, 0, 0, 0)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 
@@ -249,8 +252,8 @@ function initialize!(
     itd.uvar_m_x .= one(T)
   end
   # @timeit_debug to "init solver" begin
-    init_pad!(pad)
-    out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :init)
+  init_pad!(pad)
+  out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :init)
   # end
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]
@@ -276,9 +279,9 @@ function initialize!(
   # display
   if display == true
     # @timeit_debug to "display" begin
-      show_used_solver(pad)
-      setup_log_header(pad)
-      show_log_row(pad, itd, res, cnts, zero(T), zero(T))
+    show_used_solver(pad)
+    setup_log_header(pad)
+    show_log_row(pad, itd, res, cnts, zero(T), zero(T))
     # end
   end
 end
