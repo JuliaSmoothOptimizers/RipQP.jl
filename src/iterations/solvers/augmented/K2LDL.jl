@@ -104,7 +104,6 @@ function PreallocatedData(
   elseif regu.regul == :none
     regu.ρ, regu.δ = zero(T), zero(T)
   end
-  generic_factorize!(K, K_fact)
 
   return PreallocatedDataK2LDL(
     D,
@@ -117,6 +116,8 @@ function PreallocatedData(
     diagind_K, #diagind_K
   )
 end
+
+init_pad!(pad::PreallocatedDataK2LDL) = generic_factorize!(pad.K, pad.K_fact)
 
 # function used to solve problems
 # solver LDLFactorization
@@ -574,7 +575,6 @@ function factorize_K2!(
       update_K!(K, D, regu, s_l, s_u, x_m_lvar, uvar_m_x, ilow, iupp, diag_Q, diagind_K, nvar, ncon)
       @timeit_debug to "factorize" generic_factorize!(K, K_fact)
     end
-
   else # no Regularization
     @timeit_debug to "factorize" generic_factorize!(K, K_fact)
   end

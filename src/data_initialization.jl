@@ -1,10 +1,12 @@
 # conversion function if QM.data.H and QM.data.A are not in the type required by iconf.sp
 function convert_QM(
   QM::QuadraticModel{T, S, M1, M2},
-  iconf::InputConfig,
+  presolve::Bool,
+  scaling::Bool,
+  sp::SolverParams,
   display::Bool,
 ) where {T, S, M1, M2}
-  T_sp = typeof(iconf.sp)
+  T_sp = typeof(sp)
   if (T_sp <: K2LDLParams || T_sp <: K2_5LDLParams) &&
      !(M1 <: SparseMatrixCOO) &&
      !(M2 <: SparseMatrixCOO)
@@ -13,19 +15,18 @@ function convert_QM(
   # deactivate presolve and scaling if H and A are not SparseMatricesCOO
   # (TODO: write scaling and presolve for other types)
   M12, M22 = typeof(QM.data.H), typeof(QM.data.A)
+  presolve_out, scaling_out = presolve, scaling
   if !(M12 <: SparseMatrixCOO) || !(M22 <: SparseMatrixCOO)
-    display &&
-      iconf.presolve &&
+    display && presolve &&
       @warn "No presolve operations available if QM.data.H and QM.data.A are not SparseMatricesCOO"
-    iconf.presolve = false
+    presolve_out = false
   end
   if M12 <: AbstractLinearOperator || M22 <: AbstractLinearOperator
-    display &&
-      iconf.scaling &&
+    display && scaling &&
       @warn "No scaling operations available if QM.data.H and QM.data.A are LinearOperators"
-    iconf.scaling = false
+    scaling_out = false
   end
-  return QM
+  return QM, presolve_out, scaling_out
 end
 
 function vcatsort(v1, v2)
@@ -127,34 +128,7 @@ function allocate_workspace(
 ) where {Ti, T0}
   sc = StopCrit(false, false, false, itol.max_iter, itol.max_time, start_time, 0.0)
 
-  # save inital IntData to compute multipliers at the end of the algorithm
-  idi = IntDataInit(
-    QM.meta.nvar,
-    QM.meta.ncon,
-    QM.meta.ilow,
-    QM.meta.iupp,
-    QM.meta.irng,
-    QM.meta.ifix,
-    QM.meta.jlow,
-    QM.meta.jupp,
-    QM.meta.jrng,
-    QM.meta.jfix,
-  )
-
-  QM = SlackModel(QM)
-
-  if QM.meta.ncon == length(QM.meta.jfix) && !iconf.presolve && iconf.scaling
-    QM = deepcopy(QM) # if not modified by SlackModel and presolve
-  end
-
-  if !iconf.minimize && !iconf.presolve # switch to min problem if not modified by presolve
-    QuadraticModels.switch_H_to_max!(QM.data)
-    QM.data.c .= .-QM.data.c
-    QM.data.c0 = -QM.data.c0
-  end
-
-  uplo = iconf.sp.uplo
-  fd_T0, id = get_QM_data(QM, sp) # apply presolve at the same time
+  fd_T0, id = get_QM_data(QM, sp)
 
   # final tolerances
   ϵ = Tolerances(
@@ -171,11 +145,10 @@ function allocate_workspace(
   sd = ScaleData(fd_T0, id, iconf.scaling)
 
   # allocate data for iterations
-  T = (iconf.mode == :multi || iconf.mode == :multiref || iconf.mode == :multizoom) ? Ti : T0
   S0 = typeof(fd_T0.c)
-  S = change_vector_eltype(S0, T)
+  S = change_vector_eltype(S0, Ti)
 
-  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(T), zero(T), iconf, id)
+  res = init_residuals(S(undef, id.ncon), S(undef, id.nvar), zero(Ti), zero(Ti), iconf, sp, id)
 
   itd = IterData(
     S(undef, id.nvar + id.ncon), # Δxy
@@ -186,28 +159,24 @@ function allocate_workspace(
     S(undef, id.nvar), # init Qx
     S(undef, id.nvar), # init ATy
     S(undef, id.ncon), # Ax
-    zero(T), #xTQx
-    zero(T), #cTx
-    zero(T), #pri_obj
-    zero(T), #dual_obj
-    zero(T), #μ
-    zero(T),#pdd
+    zero(Ti), #xTQx
+    zero(Ti), #cTx
+    zero(Ti), #pri_obj
+    zero(Ti), #dual_obj
+    zero(Ti), #μ
+    zero(Ti),#pdd
     typeof(fd_T0.Q) <: Union{AbstractLinearOperator, DenseMatrix} || nnz(fd_T0.Q.data) > 0,
     iconf.minimize,
     iconf.perturb,
   )
 
-  dda_type = Symbol(:DescentDirectionAllocs, iconf.solve_method)
-  dda = DescentDirectionAllocs(id, iconf.solve_method, S)
-
-  cnts = Counters(0, 0, 0, 0, zero(UInt64), zero(UInt64), iconf.kc, 0, iconf.w, true)
+  cnts = Counters(0.0, 0.0, 0, 0, 0, 0, zero(UInt64), zero(UInt64), iconf.kc, 0, iconf.w, true, 0, 0, 0)
 
   pt = Point(S(undef, id.nvar), S(undef, id.ncon), S(undef, id.nlow), S(undef, id.nupp))
 
-  spd = StartingPointData{T, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
+  spd = StartingPointData{Ti, S}(S(undef, id.nvar), S(undef, id.nlow), S(undef, id.nupp))
 
-  #####
-  return sc, idi, fd_T0, id, ϵ, res, itd, dda, pt, sd, spd, cnts, T
+  return sc, fd_T0, id, ϵ, res, itd, pt, sd, spd, cnts
 end
 
 function allocate_extra_workspace1(
@@ -256,20 +225,22 @@ function initialize!(
   res::AbstractResiduals{T},
   itd::IterData{T},
   dda::DescentDirectionAllocs{T},
+  pad::PreallocatedData{T},
   pt::Point{T},
   spd::StartingPointData{T},
   ϵ::Tolerances{T},
   sc::StopCrit{Tc},
-  iconf::InputConfig{Tconf},
   cnts::Counters,
+  max_time::Float64,
+  display::Bool,
   ::Type{T0},
-) where {T <: Real, Tc <: Real, Tconf <: Real, T0 <: Real}
+) where {T <: Real, Tc <: Real, T0 <: Real}
   # init system
   # solve [-Q-D    A' ] [x] = [0]  to initialize (x, y, s_l, s_u)
   #       [  A     0  ] [y] = [b]
   itd.Δxy[1:(id.nvar)] .= 0
   itd.Δxy[(id.nvar + 1):end] = fd.b
-  if typeof(iconf.sp) <: NewtonParams
+  if typeof(pad) <: PreallocatedDataNewton
     itd.Δs_l .= zero(T)
     itd.Δs_u .= zero(T)
     pt.s_l .= one(T)
@@ -277,10 +248,10 @@ function initialize!(
     itd.x_m_lvar .= one(T)
     itd.uvar_m_x .= one(T)
   end
-  @timeit_debug to "init solver" begin
-    pad = PreallocatedData(iconf.sp, fd, id, itd, pt, iconf)
+  # @timeit_debug to "init solver" begin
+    init_pad!(pad)
     out = solver!(itd.Δxy, pad, dda, pt, itd, fd, id, res, cnts, :init)
-  end
+  # end
   pt.x .= itd.Δxy[1:(id.nvar)]
   pt.y .= itd.Δxy[(id.nvar + 1):(id.nvar + id.ncon)]
 
@@ -299,8 +270,17 @@ function initialize!(
 
   sc.optimal = itd.pdd < ϵ.pdd && res.rbNorm < ϵ.tol_rb && res.rcNorm < ϵ.tol_rc
   sc.small_μ = itd.μ < ϵ.μ
+  Δt = time() - cnts.time_solve
+  sc.tired = Δt > max_time
 
-  return pad
+  # display
+  if display == true
+    # @timeit_debug to "display" begin
+      show_used_solver(pad)
+      setup_log_header(pad)
+      show_log_row(pad, itd, res, cnts, zero(T), zero(T))
+    # end
+  end
 end
 
 function set_tol_residuals!(ϵ::Tolerances{T}, rbNorm::T, rcNorm::T) where {T <: Real}

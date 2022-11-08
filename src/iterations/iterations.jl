@@ -4,11 +4,7 @@ include("centrality_corr.jl")
 include("regularization.jl")
 include("system_write.jl")
 include("preconditioners/abstract-precond.jl")
-include("solvers/augmented/augmented.jl")
-include("solvers/Newton/Newton.jl")
-include("solvers/normal/normal.jl")
-include("solvers/Krylov_utils.jl")
-include("solvers/ldl_dense.jl")
+include("solvers/linearsolvers.jl")
 include("preconditioners/include-preconds.jl")
 include("transitions/transitions.jl")
 
@@ -233,7 +229,7 @@ function iter!(
 ) where {T <: Real, Tc <: Real}
   @inbounds while cnts.k < sc.max_iter && !sc.optimal && !sc.tired
     (cnts.kc == -1) && (cnts.tfact = time_ns()) # timer centrality_corr factorization
-    out = @timeit_debug to "update solver" update_pad!(pad, dda, pt, itd, fd, id, res, cnts) # update data for the solver! function used
+    out = update_pad!(pad, dda, pt, itd, fd, id, res, cnts) # update data for the solver! function used
     (cnts.kc == -1) && (cnts.tfact = time_ns() - cnts.tfact)
     out == 1 && break
 
@@ -284,7 +280,7 @@ function iter!(
     sc.Δt = time() - sc.start_time
     sc.tired = sc.Δt > sc.max_time
 
-    display == true && (@timeit_debug to "display" show_log_row(pad, itd, res, cnts, α_pri, α_dual))
+    display == true && (show_log_row(pad, itd, res, cnts, α_pri, α_dual))
 
     # check alpha values in multi-precision
     !last_iter && iconf.early_multi_stop && small_αs(α_pri, α_dual, cnts) && break

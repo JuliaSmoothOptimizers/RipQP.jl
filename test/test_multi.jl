@@ -32,6 +32,29 @@ end
 end
 
 @testset "Float16, Float32, Float128, BigFloat" begin
+  qm16 = QuadraticModel(
+    Float16.(c),
+    Float16.(tril(Q)),
+    A = Float16.(A),
+    lcon = Float16.(b),
+    ucon = Float16.(b),
+    lvar = Float16.(l),
+    uvar = Float16.(u),
+    c0 = Float16(0.0),
+    x0 = zeros(Float16, 3),
+    name = "QM16",
+  )
+  stats_dense = ripqp(qm16, itol = InputTol(Float16), display = false, ps = false)
+  @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
+  @test stats_dense.status == :first_order
+
+  for T ∈ [Float32, Float128]
+    qmT_2 = createQuadraticModelT(qps2, T = T)
+    stats2 = ripqp(qmT_2, display = false)
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
+    @test stats2.status == :first_order
+  end
+
   qm128_1 = createQuadraticModelT(qps1, T = BigFloat)
   stats1 = ripqp(
     qm128_1,
@@ -42,29 +65,6 @@ end
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
-
-  for T ∈ [Float32, Float128]
-    qmT_2 = createQuadraticModelT(qps2, T = T)
-    stats2 = ripqp(qmT_2, display = false)
-    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
-    @test stats2.status == :first_order
-  end
-
-  qm16 = QuadraticModel(
-    Float16.(c),
-    Float16.(Q),
-    A = Float16.(A),
-    lcon = Float16.(b),
-    ucon = Float16.(b),
-    lvar = Float16.(l),
-    uvar = Float16.(u),
-    c0 = Float16(0.0),
-    x0 = zeros(Float16, 3),
-    name = "QM16",
-  )
-  stats_dense = ripqp(qm16, itol = InputTol(Float16), display = false)
-  @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
-  @test stats_dense.status == :first_order
 end
 
 @testset "multi solvers" begin

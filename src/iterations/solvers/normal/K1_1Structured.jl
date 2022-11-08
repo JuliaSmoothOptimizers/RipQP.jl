@@ -90,8 +90,6 @@ function PreallocatedData(
   pt::Point{T},
   iconf::InputConfig{Tconf},
 ) where {T <: Real, Tconf <: Real}
-  @assert typeof(iconf.solve_method) <: IPF
-
   # init Regularization values
   E = similar(fd.c, id.nvar)
   if iconf.mode == :mono
@@ -152,6 +150,7 @@ function solver!(
   cnts::Counters,
   step::Symbol,
 ) where {T <: Real}
+  @assert typeof(dda) <: DescentDirectionAllocsIPF
   pad.ξ1 .= @views step == :init ? fd.c : dd[1:(id.nvar)]
   pad.ξ2 .= @views (step == :init && all(dd[(id.nvar + 1):end] .== zero(T))) ? one(T) :
          dd[(id.nvar + 1):end]

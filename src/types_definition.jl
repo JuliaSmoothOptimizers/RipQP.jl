@@ -33,11 +33,45 @@ mutable struct QM_IntData
   nupp::Int # length(iupp)
 end
 
+struct IntDataInit{I <: Integer}
+  nvar::I
+  ncon::I
+  ilow::Vector{I}
+  iupp::Vector{I}
+  irng::Vector{I}
+  ifix::Vector{I}
+  jlow::Vector{I}
+  jupp::Vector{I}
+  jrng::Vector{I}
+  jfix::Vector{I}
+end
+
+IntDataInit(QM::AbstractQuadraticModel) = IntDataInit(
+    QM.meta.nvar,
+    QM.meta.ncon,
+    QM.meta.ilow,
+    QM.meta.iupp,
+    QM.meta.irng,
+    QM.meta.ifix,
+    QM.meta.jlow,
+    QM.meta.jupp,
+    QM.meta.jrng,
+    QM.meta.jfix,
+  )
+
 """
 Abstract type for tuning the parameters of the different solvers. 
 Each solver has its own `SolverParams` type.
 """
 abstract type SolverParams{T} end
+
+solver_type(::SolverParams{T}) where {T} = T
+
+function next_type(::Type{T}, ::Type{T0}) where {T, T0}
+  T == T0 && return T0
+  T == Float32 && return Float64
+  T == Float64 && return T0
+end
 
 """
 Type to write the matrix (.mtx format) and the right hand side (.rhs format) of the system to solve at each iteration.
@@ -66,27 +100,16 @@ SystemWrite(; write::Bool = false, name::String = "", kfirst::Int = 0, kgap::Int
 
 abstract type SolveMethod end
 
-mutable struct InputConfig{
-  I <: Integer,
-  SP <: SolverParams,
-  SP2 <: Union{Nothing, SolverParams},
-  SP3 <: Union{Nothing, SolverParams},
-  SM <: SolveMethod,
-}
+abstract type DescentDirectionAllocs{T <: Real, S} end
+
+mutable struct InputConfig{I <: Integer}
   mode::Symbol
   early_multi_stop::Bool # stop earlier in multi-precision, based on some quantities of the algorithm
   scaling::Bool
-  presolve::Bool
   normalize_rtol::Bool # normalize the primal and dual tolerance to the initial starting primal and dual residuals
   kc::I # multiple centrality corrections, -1 = automatic computation
   perturb::Bool
   minimize::Bool
-
-  # Functions to choose formulations
-  sp::SP
-  sp2::SP2 # second solver to use (usually when using multi-prec in Floa64)
-  sp3::SP3 # third solver to use (usually when using multi-prec in Floa128)
-  solve_method::SM
 
   # output tools
   history::Bool
@@ -286,11 +309,12 @@ function init_residuals(
   rbNorm::T,
   rcNorm::T,
   iconf::InputConfig,
+  sp::SolverParams,
   id::QM_IntData,
 ) where {T <: Real}
   S = typeof(rb)
   if iconf.history
-    stype = typeof(iconf.sp)
+    stype = typeof(sp)
     if stype <: NewtonParams
       Kn = length(rb) + length(rc) + id.nlow + id.nupp
     elseif stype <: NormalParams
@@ -545,6 +569,7 @@ function ScaleData(fd::QM_FloatData{T, S}, id::QM_IntData, scaling::Bool) where 
     empty_v = S(undef, 0)
     sd = ScaleDataQP{T, S}(empty_v, empty_v)
   end
+  return sd
 end
 
 convert(
@@ -566,14 +591,161 @@ mutable struct StopCrit{T}
 end
 
 mutable struct Counters
+  time_allocs::Float64
+  time_solve::Float64
   c_catch::Int # safety try:cath
   c_regu_dim::Int # number of δ_min reductions
   k::Int # iter count
   km::Int # iter relative to precision: if k+=1 and T==Float128, km +=16  (km+=4 if T==Float64 and km+=1 if T==Float32)
-  tfact::UInt64
-  tsolve::UInt64
+  tfact::UInt64 # time linear solve
+  tsolve::UInt64 # time linear solve
   kc::Int # maximum corrector steps
   c_ref::Int # current number of refinements
   w::SystemWrite # store SystemWrite data
   last_sp::Bool # true if currently using the last solver to iterate (always true in mono-precision)
+  iters_sp::Int
+  iters_sp2::Int
+  iters_sp3::Int
+end
+
+mutable struct PreallocatedFloatData{
+    T,
+    S,
+    Res <: AbstractResiduals{T, S},
+    Dda <: DescentDirectionAllocs{T, S},
+    Pad <: PreallocatedData{T, S},
+  }
+  pt::Point{T, S}
+  res::Res
+  itd::IterData{T, S}
+  dda::Dda
+  pad::Pad
+end
+
+abstract type AbstractRipQPSolver{T, S} <: SolverCore.AbstractOptimizationSolver end
+
+mutable struct RipQPMonoSolver{
+  T,
+  S,
+  I,
+  QMType <: AbstractQuadraticModel{T, S},
+  Sd <: ScaleData{T, S},
+  Tsc <: Real,
+  QMfd <: Abstract_QM_FloatData{T, S},
+  Pfd <: PreallocatedFloatData{T, S},
+} <: AbstractRipQPSolver{T, S}
+  QM::QMType
+  id::QM_IntData
+  iconf::InputConfig{I}
+  itol::InputTol{T, I}
+  sd::Sd
+  spd::StartingPointData{T, S}
+  sc::StopCrit{Tsc}
+  cnts::Counters
+  display::Bool
+
+  fd::QMfd
+  ϵ::Tolerances{T}
+
+  pfd::Pfd # initial data in type of 1st solver
+end
+
+mutable struct RipQPDoubleSolver{
+  T,
+  S,
+  I,
+  QMType <: AbstractQuadraticModel{T, S},
+  Sd <: ScaleData{T, S},
+  Tsc <: Real,
+  T1,
+  S1,
+  QMfd1 <: Abstract_QM_FloatData{T1, S1},
+  QMfd2 <: Abstract_QM_FloatData{T, S},
+  Pfd <: PreallocatedFloatData{T1, S1},
+} <: AbstractRipQPSolver{T, S}
+  QM::QMType
+  id::QM_IntData
+  iconf::InputConfig{I}
+  itol::InputTol{T, I}
+  sd::Sd
+  spd::StartingPointData{T1, S1}
+  sc::StopCrit{Tsc}
+  cnts::Counters
+  display::Bool
+
+  fd1::QMfd1
+  ϵ1::Tolerances{T1}
+
+  fd2::QMfd2
+  ϵ2::Tolerances{T}
+
+  pfd::Pfd # initial data in type of 1st solver
+end
+
+mutable struct RipQPTripleSolver{
+  T,
+  S,
+  I,
+  QMType <: AbstractQuadraticModel{T, S},
+  Sd <: ScaleData{T, S},
+  Tsc <: Real,
+  T1,
+  S1,
+  QMfd1 <: Abstract_QM_FloatData{T1, S1},
+  T2,
+  QMfd2 <: Abstract_QM_FloatData{T2},
+  QMfd3 <: Abstract_QM_FloatData{T, S},
+  Pfd <: PreallocatedFloatData{T1, S1},
+} <: AbstractRipQPSolver{T, S}
+  QM::QMType
+  id::QM_IntData
+  iconf::InputConfig{I}
+  itol::InputTol{T, I}
+  sd::Sd
+  spd::StartingPointData{T1, S1}
+  sc::StopCrit{Tsc}
+  cnts::Counters
+  display::Bool
+
+  fd1::QMfd1
+  ϵ1::Tolerances{T1}
+
+  fd2::QMfd2
+  ϵ2::Tolerances{T2}
+
+  fd3::QMfd3
+  ϵ3::Tolerances{T}
+
+  pfd::Pfd # initial data in type of 1st solver
+end
+
+abstract type AbstractRipQPParameters{T} end
+
+struct RipQPMonoParameters{T <: Real, SP1 <: SolverParams{T}, SM1 <: SolveMethod} <: AbstractRipQPParameters{T}
+  sp::SP1
+  solve_method::SM1
+end
+
+struct RipQPDoubleParameters{
+  T <: Real,
+  SP1 <: SolverParams, SP2 <: SolverParams{T}, 
+  SM1 <: SolveMethod, SM2 <: SolveMethod,
+} <: AbstractRipQPParameters{T}
+  sp::SP1
+  sp2::SP2
+  solve_method::SM1
+  solve_method2::SM2
+end
+
+struct RipQPTripleParameters{
+  T <: Real,
+  SP1 <: SolverParams, SP2 <: SolverParams, SP3 <: SolverParams{T}, 
+  SM1 <: SolveMethod, SM2 <: SolveMethod, SM3 <: SolveMethod,
+} <: AbstractRipQPParameters{T}
+  sp::SP1
+  sp2::SP2
+  sp3::SP3
+  solve_method::SM1
+  solve_method2::SM2
+  solve_method3::SM3
 end
