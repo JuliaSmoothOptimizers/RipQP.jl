@@ -65,13 +65,13 @@ function ripqp(
 
   QM_inner, stats_inner, idi = get_inner_model_data(QM, QMps, ps, scaling, history)
 
-  solver = RipQPSolver(QM_inner, ap; history = history, scaling = scaling, display = display, kwargs...)
+  solver =
+    RipQPSolver(QM_inner, ap; history = history, scaling = scaling, display = display, kwargs...)
 
   SolverCore.solve!(solver, QM_inner, stats_inner, ap)
 
   return get_stats_outer(stats_inner, QM, QMps, solver.id, idi, start_time, ps)
 end
-
 
 """
     stats = ripqp(QM :: QuadraticModel{T0};
