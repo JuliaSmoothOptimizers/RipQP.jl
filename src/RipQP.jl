@@ -9,6 +9,7 @@ using HSL,
   LinearOperators,
   LLSModels,
   NLPModelsModifiers,
+  OperatorScaling,
   QuadraticModels,
   SolverCore,
   SparseMatricesCOO

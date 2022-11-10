@@ -301,7 +301,6 @@ function update_pad!(
     update_diag_K11!(pad.K, pad.D, pad.mt.diagind_K, id.nvar)
     update_diag_K22!(pad.K, pad.regu.δ, pad.mt.diagind_K, id.nvar, id.ncon)
     if pad.equilibrate
-      pad.mt.Deq.diag .= one(T)
       @timeit_debug to "equilibration" equilibrate!(
         pad.K,
         pad.mt.Deq,
