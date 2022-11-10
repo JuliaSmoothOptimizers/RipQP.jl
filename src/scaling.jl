@@ -1,184 +1,7 @@
-return_one_if_zero(val::T) where {T <: Real} = (val == zero(T)) ? one(T) : val
-
-function get_norm_rc_CSC!(v, A_colptr, A_rowval, A_nzval, n, ax)
-  T = eltype(v)
-  v .= zero(T)
-  for j = 1:n
-    @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
-      k = ax == :row ? A_rowval[i] : j
-      A_nzi_abs = abs(A_nzval[i])
-      if A_nzi_abs > v[k]
-        v[k] = A_nzi_abs
-      end
-    end
-  end
-
-  v .= sqrt.(v)
-  @inbounds @simd for i = 1:length(v)
-    if v[i] == zero(T)
-      v[i] = one(T)
-    end
-  end
-end
-get_norm_rc!(v, A::SparseMatrixCSC, ax) =
-  get_norm_rc_CSC!(v, A.colptr, A.rowval, A.nzval, size(A, 2), ax)
-
-function get_norm_rc_CSC_sym!(v, A_colptr, A_rowval, A_nzval, n)
-  T = eltype(v)
-  v .= zero(T)
-  for j = 1:n
-    @inbounds for i = A_colptr[j]:(A_colptr[j + 1] - 1)
-      k = A_rowval[i]
-      A_nzi_abs = abs(A_nzval[i])
-      if A_nzi_abs > v[k]
-        v[k] = A_nzi_abs
-      end
-      if A_nzi_abs > v[j]
-        v[j] = A_nzi_abs
-      end
-    end
-  end
-
-  v .= sqrt.(v)
-  @inbounds @simd for i = 1:length(v)
-    if v[i] == zero(T)
-      v[i] = one(T)
-    end
-  end
-end
-get_norm_rc!(v, A::Symmetric{T, SparseMatrixCSC{T, Int}}, ax) where {T} =
-  get_norm_rc_CSC_sym!(v, A.data.colptr, A.data.rowval, A.data.nzval, size(A, 2))
-
-function get_norm_rc!(v, A, ax)
-  T = eltype(v)
-  v .= zero(T)
-  if ax == :row
-    maximum!(abs, v, A)
-  elseif ax == :col
-    maximum!(abs, v', A)
-  end
-  v .= return_one_if_zero.(sqrt.(v))
-end
-
-function mul_D1_A_D2_CSC!(A_colptr, A_rowval, A_nzval, d1, d2, r, c, uplo)
-  for j = 1:length(c)
-    @inbounds @simd for i = A_colptr[j]:(A_colptr[j + 1] - 1)
-      A_nzval[i] /= r[A_rowval[i]] * c[j]
-    end
-  end
-
-  if uplo == :U
-    d1 ./= c
-    d2 ./= r
-  else
-    d1 ./= r
-    d2 ./= c
-  end
-end
-mul_D1_A_D2(A::SparseMatrixCSC, d1, d2, R, C, uplo) =
-  mul_D1_A_D2_CSC!(A.colptr, A.rowval, A.nzval, d1, d2, R.diag, C.diag, uplo)
-
-function mul_D1_A_D2(A, d1, d2, R, C, uplo)
-  ldiv!(R, A)
-  rdiv!(A, C)
-  if uplo == :U
-    d1 ./= C.diag
-    d2 ./= R.diag
-  else
-    d1 ./= R.diag
-    d2 ./= C.diag
-  end
-end
-
-function mul_Q_D_CSC!(Q_colptr, Q_rowval, Q_nzval, d, c)
-  for j = 1:length(d)
-    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
-      Q_nzval[i] /= c[Q_rowval[i]] * c[j]
-    end
-  end
-  d ./= c
-end
-mul_Q_D!(Q::SparseMatrixCSC, d, C) = mul_Q_D_CSC!(Q.colptr, Q.rowval, Q.nzval, d, C.diag)
-
-function mul_Q_D!(Q, d, C)
-  ldiv!(C, Q)
-  rdiv!(Q, C)
-  d ./= C.diag
-end
-
-function mul_Q_D2_CSC!(Q_colptr, Q_rowval, Q_nzval, d2)
-  for j = 1:length(d2)
-    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
-      Q_nzval[i] *= d2[Q_rowval[i]] * d2[j]
-    end
-  end
-end
-mul_Q_D2!(Q::SparseMatrixCSC, D2) = mul_Q_D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D2.diag)
-
-function mul_Q_D2!(Q, D2)
-  lmul!(D2, Q)
-  rmul!(Q, D2)
-end
-
-# equilibration scaling (transform A so that its rows and cols have an infinite norm close to 1): 
-# A ← D2 * A * D1 (uplo = :L), R_k, C_k are storage Diagonal Arrays that have the same size as D1, D2
-# or A ← D2 * Aᵀ * D1 (uplo = :U), R_k, C_k are storage Diagonal Arrays that have the same size as D2, D1
-# ϵ is the norm tolerance on the row and cols infinite norm of A
-# max_iter is the maximum number of iterations
-function equilibrate!(
-  A::AbstractMatrix{T},
-  D1::Diagonal{T, S},
-  D2::Diagonal{T, S},
-  R_k::Diagonal{T, S},
-  C_k::Diagonal{T, S};
-  ϵ::T = T(1.0e-2),
-  max_iter::Int = 100,
-  uplo::Symbol = :L,
-) where {T <: Real, S <: AbstractVector{T}}
-  min(size(A)...) == 0 && return
-  get_norm_rc!(R_k.diag, A, :row)
-  get_norm_rc!(C_k.diag, A, :col)
-  mul_D1_A_D2(A, D1.diag, D2.diag, R_k, C_k, uplo)
-  R_k.diag .= abs.(one(T) .- R_k.diag)
-  C_k.diag .= abs.(one(T) .- C_k.diag)
-  convergence = maximum(R_k.diag) <= ϵ && maximum(C_k.diag) <= ϵ
-  k = 1
-  while !convergence && k < max_iter
-    get_norm_rc!(R_k.diag, A, :row)
-    get_norm_rc!(C_k.diag, A, :col)
-    mul_D1_A_D2(A, D1.diag, D2.diag, R_k, C_k, uplo)
-    R_k.diag .= abs.(one(T) .- R_k.diag)
-    C_k.diag .= abs.(one(T) .- C_k.diag)
-    convergence = maximum(R_k.diag) <= ϵ && maximum(C_k.diag) <= ϵ
-    k += 1
-  end
-end
-
 # Symmetric equilibration scaling (transform Q so that its rows and cols have an infinite norm close to 1): 
 # Q ← D3 * Q * D3, C_k is a storage Diagonal Array that has the same size as D3
 # ϵ is the norm tolerance on the row and cols infinite norm of A
 # max_iter is the maximum number of iterations
-function equilibrate!(
-  Q::Symmetric{T},
-  D3::Diagonal{T, S},
-  C_k::Diagonal{T, S};
-  ϵ::T = T(1.0e-2),
-  max_iter::Int = 100,
-) where {T <: Real, S <: AbstractVector{T}}
-  size(Q, 1) == 0 && return
-  get_norm_rc!(C_k.diag, Q, :col)
-  mul_Q_D!(Q.data, D3.diag, C_k)
-  C_k.diag .= abs.(one(T) .- C_k.diag)
-  convergence = maximum(C_k.diag) <= ϵ
-  k = 1
-  while !convergence && k < max_iter
-    get_norm_rc!(C_k.diag, Q, :col)
-    mul_Q_D!(Q.data, D3.diag, C_k)
-    C_k.diag .= abs.(one(T) .- C_k.diag)
-    convergence = maximum(C_k.diag) <= ϵ
-    k += 1
-  end
-end
 
 function scaling!(
   fd_T0::QM_FloatData{T},
@@ -197,12 +20,27 @@ function scaling!(
 
   # r (resp. c) norm of rows of AT (resp. cols) 
   # scaling: D2 * AT * D1
-  equilibrate!(fd_T0.A, D2, D1, C_k, R_k; ϵ = ϵ, max_iter = max_iter, uplo = fd_T0.uplo)
+  A_transposed = (fd_T0.uplo == :U)
+  equilibrate!(fd_T0.A, D2, D1, C_k, R_k; ϵ = ϵ, max_iter = max_iter, A_transposed = A_transposed)
 
   fd_T0.b .*= d2
   fd_T0.c .*= d1
   fd_T0.lvar ./= d1
   fd_T0.uvar ./= d1
+end
+
+function mul_Q_D2_CSC!(Q_colptr, Q_rowval, Q_nzval, d2)
+  for j = 1:length(d2)
+    @inbounds @simd for i = Q_colptr[j]:(Q_colptr[j + 1] - 1)
+      Q_nzval[i] *= d2[Q_rowval[i]] * d2[j]
+    end
+  end
+end
+mul_Q_D2!(Q::SparseMatrixCSC, D2) = mul_Q_D2_CSC!(Q.colptr, Q.rowval, Q.nzval, D2.diag)
+
+function mul_Q_D2!(Q, D2)
+  lmul!(D2, Q)
+  rmul!(Q, D2)
 end
 
 function div_D_Q_D_CSC!(Q_colptr, Q_rowval, Q_nzval, d, n)
@@ -431,7 +269,7 @@ function get_norm_rc_K2!(v, Q::Symmetric, A, D, deq, δ, nvar, ncon, uplo)
     rdiv!(A, Deq1)
   end
   v1 .= max.(v1, D)
-  v .= return_one_if_zero.(sqrt.(v))
+  v .= OperatorScaling.return_one_if_zero.(sqrt.(v))
 end
 
 function equilibrate_K2!(
