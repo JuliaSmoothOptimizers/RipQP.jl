@@ -15,17 +15,17 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
   rxs_l::S # - σ * μ * e + ΔX_aff * Δ_S_l_aff , size nlow
   rxs_u::S # σ * μ * e + ΔX_aff * Δ_S_u_aff , size nupp
   function DescentDirectionAllocsPC(
-    Δxy_aff::AbstractVector{T},
-    Δs_l_aff::AbstractVector{T},
-    Δs_u_aff::AbstractVector{T},
-    x_m_l_αΔ_aff::AbstractVector{T},
-    u_m_x_αΔ_aff::AbstractVector{T},
-    s_l_αΔ_aff::AbstractVector{T},
-    s_u_αΔ_aff::AbstractVector{T},
-    rxs_l::AbstractVector{T},
-    rxs_u::AbstractVector{T},
-  ) where {T <: Real}
-    S = typeof(Δxy_aff)
+    Δxy_aff::S,
+    Δs_l_aff::S,
+    Δs_u_aff::S,
+    x_m_l_αΔ_aff::S,
+    u_m_x_αΔ_aff::S,
+    s_l_αΔ_aff::S,
+    s_u_αΔ_aff::S,
+    rxs_l::S,
+    rxs_u::S,
+  ) where {S <: AbstractVector}
+    T = eltype(Δxy_aff)
     return new{T, S}(
       Δxy_aff,
       Δs_l_aff,
@@ -40,7 +40,7 @@ mutable struct DescentDirectionAllocsPC{T <: Real, S} <: DescentDirectionAllocs{
   end
 end
 
-DescentDirectionAllocs(id::QM_IntData, sm::PC, S::DataType) where {T <: Real} =
+DescentDirectionAllocs(id::QM_IntData, sm::PC, ::Type{S}) where {S <: AbstractVector} =
   DescentDirectionAllocsPC(
     S(undef, id.nvar + id.ncon), # Δxy_aff
     S(undef, id.nlow), # Δs_l_aff
@@ -222,15 +222,14 @@ mutable struct DescentDirectionAllocsIPF{T <: Real, S} <: DescentDirectionAllocs
   function DescentDirectionAllocsIPF(
     r::T,
     γ::T,
-    compl_l::AbstractVector{T},
-    compl_u::AbstractVector{T},
-  ) where {T <: Real}
-    S = typeof(compl_l)
+    compl_l::S,
+    compl_u::S,
+  ) where {T <: Real, S <: AbstractVector{T}}
     return new{T, S}(r, γ, compl_l, compl_u)
   end
 end
 
-function DescentDirectionAllocs(id::QM_IntData, sm::IPF, S::DataType)
+function DescentDirectionAllocs(id::QM_IntData, sm::IPF, ::Type{S}) where {S <: AbstractVector}
   T = eltype(S)
   return DescentDirectionAllocsIPF(T(sm.r), T(sm.γ), S(undef, id.nlow), S(undef, id.nupp))
 end

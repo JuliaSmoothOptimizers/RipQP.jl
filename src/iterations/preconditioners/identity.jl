@@ -29,7 +29,7 @@ function PreconditionerData(
   fd::QM_FloatData{T},
   regu::Regularization{T},
   K::Union{LinearOperator{T}, AbstractMatrix{T}},
-) where {T <: Real, PT <: Identity}
+) where {T <: Real}
   P = I
   return IdentityData{T, typeof(fd.c), typeof(P)}(P)
 end
