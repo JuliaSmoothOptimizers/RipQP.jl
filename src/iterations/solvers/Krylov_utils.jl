@@ -34,10 +34,8 @@ ksolve!(
   rhs,
   M = M,
   verbose = verbose,
-  atol = zero(T),
-  rtol = zero(T),
-  ratol = atol,
-  rrtol = rtol,
+  atol = atol,
+  rtol = rtol,
   itmax = itmax,
 )
 
