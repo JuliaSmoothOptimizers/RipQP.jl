@@ -98,7 +98,7 @@ qp_linop = QuadraticModel(
 )
 qp_dense = QuadraticModel(
   c,
-  tril(Q),
+  Symmetric(tril(Q), :L),
   A = A,
   lcon = b,
   ucon = b,
@@ -109,11 +109,11 @@ qp_dense = QuadraticModel(
 )
 
 @testset "Dense and LinearOperator QPs" begin
-  stats_linop = ripqp(qp_linop, sp = K2KrylovParams(), ps = false, scaling = false, display = false)
+  stats_linop = ripqp(qp_linop, sp = K2KrylovParams(kmethod = :gmres), ps = false, scaling = false, display = false)
   @test isapprox(stats_linop.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_linop.status == :first_order
 
-  stats_dense = ripqp(qp_dense, sp = K2KrylovParams(uplo = :U))
+  stats_dense = ripqp(qp_dense, sp = K2KrylovParams(kmethod = :gmres, uplo = :U))
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 
