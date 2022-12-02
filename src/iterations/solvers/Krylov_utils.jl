@@ -28,16 +28,7 @@ ksolve!(
   atol::T = T(sqrt(eps(T))),
   rtol::T = T(sqrt(eps(T))),
   itmax::Int = 0,
-) where {T} = minres!(
-  KS,
-  K,
-  rhs,
-  M = M,
-  verbose = verbose,
-  atol = atol,
-  rtol = rtol,
-  itmax = itmax,
-)
+) where {T} = minres!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
   KS::MinresQlpSolver{T},
