@@ -1,6 +1,6 @@
 module RipQP
 
-using DelimitedFiles, LinearAlgebra, MatrixMarket, Quadmath, SparseArrays, TimerOutputs
+using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, TimerOutputs
 
 using HSL,
   Krylov,

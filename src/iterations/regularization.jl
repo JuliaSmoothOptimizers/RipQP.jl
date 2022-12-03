@@ -91,7 +91,8 @@ function update_regu_diagK2!(
            @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / eps(T) &&
                   @views maximum(K_nzval[diagind_K[1:nvar]]) > -one(T) / 10
       regu.regul == :classic && return 1
-    elseif T == Float128 &&
+    elseif T != Float32 &&
+           T != Float64 &&
            cnts.k > 10 &&
            cnts.c_catch <= 1 &&
            @views minimum(K_nzval[diagind_K[1:nvar]]) < -one(T) / regu.δ / T(1e-15)
@@ -126,7 +127,8 @@ function update_regu_diagK2_5!(
     cnts.c_regu_dim += 1
   elseif !cnts.last_sp && cnts.c_regu_dim < 2 && @views minimum(D) < -one(T) / regu.δ / T(1e-5)
     return 1
-  elseif T == Float128 &&
+  elseif T != Float32 &&
+         T != Float64 &&
          cnts.k > 10 &&
          cnts.c_catch <= 1 &&
          @views minimum(D) < -one(T) / regu.δ / T(1e-15)
