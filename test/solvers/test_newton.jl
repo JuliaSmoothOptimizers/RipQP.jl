@@ -96,10 +96,10 @@ end
 
 @testset "K3_5 structured" begin
   for kmethod in [:gpmr, :trimr]
-    stats3 = ripqp(
-      QuadraticModel(qps3),
+    stats2 = ripqp(
+      QuadraticModel(qps2),
       display = false,
-      sp = K3_5StructuredParams(kmethod = :gpmr),
+      sp = K3_5StructuredParams(kmethod = kmethod),
       solve_method = IPF(),
       history = true,
       itol = InputTol(
@@ -110,8 +110,8 @@ end
         ϵ_pdd = 1.0e-2,
       ),
     )
-    @test isapprox(stats3.objective, 5.32664756, atol = 1e-1)
-    @test stats3.status == :first_order
+    @test isapprox(stats2.objective, -9.99599999e1, atol = 1e0)
+    @test stats2.status == :first_order
   end
 end
 

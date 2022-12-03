@@ -1,5 +1,5 @@
-using HSL, LinearOperators, LLSModels, NLPModelsModifiers, QPSReader, QuadraticModels, Quadmath
-using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, Test
+using HSL, LinearOperators, LLSModels, NLPModelsModifiers, QPSReader, QuadraticModels
+using DelimitedFiles, DoubleFloats, LinearAlgebra, MatrixMarket, SparseArrays, Test
 using SuiteSparse # test cholmod
 using RipQP
 
