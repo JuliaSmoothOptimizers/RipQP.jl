@@ -567,12 +567,16 @@ solver_name(
   pad::Union{
     PreallocatedDataNewtonKrylov,
     PreallocatedDataAugmentedKrylov,
-    PreallocatedDataNormalKrylov,
   },
 ) = string(
   string(typeof(pad).name.name)[17:end],
   " with $(get_krylov_method_name(pad.KS))",
   " and $(precond_name(pad.pdat)) preconditioner",
+)
+
+solver_name(pad::PreallocatedDataNormalKrylov) = string(
+  string(typeof(pad).name.name)[17:end],
+  " with $(get_krylov_method_name(pad.KS))",
 )
 
 mutable struct GmresIRSolver{T, FC, S, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, FC, S}
