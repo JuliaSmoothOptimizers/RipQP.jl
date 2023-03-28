@@ -15,7 +15,7 @@ end
   for kmethod in [:cg, :cg_lanczos, :cr]
     stats4 = ripqp(
       QuadraticModel(qps4),
-      display = false,
+      display = true,
       sp = K1KrylovParams(kmethod = kmethod),
       solve_method = IPF(),
       history = true,
