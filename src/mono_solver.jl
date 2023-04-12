@@ -72,6 +72,7 @@ function SolverCore.solve!(
     post_scale!(sd, pt, res, fd, id, itd)
   end
 
+  cnts.iters_sp = cnts.k
   set_ripqp_stats!(stats, pt, res, pad, itd, id, sc, cnts, itol.max_iter)
   return stats
 end
