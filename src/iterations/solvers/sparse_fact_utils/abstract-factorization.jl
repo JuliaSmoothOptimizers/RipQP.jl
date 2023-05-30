@@ -80,7 +80,7 @@ struct HSLMA57Fact <: AbstractFactorization
   end
 end
 HSLMA57Fact(; regul::Symbol = :classic, sqd::Bool = true) = HSLMA57Fact(regul, sqd)
-if isdefined(HSL, :libhsl_ma57)
+if JULIAHSL_isfunctional()
   include("ma57fact_utils.jl")
 end
 
@@ -98,7 +98,7 @@ struct HSLMA97Fact <: AbstractFactorization
   end
 end
 HSLMA97Fact(; regul::Symbol = :classic) = HSLMA97Fact(regul)
-if isdefined(HSL, :libhsl_ma97)
+if JULIAHSL_isfunctional()
   include("ma97fact_utils.jl")
 end
 
