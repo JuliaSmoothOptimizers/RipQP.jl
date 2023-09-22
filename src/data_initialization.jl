@@ -84,7 +84,7 @@ function get_mat_QPData(
   return fdA, Symmetric(fdQ, sp.uplo)
 end
 
-if JULIAHSL_isfunctional()
+if LIBHSL_isfunctional()
   get_mat_QPData(
     A::SparseMatrixCOO{T, Int},
     H::SparseMatrixCOO{T, Int},
