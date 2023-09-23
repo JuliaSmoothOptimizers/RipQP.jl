@@ -4,7 +4,6 @@ makedocs(
   modules = [RipQP],
   doctest = true,
   linkcheck = true,
-  strict = true,
   format = Documenter.HTML(
     assets = ["assets/style.css"],
     prettyurls = get(ENV, "CI", nothing) == "true",
