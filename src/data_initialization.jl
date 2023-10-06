@@ -84,7 +84,7 @@ function get_mat_QPData(
   return fdA, Symmetric(fdQ, sp.uplo)
 end
 
-if isdefined(HSL, :libhsl_ma57)
+if LIBHSL_isfunctional()
   get_mat_QPData(
     A::SparseMatrixCOO{T, Int},
     H::SparseMatrixCOO{T, Int},
