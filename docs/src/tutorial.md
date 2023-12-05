@@ -85,7 +85,7 @@ println(stats)
 You can also change the [`RipQP.InputTol`](https://jso.dev/RipQP.jl/stable/API/#RipQP.InputTol) type to change the tolerances for the stopping criteria:
 
 ```@example QM
-stats = ripqp(QM, itol = InputTol(max_iter = 100, ϵ_rb = 1e-4), ps=false, scaling = false)
+stats = ripqp(QM, itol = InputTol(max_iter = 5), ps=false, scaling = false)
 println(stats)
 ```
 
