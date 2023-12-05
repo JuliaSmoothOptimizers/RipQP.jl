@@ -77,15 +77,14 @@ pddH = stats.solver_specific[:pddH]
 
 You can use `RipQP` without presolve and scaling with:
 
-```@example QM
+```julia
 stats = ripqp(QM, ps=false, scaling = false)
-println(stats)
 ```
 
 You can also change the [`RipQP.InputTol`](https://jso.dev/RipQP.jl/stable/API/#RipQP.InputTol) type to change the tolerances for the stopping criteria:
 
 ```@example QM
-stats = ripqp(QM, itol = InputTol(max_iter = 5), ps=false, scaling = false)
+stats = ripqp(QM, itol = InputTol(max_iter = 5))
 println(stats)
 ```
 
