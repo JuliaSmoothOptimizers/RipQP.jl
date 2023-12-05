@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · RipQP.jl</title><meta name="title" content="Tutorial · RipQP.jl"/><meta property="og:title" content="Tutorial · RipQP.jl"/><meta property="twitter:title" content="Tutorial · RipQP.jl"/><meta name="description" content="Documentation for RipQP.jl."/><meta property="og:description" content="Documentation for RipQP.jl."/><meta property="twitter:description" content="Documentation for RipQP.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/style.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="RipQP.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">RipQP.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../API/">API</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Input"><span>Input</span></a></li><li><a class="tocitem" href="#Logging"><span>Logging</span></a></li><li><a class="tocitem" href="#Change-configuration-and-tolerances"><span>Change configuration and tolerances</span></a></li><li><a class="tocitem" href="#Save-the-Interior-Point-system"><span>Save the Interior-Point system</span></a></li><li><a class="tocitem" href="#Timers"><span>Timers</span></a></li></ul></li><li><a class="tocitem" href="../switch_solv/">Switching solvers</a></li><li><a class="tocitem" href="../multi_precision/">Multi-precision</a></li><li><a class="tocitem" href="../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaSmoothOptimizers/RipQP.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaSmoothOptimizers/RipQP.jl/blob/main/docs/src/tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><h2 id="Input"><a class="docs-heading-anchor" href="#Input">Input</a><a id="Input-1"></a><a class="docs-heading-anchor-permalink" href="#Input" title="Permalink"></a></h2><p>RipQP uses the package <a href="https://github.com/JuliaSmoothOptimizers/QuadraticModels.jl">QuadraticModels.jl</a> to model convex quadratic problems.</p><p>Here is a basic example:</p><pre><code class="language-julia hljs">using QuadraticModels, LinearAlgebra, SparseMatricesCOO
+Q = [6. 2. 1.
+     2. 5. 2.
+     1. 2. 4.]
+c = [-8.; -3; -3]
+A = [1. 0. 1.
+     0. 2. 1.]
+b = [0.; 3]
+l = [-1.0;0;0]
+u = [Inf; Inf; Inf]
+QM = QuadraticModel(
+  c,
+  SparseMatrixCOO(tril(Q)),
+  A=SparseMatrixCOO(A),
+  lcon=b,
+  ucon=b,
+  lvar=l,
+  uvar=u,
+  c0=0.,
+  name=&quot;QM&quot;
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">QuadraticModels.QuadraticModel{Float64, Vector{Float64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}}
+  Problem name: QM
+   All variables: ████████████████████ 3      All constraints: ████████████████████ 2     
+            free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           lower: ████████████████████ 3                lower: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           upper: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                upper: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+         low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           fixed: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                fixed: ████████████████████ 2     
+          infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+            nnzh: (  0.00% sparsity)   6               linear: ████████████████████ 2     
+                                                    nonlinear: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+                                                         nnzj: ( 33.33% sparsity)   4     
+
+  Counters:
+             obj: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 grad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 cons: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+        cons_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0             cons_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 jcon: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jgrad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                  jac: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              jac_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+         jac_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                jprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0            jprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+       jprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jtprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0           jtprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+      jtprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 hess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                hprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jhess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jhprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+</code></pre><p>Once your <code>QuadraticModel</code> is loaded, you can simply solve it RipQP:</p><pre><code class="language-julia hljs">using RipQP
+stats = ripqp(QM)
+println(stats)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Solving in Float64 using K2LDL with LDLFactorizationData
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>  iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ         ρ         δ
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     0   3.6e+00   9.9e-01   1.4e+00   3.8e+00   0.0e+00   0.0e+00   5.9e+00   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     1   1.6e+00   2.7e-01   4.1e-03   1.4e-03   1.0e+00   1.0e+00   2.4e-01   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     2   1.2e+00   2.1e-02   5.5e-05   4.5e-05   1.0e+00   1.0e+00   1.5e-02   1.5e-04   1.5e-04
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     3   1.1e+00   1.0e-04   6.9e-07   1.9e-05   1.0e+00   1.0e+00   6.1e-05   1.5e-05   1.5e-05
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     4   1.1e+00   1.0e-07   1.0e-09   1.9e-08   1.0e+00   1.0e+00   6.1e-08   1.5e-06   1.5e-06
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     5   1.1e+00   1.0e-10   1.1e-12   1.8e-11   1.0e+00   1.0e+00   6.1e-11   1.5e-07   1.5e-07
+Generic Execution stats
+  status: first-order stationary
+  objective value: 1.1250000001819647
+  primal feasibility: 5.253818735984856e-13
+  dual feasibility: 4.5240388878182354e-11
+  solution: [-6.602556960437742e-11  1.499999999967075  6.550018773077893e-11]
+  multipliers: [-5.000000000443094  2.249999999907261]
+  multipliers_L: [1.3498983056074131e-12  9.350004367856938e-13  2.7500000006802963]
+  multipliers_U: [0.0  0.0  0.0]
+  iterations: 5
+  elapsed time: 8.138829946517944
+  solver specific:
+    iters_sp: 5
+    pdd: 1.002449365261327e-10
+    psoperations: ∅
+    iters_sp3: 0
+    iters_sp2: 0
+    relative_iter_cnt: 20</code></pre><p>The <code>stats</code> output is a <a href="https://jso.dev/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats">GenericExecutionStats</a>.</p><p>It is also possible to use the package <a href="https://github.com/JuliaSmoothOptimizers/QPSReader.jl">QPSReader.jl</a> in order to read convex quadratic problems in MPS or SIF formats: (download <a href="https://raw.githubusercontent.com/JuliaSmoothOptimizers/RipQP.jl/main/test/QAFIRO.SIF">QAFIRO</a>)</p><pre><code class="language-julia hljs">using QPSReader, QuadraticModels
+QM = QuadraticModel(readqps(&quot;assets/QAFIRO.SIF&quot;))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">QuadraticModels.QuadraticModel{Float64, Vector{Float64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}}
+  Problem name: Generic
+   All variables: ████████████████████ 32     All constraints: ████████████████████ 27    
+            free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 free: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           lower: ████████████████████ 32               lower: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           upper: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                upper: ███████████████⋅⋅⋅⋅⋅ 19    
+         low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              low/upp: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           fixed: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                fixed: ██████⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 8     
+          infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               infeas: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+            nnzh: ( 98.86% sparsity)   6               linear: ████████████████████ 27    
+                                                    nonlinear: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+                                                         nnzj: ( 90.39% sparsity)   83    
+
+  Counters:
+             obj: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 grad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 cons: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+        cons_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0             cons_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 jcon: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jgrad: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                  jac: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0              jac_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+         jac_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                jprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0            jprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+       jprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jtprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0           jtprod_lin: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+      jtprod_nln: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                 hess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0                hprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+           jhess: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0               jhprod: ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 0     
+</code></pre><h2 id="Logging"><a class="docs-heading-anchor" href="#Logging">Logging</a><a id="Logging-1"></a><a class="docs-heading-anchor-permalink" href="#Logging" title="Permalink"></a></h2><p>RipQP displays some logs at each iterate.</p><pre><code class="language-julia hljs">stats = ripqp(QM)
+println(stats)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Solving in Float64 using K2LDL with LDLFactorizationData
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>  iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ         ρ         δ
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     0   5.1e+03   5.2e+00   5.3e+02   6.2e+01   0.0e+00   0.0e+00   8.2e+02   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     1   2.8e+02   4.7e+01   7.7e+01   8.7e+00   8.6e-01   2.9e-01   3.4e+02   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     2   2.8e+02   3.7e+01   4.3e+01   7.3e+00   4.4e-01   2.8e-01   2.6e+02   1.5e-04   1.5e-04
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     3   2.2e+02   3.0e+00   2.5e+00   5.4e-01   9.4e-01   9.9e-01   1.5e+01   1.5e-05   1.5e-05
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     4   3.6e+01   2.1e+00   8.2e-03   6.4e-02   1.0e+00   9.9e-01   1.6e+00   1.5e-06   1.5e-06
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     5   4.7e+00   1.9e+00   3.5e-06   1.4e-06   1.0e+00   1.0e+00   2.2e-01   1.5e-07   1.5e-07
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     6  -4.3e-01   7.7e-01   1.1e-07   3.1e-01   1.0e+00   7.7e-01   3.5e-02   1.5e-08   1.5e-08
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     7  -1.5e+00   5.3e-02   1.1e-08   1.1e-02   9.1e-01   9.8e-01   3.1e-03   1.5e-09   1.5e-09
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     8  -1.6e+00   6.1e-05   1.0e-10   1.3e-05   1.0e+00   1.0e+00   3.7e-06   1.5e-10   1.5e-09
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     9  -1.6e+00   6.1e-08   2.6e-13   1.3e-08   1.0e+00   1.0e+00   3.7e-09   1.5e-11   1.5e-09
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    10  -1.6e+00   6.1e-11   7.1e-15   1.3e-11   1.0e+00   1.0e+00   3.7e-12   1.5e-12   1.5e-09
+Generic Execution stats
+  status: first-order stationary
+  objective value: -1.590781793787462
+  primal feasibility: 7.105427357601002e-15
+  dual feasibility: 4.0220152292944574e-11
+  solution: [0.38028479685706695  8.806189977065276e-13  0.3802847968561864  0.40310188466849095 ⋯ 1.6759073619030825e-13]
+  multipliers: [-4.466932765449747  -2.2377603513257897e-12  -1.980617639140097e-14  -3.642178610385085 ⋯ -6.781571768245936e-15]
+  multipliers_L: [3.0441783478982717e-12  1.185323748792536  2.340230871153934e-12  2.242879722664324e-12 ⋯ 10.000000000000178]
+  multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
+  iterations: 10
+  elapsed time: 0.1435389518737793
+  solver specific:
+    iters_sp: 10
+    pdd: 6.100201586626379e-11
+    psoperations: [QuadraticModels.SingletonRow{Float64, Vector{Float64}}(3, 1, 1.0, false, true)  QuadraticModels.SingletonRow{Float64, Vector{Float64}}(13, 16, 1.0, false, true)]
+    iters_sp3: 0
+    iters_sp2: 0
+    relative_iter_cnt: 40</code></pre><p>You can deactivate logging with</p><pre><code class="language-julia hljs">stats = ripqp(QM, display = false)
+println(stats)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Generic Execution stats
+  status: first-order stationary
+  objective value: -1.590781793787462
+  primal feasibility: 7.105427357601002e-15
+  dual feasibility: 4.0220152292944574e-11
+  solution: [0.38028479685706695  8.806189977065276e-13  0.3802847968561864  0.40310188466849095 ⋯ 1.6759073619030825e-13]
+  multipliers: [-4.466932765449747  -2.2377603513257897e-12  -1.980617639140097e-14  -3.642178610385085 ⋯ -6.781571768245936e-15]
+  multipliers_L: [3.0441783478982717e-12  1.185323748792536  2.340230871153934e-12  2.242879722664324e-12 ⋯ 10.000000000000178]
+  multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
+  iterations: 10
+  elapsed time: 0.0002830028533935547
+  solver specific:
+    iters_sp: 10
+    pdd: 6.100201586626379e-11
+    psoperations: [QuadraticModels.SingletonRow{Float64, Vector{Float64}}(3, 1, 1.0, false, true)  QuadraticModels.SingletonRow{Float64, Vector{Float64}}(13, 16, 1.0, false, true)]
+    iters_sp3: 0
+    iters_sp2: 0
+    relative_iter_cnt: 40</code></pre><p>It is also possible to get a history of several quantities such as the primal and dual residuals and the relative primal-dual gap. These quantites are available in the dictionary <code>solver_specific</code> of the <code>stats</code>.</p><pre><code class="language-julia hljs">stats = ripqp(QM, display = false, history = true)
+pddH = stats.solver_specific[:pddH]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">11-element Vector{Float64}:
+  5.202001221940632
+ 47.09291657152063
+ 37.04715154649735
+  2.9705628772130837
+  2.0982950800102707
+  1.949512880288423
+  0.7749630402562204
+  0.05312630164594008
+  6.100127510228456e-5
+  6.100081602192295e-8
+  6.100201586626379e-11</code></pre><h2 id="Change-configuration-and-tolerances"><a class="docs-heading-anchor" href="#Change-configuration-and-tolerances">Change configuration and tolerances</a><a id="Change-configuration-and-tolerances-1"></a><a class="docs-heading-anchor-permalink" href="#Change-configuration-and-tolerances" title="Permalink"></a></h2><p>You can use <code>RipQP</code> without presolve and scaling with:</p><pre><code class="language-julia hljs">stats = ripqp(QM, ps=false, scaling = false)</code></pre><p>You can also change the <a href="https://jso.dev/RipQP.jl/stable/API/#RipQP.InputTol"><code>RipQP.InputTol</code></a> type to change the tolerances for the stopping criteria:</p><pre><code class="language-julia hljs">stats = ripqp(QM, itol = InputTol(max_iter = 5))
+println(stats)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Solving in Float64 using K2LDL with LDLFactorizationData
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>  iter       obj      rgap      ‖rb‖      ‖rc‖     α_pri      α_du         μ         ρ         δ
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     0   5.1e+03   5.2e+00   5.3e+02   6.2e+01   0.0e+00   0.0e+00   8.2e+02   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     1   2.8e+02   4.7e+01   7.7e+01   8.7e+00   8.6e-01   2.9e-01   3.4e+02   1.5e-03   1.5e-03
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     2   2.8e+02   3.7e+01   4.3e+01   7.3e+00   4.4e-01   2.8e-01   2.6e+02   1.5e-04   1.5e-04
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     3   2.2e+02   3.0e+00   2.5e+00   5.4e-01   9.4e-01   9.9e-01   1.5e+01   1.5e-05   1.5e-05
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     4   3.6e+01   2.1e+00   8.2e-03   6.4e-02   1.0e+00   9.9e-01   1.6e+00   1.5e-06   1.5e-06
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>     5   4.7e+00   1.9e+00   3.5e-06   1.4e-06   1.0e+00   1.0e+00   2.2e-01   1.5e-07   1.5e-07
+Generic Execution stats
+  status: maximum iteration
+  objective value: 4.658954498519296
+  primal feasibility: 3.4981491245367202e-6
+  dual feasibility: 1.6824715908247967e-6
+  solution: [0.743878138254691  0.004674605650346285  0.7392033550578112  0.78851071023687 ⋯ 0.002243926732604866]
+  multipliers: [-7.826615009307647  -0.44355741689044687  -0.0002826585049596877  -7.445204284037653 ⋯ -9.745279751756744e-5]
+  multipliers_L: [0.1452930232869297  1.5112382757139278  0.6014690171102718  0.44363007256944875 ⋯ 10.002732536283734]
+  multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
+  iterations: 5
+  elapsed time: 0.00976109504699707
+  solver specific:
+    iters_sp: 5
+    pdd: 1.949512880288423
+    psoperations: [QuadraticModels.SingletonRow{Float64, Vector{Float64}}(3, 1, 1.0, false, true)  QuadraticModels.SingletonRow{Float64, Vector{Float64}}(13, 16, 1.0, false, true)]
+    iters_sp3: 0
+    iters_sp2: 0
+    relative_iter_cnt: 20</code></pre><h2 id="Save-the-Interior-Point-system"><a class="docs-heading-anchor" href="#Save-the-Interior-Point-system">Save the Interior-Point system</a><a id="Save-the-Interior-Point-system-1"></a><a class="docs-heading-anchor-permalink" href="#Save-the-Interior-Point-system" title="Permalink"></a></h2><p>At every iteration, RipQP solves two linear systems with the default Predictor-Corrector method (the affine system and the corrector-centering system), or one linear system with the Infeasible Path-Following method.</p><p>To save these systems, you can use:</p><pre><code class="language-julia hljs">w = SystemWrite(write = true, name=&quot;test_&quot;, kfirst = 4, kgap=3)
+stats = ripqp(QM, w = w)</code></pre><p>This will save one matrix and the associated two right hand sides of the PC method every three iterations starting at iteration four. Then, you can read the saved files with:</p><pre><code class="language-julia hljs">using DelimitedFiles, MatrixMarket
+K = MatrixMarket.mmread(&quot;test_K_iter4.mtx&quot;)
+rhs_aff = readdlm(&quot;test_rhs_iter4_aff.rhs&quot;, Float64)[:]
+rhs_cc =  readdlm(&quot;test_rhs_iter4_cc.rhs&quot;, Float64)[:];</code></pre><h2 id="Timers"><a class="docs-heading-anchor" href="#Timers">Timers</a><a id="Timers-1"></a><a class="docs-heading-anchor-permalink" href="#Timers" title="Permalink"></a></h2><p>You can see the elapsed time with:</p><pre><code class="language-julia hljs">stats.elapsed_time</code></pre><p>For more advance timers you can use <a href="https://github.com/KristofferC/TimerOutputs.jl">TimerOutputs.jl</a>:</p><pre><code class="language-julia hljs">using TimerOutputs
+TimerOutputs.enable_debug_timings(RipQP)
+reset_timer!(RipQP.to)
+stats = ripqp(QM)
+TimerOutputs.complement!(RipQP.to) # print complement of timed sections
+show(RipQP.to, sortby = :firstexec)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../switch_solv/">Switching solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Tuesday 5 December 2023 21:28">Tuesday 5 December 2023</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
