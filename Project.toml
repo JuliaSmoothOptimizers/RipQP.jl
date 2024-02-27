@@ -1,7 +1,7 @@
 name = "RipQP"
 uuid = "1e40b3f8-35eb-4cd8-8edd-3e515bb9de08"
 authors = ["Geoffroy Leconte <gleconte50@gmail.com> and contributors"]
-version = "0.6.3"
+version = "0.6.4"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -30,7 +30,7 @@ LLSModels = "0.3.4"
 LimitedLDLFactorizations = "0.5"
 LinearOperators = "2"
 MatrixMarket = "0.3, 0.4, 0.5"
-NLPModelsModifiers = "0.6"
+NLPModelsModifiers = "0.6, 0.7"
 OperatorScaling = "0.1"
 QuadraticModels = "^0.9.5"
 Requires = "1.1.3"
