@@ -1,53 +1,46 @@
-using .CUDA
+using .CUDA, .CUDA.CUSPARSE
 
 include("iterations/solvers/gpu/K2KrylovLDLGPU.jl")
 
 function get_mat_QPData(
-  A::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
-  H::CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti},
+  A::CuSparseMatrixCOO{T, Cint},
+  H::CuSparseMatrixCOO{T, Cint},
   nvar::Int,
   ncon::Int,
   sp::K2KrylovGPUParams,
-) where {T, Ti}
+) where {T}
   # A is Aᵀ of QuadraticModel QM
-  fdA = CUDA.CUSPARSE.CuSparseMatrixCSC(
-    sparse(Vector(A.colInd), Vector(A.rowInd), Vector(A.nzVal), nvar, ncon),
-  )
-  fdQ = CUDA.CUSPARSE.CuSparseMatrixCSC(
-    sparse(Vector(H.colInd), Vector(H.rowInd), Vector(H.nzVal), nvar, nvar),
-  )
+  fdA = CuSparseMatrixCSC(A)
+  fdQ = CuSparseMatrixCSC(H)
   return fdA, Symmetric(fdQ, sp.uplo)
 end
 
-change_vector_eltype(S0::Type{<:CUDA.CuVector}, ::Type{T}) where {T} =
+change_vector_eltype(S0::Type{<:CuVector}, ::Type{T}) where {T} =
   S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
 
-convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSC, ::Type{T}) where {T} =
-  CUDA.CUSPARSE.CuSparseMatrixCSC(
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colPtr),
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowVal),
-    convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
+convert_mat(M::CuSparseMatrixCSC, ::Type{T}) where {T} =
+  CuSparseMatrixCSC(
+    CuVector{Cint}(M.colPtr),
+    CuVector{Cint}(M.rowVal),
+    CuVector{T}(M.nzVal),
     M.dims,
   )
-convert_mat(M::CUDA.CUSPARSE.CuSparseMatrixCSR, ::Type{T}) where {T} =
-  CUDA.CUSPARSE.CuSparseMatrixCSR(
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.rowPtr),
-    convert(CUDA.CuArray{Int, 1, CUDA.Mem.DeviceBuffer}, M.colVal),
-    convert(CUDA.CuArray{T, 1, CUDA.Mem.DeviceBuffer}, M.nzVal),
+convert_mat(M::CuSparseMatrixCSR, ::Type{T}) where {T} =
+  CuSparseMatrixCSR(
+    CuVector{Int}(M.rowPtr),
+    CuVector{Int}(M.colVal),
+    CuVector{T}(M.nzVal),
     M.dims,
   )
-convert_mat(M::CUDA.CuMatrix, ::Type{T}) where {T} =
-  convert(typeof(M).name.wrapper{T, 2, CUDA.Mem.DeviceBuffer}, M)
+convert_mat(M::CuMatrix, ::Type{T}) where {T} = CuMatrix{T}(M)
 
-function sparse_dropzeros(rows, cols, vals::CuVector, nrows, ncols)
-  CPUvals = Vector(vals)
-  M = sparse(rows, cols, CPUvals, ncols, nrows)
-  dropzeros!(M)
-  MGPU = CUDA.CUSPARSE.CuSparseMatrixCSR(M)
+function sparse_dropzeros(rows, cols, vals::CuVector{T}, nrows, ncols) where {T}
+  CuSparseMatrixCSR(rows, cols, CPUvals, (ncols, nrows))
+  MGPU = dropzeros!(M, eps(T))
   return MGPU
 end
 
-function get_diag_Q_dense(Q::CUDA.CUSPARSE.CuSparseMatrixCSR{T}) where {T <: Real}
+function get_diag_Q_dense(Q::CuSparseMatrixCSR{T}) where {T <: Real}
   n = size(Q, 1)
   diagval = CUDA.zeros(T, n)
   fill_diag_Q_dense!(Q.rowPtr, Q.colVal, Q.nzVal, diagval, n)
@@ -57,8 +50,8 @@ end
 function fill_diag_Q_dense!(
   Q_rowPtr,
   Q_colVal,
-  Q_nzVal::CUDA.CuVector{T},
-  diagval::CUDA.CuVector{T},
+  Q_nzVal::CuVector{T},
+  diagval::CuVector{T},
   n,
 ) where {T <: Real}
   function kernel(Q_rowPtr, Q_colVal, Q_nzVal, diagval, n)
@@ -100,7 +93,7 @@ end
 
 # starting points
 function update_rngbounds!(x, irng, lvar, uvar, ϵ)
-  @views broadcast!(check_bounds, x[irng], x[irng], lvar[irng], uvar[irng])
+  broadcast!(check_bounds, view(x,irng), view(x,irng), view(lvar,irng), view(uvar,irng))
 end
 
 # α computation (in iterations.jl)
@@ -155,7 +148,7 @@ end
   store_vdual_l::CuVector,
   store_vdual_u::CuVector,
 )
-  α_pri = @views compute_α_primal_gpu(x, Δxy[1:nvar], lvar, uvar, store_vpri)
+  α_pri = compute_α_primal_gpu(x, view(Δxy,1:nvar), lvar, uvar, store_vpri)
   α_dual_l = compute_α_dual_gpu(s_l, Δs_l, store_vdual_l)
   α_dual_u = compute_α_dual_gpu(s_u, Δs_u, store_vdual_u)
   return α_pri, min(α_dual_l, α_dual_u)
@@ -176,8 +169,8 @@ function dual_obj_gpu(
   store_vdual_l,
   store_vdual_u,
 )
-  store_vdual_l .= @views lvar[ilow]
-  store_vdual_u .= @views uvar[iupp]
+  store_vdual_l .= view(lvar, ilow)
+  store_vdual_u .= view(uvar, iupp)
   dual_obj = dot(b, y) - xTQx_2 + dot(s_l, store_vdual_l) - dot(s_u, store_vdual_u) + c0
   return dual_obj
 end
@@ -204,20 +197,20 @@ function slackdata2(
   data::QuadraticModels.QPData{T, S, M1, M2},
   meta::NLPModelsModifiers.NLPModelMeta{T},
   ns::Int,
-) where {T, S, M1 <: CUDA.CUSPARSE.CuSparseMatrixCOO, M2 <: CUDA.CUSPARSE.CuSparseMatrixCOO}
+) where {T, S, M1 <: CuSparseMatrixCOO, M2 <: CuSparseMatrixCOO}
   nvar_slack = meta.nvar + ns
   Ti = (T == Float64) ? Int64 : Int32
   return QuadraticModels.QPData(
     copy(data.c0),
     [data.c; fill!(similar(data.c, ns), zero(T))],
-    CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti}(
+    CuSparseMatrixCOO{T, Ti}(
       Ti.(data.H.rowInd),
       Ti.(data.H.colInd),
       data.H.nzVal,
       (nvar_slack, nvar_slack),
       length(data.H.nzVal),
     ),
-    CUDA.CUSPARSE.CuSparseMatrixCOO{T, Ti}(
+    CuSparseMatrixCOO{T, Ti}(
       CuVector{Ti}([Vector(data.A.rowInd); meta.jlow; meta.jupp; meta.jrng]),
       CuVector{Ti}([Vector(data.A.colInd); (meta.nvar + 1):(meta.nvar + ns)]),
       CuVector([Vector(data.A.nzVal); fill!(Vector{T}(undef, ns), -one(T))]),
@@ -230,7 +223,7 @@ end
 function NLPModelsModifiers.SlackModel(
   qp::AbstractQuadraticModel{T, S},
   name = qp.meta.name * "-slack",
-) where {T, S <: CUDA.CuArray}
+) where {T, S <: CuArray}
   qp.meta.ncon == length(qp.meta.jfix) && return qp
   nfix = length(qp.meta.jfix)
   ns = qp.meta.ncon - nfix
