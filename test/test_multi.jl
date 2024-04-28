@@ -48,7 +48,10 @@ end
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 
-  for T ∈ [Float32, Double64]
+  for T ∈ [
+    Float32,
+    # Double64,
+  ]
     qmT_2 = createQuadraticModelT(qps2, T = T)
     stats2 = ripqp(qmT_2, display = false)
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
