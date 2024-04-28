@@ -24,10 +24,10 @@ mutable struct LDLGPUData{
   F <: FactorizationData{Tlow},
 } <: PreconditionerData{T, S}
   K::Symmetric{T, SparseMatrixCSC{T, Int}}
-  L::UnitLowerTriangular{Tlow, CUDA.CUSPARSE.CuSparseMatrixCSC{Tlow, Int32}} # T or Tlow?
-  d::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
-  tmp_res::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
-  tmp_v::CUDA.CuVector{Tlow, CUDA.Mem.DeviceBuffer}
+  L::UnitLowerTriangular{Tlow, CuSparseMatrixCSC{Tlow, Cint}} # T or Tlow?
+  d::CuVector{Tlow}
+  tmp_res::CuVector{Tlow}
+  tmp_v::CuVector{Tlow}
   regu::Regularization{Tlow}
   K_fact::F # factorized matrix
   fact_fail::Bool # true if factorization failed
@@ -461,7 +461,7 @@ function get_K2_matrixdata(
   id::QM_IntData,
   D::AbstractVector,
   Q::Symmetric,
-  A::CUDA.CUSPARSE.AbstractCuSparseMatrix,
+  A::AbstractCuSparseMatrix,
   regu::Regularization,
   uplo::Symbol,
   ::Type{T},
@@ -474,8 +474,8 @@ function get_K2_matrixdata(
   return K, diagind_K, diag_Q
 end
 
-# function get_mat_QPData(A::CUDA.CUSPARSE.CuSparseMatrixCSC, H, nvar::Int, ncon::Int, uplo::Symbol)
-#   fdA = uplo == :U ? CUDA.CUSPARSE.CuSparseMatrixCSC(SparseMatrixCSC(transpose(SparseMatrixCSC(A)))) : A
-#   fdH = uplo == :U ? CUDA.CUSPARSE.CuSparseMatrixCSC(SparseMatrixCSC(transpose(SparseMatrixCSC(H)))) : H
+# function get_mat_QPData(A::CuSparseMatrixCSC, H, nvar::Int, ncon::Int, uplo::Symbol)
+#   fdA = uplo == :U ? _sptranspose(A) : A
+#   fdH = uplo == :U ? _sptranspose(H) : H
 #   return fdA, Symmetric(fdH, uplo)
 # end
