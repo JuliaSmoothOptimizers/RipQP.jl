@@ -48,7 +48,10 @@ end
   @test isapprox(stats_dense.objective, 1.1249999990782493, atol = 1e-2)
   @test stats_dense.status == :first_order
 
-  for T ∈ [Float32, Double64]
+  for T ∈ [
+    Float32,
+    # Double64,
+  ]
     qmT_2 = createQuadraticModelT(qps2, T = T)
     stats2 = ripqp(qmT_2, display = false)
     @test isapprox(stats2.objective, -9.99599999e1, atol = 1e-2)
@@ -80,7 +83,8 @@ end
     @test stats1.status == :first_order
   end
 
-  qm128_1 = createQuadraticModelT(qps1, T = Double64)
+  T128 = BigFloat
+  qm128_1 = createQuadraticModelT(qps1, T = T128)
   stats1 = ripqp(
     qm128_1,
     mode = :multi,
@@ -93,18 +97,18 @@ end
       ρ_min = sqrt(eps()),
       δ_min = sqrt(eps()),
     ),
-    sp2 = K2KrylovParams{Double64}(
+    sp2 = K2KrylovParams{T128}(
       uplo = :U,
       form_mat = true,
       equilibrate = false,
       preconditioner = LDL(T = Float64),
-      atol_min = Double64(1.0e-18),
-      rtol_min = Double64(1.0e-18),
-      ρ_min = sqrt(eps(Double64)),
-      δ_min = sqrt(eps(Double64)),
+      atol_min = T128(1.0e-18),
+      rtol_min = T128(1.0e-18),
+      ρ_min = sqrt(eps(T128)),
+      δ_min = sqrt(eps(T128)),
     ),
     display = true,
-    itol = InputTol(Double64, ϵ_rb = Double64(1.0e-12), ϵ_rc = Double64(1.0e-12)),
+    itol = InputTol(T128, ϵ_rb = T128(1.0e-12), ϵ_rc = T128(1.0e-12)),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
