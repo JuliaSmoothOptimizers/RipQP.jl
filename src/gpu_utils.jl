@@ -18,20 +18,14 @@ end
 change_vector_eltype(S0::Type{<:CuVector}, ::Type{T}) where {T} =
   S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
 
-convert_mat(M::CuSparseMatrixCSC, ::Type{T}) where {T} =
-  CuSparseMatrixCSC(
-    CuVector{Cint}(M.colPtr),
-    CuVector{Cint}(M.rowVal),
-    CuVector{T}(M.nzVal),
-    M.dims,
-  )
+convert_mat(M::CuSparseMatrixCSC, ::Type{T}) where {T} = CuSparseMatrixCSC(
+  CuVector{Cint}(M.colPtr),
+  CuVector{Cint}(M.rowVal),
+  CuVector{T}(M.nzVal),
+  M.dims,
+)
 convert_mat(M::CuSparseMatrixCSR, ::Type{T}) where {T} =
-  CuSparseMatrixCSR(
-    CuVector{Int}(M.rowPtr),
-    CuVector{Int}(M.colVal),
-    CuVector{T}(M.nzVal),
-    M.dims,
-  )
+  CuSparseMatrixCSR(CuVector{Int}(M.rowPtr), CuVector{Int}(M.colVal), CuVector{T}(M.nzVal), M.dims)
 convert_mat(M::CuMatrix, ::Type{T}) where {T} = CuMatrix{T}(M)
 
 function sparse_dropzeros(rows, cols, vals::CuVector{T}, nrows, ncols) where {T}
@@ -93,7 +87,7 @@ end
 
 # starting points
 function update_rngbounds!(x, irng, lvar, uvar, ϵ)
-  broadcast!(check_bounds, view(x,irng), view(x,irng), view(lvar,irng), view(uvar,irng))
+  broadcast!(check_bounds, view(x, irng), view(x, irng), view(lvar, irng), view(uvar, irng))
 end
 
 # α computation (in iterations.jl)
@@ -148,7 +142,7 @@ end
   store_vdual_l::CuVector,
   store_vdual_u::CuVector,
 )
-  α_pri = compute_α_primal_gpu(x, view(Δxy,1:nvar), lvar, uvar, store_vpri)
+  α_pri = compute_α_primal_gpu(x, view(Δxy, 1:nvar), lvar, uvar, store_vpri)
   α_dual_l = compute_α_dual_gpu(s_l, Δs_l, store_vdual_l)
   α_dual_u = compute_α_dual_gpu(s_u, Δs_u, store_vdual_u)
   return α_pri, min(α_dual_l, α_dual_u)
