@@ -1,4 +1,5 @@
-export AbstractFactorization, LDLFact, HSLMA57Fact, HSLMA97Fact, CholmodFact, QDLDLFact, LLDLFact
+export AbstractFactorization, LDLFact, HSLMA57Fact, HSLMA97Fact
+export CholmodFact, QDLDLFact, LLDLFact, CUDSSFact
 
 import LinearAlgebra.ldiv!
 
@@ -118,3 +119,19 @@ end
 LLDLFact(; regul::Symbol = :classic, mem::Int = 0, droptol::Float64 = 0.0) =
   LLDLFact(regul, mem, droptol)
 include("lldlfact_utils.jl")
+
+"""
+    fact_alg = CUDSSFact(; regul = :classic)
+
+Choose [`CUDSS.jl`](https://github.com/exanauts/CUDSS.jl) to perform LDLᵀ and Cholesky decompositions.
+"""
+struct CUDSSFact <: AbstractFactorization
+  regul::Symbol
+  structure::Char
+  view::Char
+  function CUDSSFact(regul::Symbol, structure::String, view::Char)
+    regul == :classic || regul == :none || error("regul should be :classic or :none")
+    return new(regul, structure, view)
+  end
+end
+CUDSSFact(; regul::Symbol = :classic, structure::String = "S", view::Char = 'U') = CUDSSFact(regul, structure, view)
