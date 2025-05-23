@@ -1,4 +1,5 @@
 include("solvers/sparse_fact_utils/abstract-factorization.jl")
+include("solvers/sparse_fact_utils/cholmod_utils.jl")
 include("solve_method.jl")
 include("centrality_corr.jl")
 include("regularization.jl")
