@@ -40,7 +40,7 @@ println(stats)
 ```
 
 The `stats` output is a
-[GenericExecutionStats](https://jso.dev/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats).
+[GenericExecutionStats](https://jso.dev/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats).
 
 It is also possible to use the package [QPSReader.jl](https://github.com/JuliaSmoothOptimizers/QPSReader.jl) in order to
 read convex quadratic problems in MPS or SIF formats: (download [QAFIRO](https://raw.githubusercontent.com/JuliaSmoothOptimizers/RipQP.jl/main/test/QAFIRO.SIF))
