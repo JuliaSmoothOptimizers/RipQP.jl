@@ -85,7 +85,7 @@ end
                   history = false, w = SystemWrite(), display = true) where {T0<:Real}
 
 Minimize a convex quadratic problem. Algorithm stops when the criteria in pdd, rb, and rc are valid.
-Returns a [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats) 
+Returns a [GenericExecutionStats](https://jso.dev/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats) 
 containing information about the solved problem.
 
 - `QM :: QuadraticModel`: problem to solve
@@ -117,11 +117,11 @@ containing information about the solved problem.
     If they are `nothing`, then the solve method used is `solve_method`. 
 - `history :: Bool` : set to true to return the primal and dual norm histories, the primal-dual relative difference
     history, and the number of products if using a Krylov method in the `solver_specific` field of the 
-    [GenericExecutionStats](https://juliasmoothoptimizers.github.io/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats)
+    [GenericExecutionStats](https://jso.dev/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats)
 - `w :: SystemWrite`: configure writing of the systems to solve (no writing is done by default), see [`RipQP.SystemWrite`](@ref)
 - `display::Bool`: activate/deactivate iteration data display
 
-You can also use `ripqp` to solve a [LLSModel](https://juliasmoothoptimizers.github.io/LLSModels.jl/stable/#LLSModels.LLSModel):
+You can also use `ripqp` to solve a [LLSModel](https://jso.dev/LLSModels.jl/stable/#LLSModels.LLSModel):
 
     stats = ripqp(LLS::LLSModel{T0}; mode = :mono,
                   sp = (mode == :mono) ? K2LDLParams{T0}() : K2LDLParams{Float32}(), 
