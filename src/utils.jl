@@ -32,7 +32,7 @@ function push_history_residuals!(
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
   elseif pad_type <: PreallocatedDataNormalKrylov
-    push!(res.kiterH, niterations(pad.KS))
+    push!(res.kiterH, Krylov.iteration_count(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
   end
 end

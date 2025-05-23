@@ -201,7 +201,7 @@ function solver!(
     pad.ξ12,
     :K1_1,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
 
   return 0
 end

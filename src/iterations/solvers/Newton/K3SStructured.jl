@@ -419,7 +419,7 @@ function solver!(
     id.ilow,
     id.iupp,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
     kunscale!(pad.KS.y, rhsNorm)
