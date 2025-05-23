@@ -77,7 +77,7 @@ end
 
 K3KrylovParams(; kwargs...) = K3KrylovParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovWorkspace} <:
                PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   rhs_scale::Bool

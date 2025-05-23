@@ -74,7 +74,7 @@ K2_5StructuredParams(; kwargs...) = K2_5StructuredParams{Float64}(; kwargs...)
 mutable struct PreallocatedDataK2_5Structured{
   T <: Real,
   S,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
   L <: AbstractLinearOperator{T},
 } <: PreallocatedDataAugmentedKrylovStructured{T, S}
   E::S                                  # temporary top-left diagonal

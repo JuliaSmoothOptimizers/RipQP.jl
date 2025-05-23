@@ -111,7 +111,7 @@ mutable struct PreallocatedDataK2Krylov{
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
   MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal

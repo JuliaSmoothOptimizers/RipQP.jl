@@ -77,7 +77,7 @@ mutable struct PreallocatedDataK2_5Krylov{
   S,
   L <: LinearOperator,
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal

@@ -148,10 +148,10 @@ function update_preconditioner!(
   copyto!(pad.pdat.L.data.nzVal, pad.pdat.K_fact.LDL.Lx)
   copyto!(pad.pdat.d, pad.pdat.K_fact.LDL.d)
   if !(
-    typeof(pad.KS) <: GmresSolver ||
-    typeof(pad.KS) <: DqgmresSolver ||
-    typeof(pad.KS) <: GmresIRSolver ||
-    typeof(pad.KS) <: IRSolver
+    typeof(pad.KS) <: GmresWorkspace ||
+    typeof(pad.KS) <: DqgmresWorkspace ||
+    typeof(pad.KS) <: GmresIRWorkspace ||
+    typeof(pad.KS) <: IRWorkspace
   )
     @. pad.pdat.d = abs(pad.pdat.d)
   end
@@ -240,7 +240,7 @@ mutable struct PreallocatedDataK2KrylovGPU{
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
   MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal

@@ -88,7 +88,7 @@ mutable struct PreallocatedDataK3_5Krylov{
   S,
   L <: LinearOperator,
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataNewtonKrylov{T, S}
   pdat::Pr
   rhs::S

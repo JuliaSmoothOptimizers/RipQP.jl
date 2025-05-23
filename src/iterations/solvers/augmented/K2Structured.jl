@@ -64,7 +64,7 @@ end
 
 K2StructuredParams(; kwargs...) = K2StructuredParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK2Structured{T <: Real, S, Ksol <: KrylovWorkspace} <:
                PreallocatedDataAugmentedKrylovStructured{T, S}
   E::S  # temporary top-left diagonal
   invE::S

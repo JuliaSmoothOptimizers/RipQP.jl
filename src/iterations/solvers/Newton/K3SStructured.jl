@@ -82,7 +82,7 @@ mutable struct PreallocatedDataK3SStructured{
   L1 <: LinearOperator,
   L2 <: LinearOperator,
   L3 <: LinearOperator,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataNewtonKrylovStructured{T, S}
   rhs1::S
   rhs2::S
