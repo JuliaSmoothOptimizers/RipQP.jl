@@ -1,6 +1,6 @@
 module RipQP
 
-using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, TimerOutputs
+using DelimitedFiles, LinearAlgebra, MatrixMarket, SparseArrays, SuiteSparse, TimerOutputs
 
 using HSL,
   Krylov,
@@ -19,9 +19,6 @@ function __init__()
   @require CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba" include("gpu_utils.jl")
   @require QDLDL = "bfc457fd-c171-5ab7-bd9e-d5dbfc242d63" include(
     "iterations/solvers/sparse_fact_utils/qdldl_utils.jl",
-  )
-  @require SuiteSparse = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9" include(
-    "iterations/solvers/sparse_fact_utils/cholmod_utils.jl",
   )
 end
 
