@@ -171,7 +171,7 @@ function update_preconditioner!(
       pdat.tmp_res,
       pdat.tmp_v,
     )
-    warm_start!(pad.KS, pad.KS.x)
+    Krylov.warm_start!(pad.KS, pad.KS.x)
   end
 end
 
