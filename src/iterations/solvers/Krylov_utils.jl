@@ -1,4 +1,4 @@
-function init_Kworkspace(M, v, sp::SolverParams)
+function init_Ksolver(M, v, sp::SolverParams)
   kmethod = sp.kmethod
   if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
     return krylov_workspace(Val(kmethod), M, v, sp.mem)
