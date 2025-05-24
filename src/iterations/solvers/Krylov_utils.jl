@@ -1,10 +1,10 @@
 function init_Ksolver(M, v, sp::SolverParams)
   kmethod = sp.kmethod
   if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
-    return krylov_workspace(Val(kmethod), M, v; memory=sp.mem)
+    return krylov_workspace(Val(kmethod), M, v; memory = sp.mem)
   elseif kmethod == :gmresir
     return GmresIRWorkspace(
-      GmresWorkspace(M, v; memory=sp.mem),
+      GmresWorkspace(M, v; memory = sp.mem),
       similar(v, sp.Tir),
       similar(v),
       similar(v),
