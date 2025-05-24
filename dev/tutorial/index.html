@@ -60,14 +60,14 @@ Generic Execution stats
   multipliers_L: [1.3498983056074131e-12  9.350004367856938e-13  2.7500000006802963]
   multipliers_U: [0.0  0.0  0.0]
   iterations: 5
-  elapsed time: 11.814198970794678
+  elapsed time: 11.85023307800293
   solver specific:
     iters_sp: 5
     pdd: 1.002449365261327e-10
     psoperations: ∅
     iters_sp3: 0
     iters_sp2: 0
-    relative_iter_cnt: 20</code></pre><p>The <code>stats</code> output is a <a href="https://jso.dev/SolverCore.jl/dev/reference/#SolverCore.GenericExecutionStats">GenericExecutionStats</a>.</p><p>It is also possible to use the package <a href="https://github.com/JuliaSmoothOptimizers/QPSReader.jl">QPSReader.jl</a> in order to read convex quadratic problems in MPS or SIF formats: (download <a href="https://raw.githubusercontent.com/JuliaSmoothOptimizers/RipQP.jl/main/test/QAFIRO.SIF">QAFIRO</a>)</p><pre><code class="language-julia hljs">using QPSReader, QuadraticModels
+    relative_iter_cnt: 20</code></pre><p>The <code>stats</code> output is a <a href="https://jso.dev/SolverCore.jl/stable/reference/#SolverCore.GenericExecutionStats">GenericExecutionStats</a>.</p><p>It is also possible to use the package <a href="https://github.com/JuliaSmoothOptimizers/QPSReader.jl">QPSReader.jl</a> in order to read convex quadratic problems in MPS or SIF formats: (download <a href="https://raw.githubusercontent.com/JuliaSmoothOptimizers/RipQP.jl/main/test/QAFIRO.SIF">QAFIRO</a>)</p><pre><code class="language-julia hljs">using QPSReader, QuadraticModels
 QM = QuadraticModel(readqps(&quot;assets/QAFIRO.SIF&quot;))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">QuadraticModels.QuadraticModel{Float64, Vector{Float64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}, SparseMatricesCOO.SparseMatrixCOO{Float64, Int64}}
   Problem name: Generic
    All variables: ████████████████████ 32     All constraints: ████████████████████ 27    
@@ -113,7 +113,7 @@ Generic Execution stats
   multipliers_L: [3.0441783478982717e-12  1.185323748792536  2.340230871153934e-12  2.242879722664324e-12 ⋯ 10.000000000000178]
   multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
   iterations: 10
-  elapsed time: 0.1316211223602295
+  elapsed time: 0.13448500633239746
   solver specific:
     iters_sp: 10
     pdd: 6.100201586626379e-11
@@ -131,7 +131,7 @@ println(stats)</code></pre><pre class="documenter-example-output"><code class="n
   multipliers_L: [3.0441783478982717e-12  1.185323748792536  2.340230871153934e-12  2.242879722664324e-12 ⋯ 10.000000000000178]
   multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
   iterations: 10
-  elapsed time: 0.0003101825714111328
+  elapsed time: 0.0003349781036376953
   solver specific:
     iters_sp: 10
     pdd: 6.100201586626379e-11
@@ -169,7 +169,7 @@ Generic Execution stats
   multipliers_L: [0.1452930232869297  1.5112382757139278  0.6014690171102718  0.44363007256944875 ⋯ 10.002732536283734]
   multipliers_U: [0.0  0.0  0.0  0.0 ⋯ 0.0]
   iterations: 5
-  elapsed time: 0.0065021514892578125
+  elapsed time: 0.006509065628051758
   solver specific:
     iters_sp: 5
     pdd: 1.949512880288423
@@ -185,4 +185,4 @@ TimerOutputs.enable_debug_timings(RipQP)
 reset_timer!(RipQP.to)
 stats = ripqp(QM)
 TimerOutputs.complement!(RipQP.to) # print complement of timed sections
-show(RipQP.to, sortby = :firstexec)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../switch_solv/">Switching solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Saturday 14 December 2024 14:20">Saturday 14 December 2024</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+show(RipQP.to, sortby = :firstexec)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../API/">« API</a><a class="docs-footer-nextpage" href="../switch_solv/">Switching solvers »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Saturday 24 May 2025 11:47">Saturday 24 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
