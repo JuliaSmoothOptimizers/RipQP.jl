@@ -80,7 +80,7 @@ end
 
 K1KrylovParams(; kwargs...) = K1KrylovParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK1Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK1Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovWorkspace} <:
                PreallocatedDataNormalKrylov{T, S}
   D::S
   rhs::S
@@ -204,7 +204,7 @@ function solver!(
     itmax = pad.itmax,
   )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end

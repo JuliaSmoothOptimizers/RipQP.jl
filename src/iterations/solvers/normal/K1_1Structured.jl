@@ -63,7 +63,7 @@ end
 
 K1_1StructuredParams(; kwargs...) = K1_1StructuredParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK1_1Structured{T <: Real, S, Ksol <: KrylovWorkspace} <:
                PreallocatedDataNormalKrylovStructured{T, S}
   E::S  # temporary top-left diagonal
   invE::S
@@ -201,7 +201,7 @@ function solver!(
     pad.ξ12,
     :K1_1,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
 
   return 0
 end

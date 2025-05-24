@@ -77,7 +77,7 @@ mutable struct PreallocatedDataK2_5Krylov{
   S,
   L <: LinearOperator,
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal
@@ -224,7 +224,7 @@ function solver!(
     itmax = pad.itmax,
   )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end

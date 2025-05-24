@@ -329,13 +329,13 @@ function update_preconditioner!(
     else
       ldiv_stor!(pad.KS.x, pad.pdat.K_fact, pad.rhs, pad.pdat.tmp_res, pad.pdat.tmp_v)
     end
-    warm_start!(pad.KS, pad.KS.x)
+    Krylov.warm_start!(pad.KS, pad.KS.x)
   end
   if !(
-    typeof(pad.KS) <: GmresSolver ||
-    typeof(pad.KS) <: DqgmresSolver ||
-    typeof(pad.KS) <: GmresIRSolver ||
-    typeof(pad.KS) <: IRSolver
+    typeof(pad.KS) <: GmresWorkspace ||
+    typeof(pad.KS) <: DqgmresWorkspace ||
+    typeof(pad.KS) <: GmresIRWorkspace ||
+    typeof(pad.KS) <: IRWorkspace
   )
     abs_diagonal!(pad.pdat.K_fact)
   end

@@ -39,7 +39,6 @@ include("ldlfact_utils.jl")
     fact_alg = CholmodFact(; regul = :classic)
 
 Choose `ldlt` from Cholmod to compute factorizations.
-`using SuiteSparse` should be used before `using RipQP`.
 """
 struct CholmodFact <: AbstractFactorization
   regul::Symbol

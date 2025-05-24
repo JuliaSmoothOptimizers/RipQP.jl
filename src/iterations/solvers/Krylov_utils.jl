@@ -1,12 +1,10 @@
-import Krylov.KRYLOV_SOLVERS
-
 function init_Ksolver(M, v, sp::SolverParams)
   kmethod = sp.kmethod
   if kmethod ∈ (:gpmr, :diom, :fom, :dqgmres, :gmres)
-    return eval(KRYLOV_SOLVERS[kmethod])(M, v, sp.mem)
+    return krylov_workspace(Val(kmethod), M, v; memory=sp.mem)
   elseif kmethod == :gmresir
-    return GmresIRSolver(
-      GmresSolver(M, v, sp.mem),
+    return GmresIRWorkspace(
+      GmresWorkspace(M, v; memory=sp.mem),
       similar(v, sp.Tir),
       similar(v),
       similar(v),
@@ -14,13 +12,14 @@ function init_Ksolver(M, v, sp::SolverParams)
       0,
     )
   elseif kmethod == :ir
-    return IRSolver(similar(v), similar(v), similar(v, sp.Tir), similar(v), similar(v), false, 0)
+    return IRWorkspace(similar(v), similar(v), similar(v, sp.Tir), similar(v), similar(v), false, 0)
+  else
+    return krylov_workspace(Val(kmethod), M, v)
   end
-  return eval(KRYLOV_SOLVERS[kmethod])(M, v)
 end
 
 ksolve!(
-  KS::MinresSolver{T},
+  KS::MinresWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -31,7 +30,7 @@ ksolve!(
 ) where {T} = minres!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::MinresQlpSolver{T},
+  KS::MinresQlpWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -43,7 +42,7 @@ ksolve!(
   minres_qlp!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::SymmlqSolver{T},
+  KS::SymmlqWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -54,7 +53,7 @@ ksolve!(
 ) where {T} = symmlq!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::CgSolver{T},
+  KS::CgWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -65,7 +64,7 @@ ksolve!(
 ) where {T} = cg!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::CgLanczosSolver{T},
+  KS::CgLanczosWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -77,7 +76,7 @@ ksolve!(
   cg_lanczos!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::CrSolver{T},
+  KS::CrWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -88,7 +87,7 @@ ksolve!(
 ) where {T} = cr!(KS, K, rhs, M = M, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::BilqSolver{T},
+  KS::BilqWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -99,7 +98,7 @@ ksolve!(
 ) where {T} = bilq!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::QmrSolver{T},
+  KS::QmrWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -110,7 +109,7 @@ ksolve!(
 ) where {T} = qmr!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::UsymlqSolver{T},
+  KS::UsymlqWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -121,7 +120,7 @@ ksolve!(
 ) where {T} = usymlq!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::UsymqrSolver{T},
+  KS::UsymqrWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -132,7 +131,7 @@ ksolve!(
 ) where {T} = usymqr!(KS, K, rhs, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::BicgstabSolver{T},
+  KS::BicgstabWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -143,7 +142,7 @@ ksolve!(
 ) where {T} = bicgstab!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::DiomSolver{T},
+  KS::DiomWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -154,7 +153,7 @@ ksolve!(
 ) where {T} = diom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::FomSolver{T},
+  KS::FomWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -165,7 +164,7 @@ ksolve!(
 ) where {T} = fom!(KS, K, rhs, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::DqgmresSolver{T},
+  KS::DqgmresWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -177,7 +176,7 @@ ksolve!(
   dqgmres!(KS, K, rhs, M = M, N = I, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::DqgmresSolver{T},
+  KS::DqgmresWorkspace{T},
   K,
   rhs::AbstractVector{T},
   P::LRPrecond;
@@ -189,7 +188,7 @@ ksolve!(
   dqgmres!(KS, K, rhs, M = P.M, N = P.N, verbose = verbose, atol = atol, rtol = rtol, itmax = itmax)
 
 ksolve!(
-  KS::GmresSolver{T},
+  KS::GmresWorkspace{T},
   K,
   rhs::AbstractVector{T},
   M;
@@ -211,7 +210,7 @@ ksolve!(
 )
 
 ksolve!(
-  KS::GmresSolver{T},
+  KS::GmresWorkspace{T},
   K,
   rhs::AbstractVector{T},
   P::LRPrecond;
@@ -233,7 +232,7 @@ ksolve!(
 )
 
 ksolve!(
-  KS::TricgSolver{T},
+  KS::TricgWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -259,7 +258,7 @@ ksolve!(
 )
 
 ksolve!(
-  KS::TrimrSolver{T},
+  KS::TrimrWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -286,7 +285,7 @@ ksolve!(
 )
 
 function ksolve!(
-  KS::GpmrSolver{T},
+  KS::GpmrWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -320,7 +319,7 @@ end
 
 # gpmr solver for K3.5
 function ksolve!(
-  KS::GpmrSolver{T},
+  KS::GpmrWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   ξ2::AbstractVector{T},
@@ -350,7 +349,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LslqSolver{T},
+  KS::LslqWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   M,
@@ -378,7 +377,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LsqrSolver{T},
+  KS::LsqrWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   M,
@@ -407,7 +406,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LsmrSolver{T},
+  KS::LsmrWorkspace{T},
   A,
   ξ1::AbstractVector{T},
   M,
@@ -436,7 +435,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::LnlqSolver{T},
+  KS::LnlqWorkspace{T},
   A,
   ξ2::AbstractVector{T},
   M,
@@ -461,7 +460,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::CraigSolver{T},
+  KS::CraigWorkspace{T},
   A,
   ξ2::AbstractVector{T},
   M,
@@ -488,7 +487,7 @@ function ksolve!(
 end
 
 function ksolve!(
-  KS::CraigmrSolver{T},
+  KS::CraigmrWorkspace{T},
   A,
   ξ2::AbstractVector{T},
   M,
@@ -561,7 +560,7 @@ function update_kresiduals_history_K1struct!(
   end
 end
 
-get_krylov_method_name(KS::KrylovSolver) = uppercase(string(typeof(KS).name.name)[1:(end - 6)])
+get_krylov_method_name(KS::KrylovWorkspace) = uppercase(string(typeof(KS).name.name)[1:(end - 6)])
 
 solver_name(pad::Union{PreallocatedDataNewtonKrylov, PreallocatedDataAugmentedKrylov}) = string(
   string(typeof(pad).name.name)[17:end],
@@ -572,8 +571,8 @@ solver_name(pad::Union{PreallocatedDataNewtonKrylov, PreallocatedDataAugmentedKr
 solver_name(pad::PreallocatedDataNormalKrylov) =
   string(string(typeof(pad).name.name)[17:end], " with $(get_krylov_method_name(pad.KS))")
 
-mutable struct GmresIRSolver{T, FC, S, Tr, Sr <: AbstractVector{Tr}} <: KrylovSolver{T, FC, S}
-  solver::GmresSolver{T, FC, S}
+mutable struct GmresIRWorkspace{T, FC, S, Tr, Sr <: AbstractVector{Tr}} <: KrylovWorkspace{T, FC, S}
+  solver::GmresWorkspace{T, FC, S}
   r::Sr
   rsolves::S
   x::S
@@ -581,16 +580,16 @@ mutable struct GmresIRSolver{T, FC, S, Tr, Sr <: AbstractVector{Tr}} <: KrylovSo
   itertot::Int
 end
 
-Krylov.niterations(KS::GmresIRSolver) = KS.itertot
+Krylov.iteration_count(KS::GmresIRWorkspace) = KS.itertot
 
-function Krylov.warm_start!(KS::GmresIRSolver, x) # only indicate to warm_start
+function Krylov.warm_start!(KS::GmresIRWorkspace, x) # only indicate to warm_start
   KS.warm_start = true
 end
 
-status_to_char(KS::GmresIRSolver) = status_to_char(KS.solver.stats.status)
+status_to_char(KS::GmresIRWorkspace) = status_to_char(KS.solver.stats.status)
 
 function ksolve!(
-  KS::GmresIRSolver{T},
+  KS::GmresIRWorkspace{T},
   K,
   rhs::AbstractVector{T},
   P::LRPrecond;
@@ -629,15 +628,15 @@ function ksolve!(
     KS.x .+= KS.solver.x
     mul!(r, K, KS.x)
     @. r = rhs - r
-    iter += niterations(KS.solver)
+    iter += Krylov.iteration_count(KS.solver)
     rsolves .= r
-    optimal = iter ≥ itmax || niterations(KS.solver) == 0 || norm(rsolves) ≤ atol
+    optimal = iter ≥ itmax || Krylov.iteration_count(KS.solver) == 0 || norm(rsolves) ≤ atol
   end
   KS.itertot = iter
 end
 
-mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <:
-               KrylovSolver{T, T, S}
+mutable struct IRWorkspace{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}} <:
+               KrylovWorkspace{T, T, S}
   x_solve1::S
   x_solve2::S
   r::Sr
@@ -647,16 +646,16 @@ mutable struct IRSolver{T, S <: AbstractVector{T}, Tr, Sr <: AbstractVector{Tr}}
   itertot::Int
 end
 
-Krylov.niterations(KS::IRSolver) = KS.itertot
+Krylov.iteration_count(KS::IRWorkspace) = KS.itertot
 
-function Krylov.warm_start!(KS::IRSolver, x) # only indicate to warm_start
+function Krylov.warm_start!(KS::IRWorkspace, x) # only indicate to warm_start
   KS.warm_start = true
 end
 
-status_to_char(KS::IRSolver) = 's'
+status_to_char(KS::IRWorkspace) = 's'
 
 function ksolve!(
-  KS::IRSolver{T},
+  KS::IRWorkspace{T},
   K,
   rhs::AbstractVector{T},
   P::LRPrecond;

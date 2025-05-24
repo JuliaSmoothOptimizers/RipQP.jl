@@ -86,7 +86,7 @@ mutable struct PreallocatedDataK3_5Structured{
   L1 <: LinearOperator,
   L2 <: LinearOperator,
   L3 <: LinearOperator,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataNewtonKrylovStructured{T, S}
   rhs1::S
   rhs2::S
@@ -399,7 +399,7 @@ function solver!(
     id.ilow,
     id.iupp,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
     kunscale!(pad.KS.y, rhsNorm)

@@ -77,7 +77,7 @@ end
 
 K3KrylovParams(; kwargs...) = K3KrylovParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovSolver} <:
+mutable struct PreallocatedDataK3Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovWorkspace} <:
                PreallocatedDataNewtonKrylov{T, S}
   rhs::S
   rhs_scale::Bool
@@ -312,7 +312,7 @@ function solver!(
     itmax = pad.itmax,
   )
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)
   end

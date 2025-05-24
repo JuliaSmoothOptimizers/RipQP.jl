@@ -111,7 +111,7 @@ mutable struct PreallocatedDataK2Krylov{
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
   MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal
@@ -260,7 +260,7 @@ function solver!(
     rtol = pad.rtol,
     itmax = pad.itmax,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)

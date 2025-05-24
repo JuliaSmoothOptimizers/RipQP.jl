@@ -85,7 +85,7 @@ function update_preconditioner!(
   cnts::Counters,
 ) where {T <: Real}
   TS = typeof(pad.KS)
-  if TS <: GmresSolver || TS <: DqgmresSolver
+  if TS <: GmresWorkspace || TS <: DqgmresWorkspace
     pad.pdat.d_l .= sqrt.(one(T) ./ max.(one(T), pad.x_m_lvar_div_s_l))
     pad.pdat.d_u .= sqrt.(one(T) ./ max.(one(T), pad.uvar_m_x_div_s_u))
   else
@@ -104,7 +104,7 @@ function update_preconditioner!(
   cnts::Counters,
 ) where {T <: Real}
   TS = typeof(pad.KS)
-  if TS <: GmresSolver || TS <: DqgmresSolver
+  if TS <: GmresWorkspace || TS <: DqgmresWorkspace
     pad.pdat.d_l .= sqrt.(one(T) ./ max.(pt.s_l, itd.x_m_lvar))
     pad.pdat.d_u .= sqrt.(one(T) ./ max.(pt.s_u, itd.uvar_m_x))
   else

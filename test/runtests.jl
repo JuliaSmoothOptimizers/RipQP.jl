@@ -1,9 +1,9 @@
 using HSL, LinearOperators, LLSModels, NLPModelsModifiers, QPSReader, QuadraticModels
 using DelimitedFiles, DoubleFloats, LinearAlgebra, MatrixMarket, SparseArrays, Test
-using SuiteSparse # test cholmod
+using SuiteSparse  # test cholmod
 using RipQP
 
-qps1 = readqps("QAFIRO.SIF") #lower bounds
+qps1 = readqps("QAFIRO.SIF") # lower bounds
 qps2 = readqps("HS21.SIF") # low/upp bounds
 qps3 = readqps("HS52.SIF") # free bounds
 qps4 = readqps("AFIRO.SIF") # LP

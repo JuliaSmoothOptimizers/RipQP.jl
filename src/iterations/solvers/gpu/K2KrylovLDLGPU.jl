@@ -148,10 +148,10 @@ function update_preconditioner!(
   copyto!(pad.pdat.L.data.nzVal, pad.pdat.K_fact.LDL.Lx)
   copyto!(pad.pdat.d, pad.pdat.K_fact.LDL.d)
   if !(
-    typeof(pad.KS) <: GmresSolver ||
-    typeof(pad.KS) <: DqgmresSolver ||
-    typeof(pad.KS) <: GmresIRSolver ||
-    typeof(pad.KS) <: IRSolver
+    typeof(pad.KS) <: GmresWorkspace ||
+    typeof(pad.KS) <: DqgmresWorkspace ||
+    typeof(pad.KS) <: GmresIRWorkspace ||
+    typeof(pad.KS) <: IRWorkspace
   )
     @. pad.pdat.d = abs(pad.pdat.d)
   end
@@ -171,7 +171,7 @@ function update_preconditioner!(
       pdat.tmp_res,
       pdat.tmp_v,
     )
-    warm_start!(pad.KS, pad.KS.x)
+    Krylov.warm_start!(pad.KS, pad.KS.x)
   end
 end
 
@@ -240,7 +240,7 @@ mutable struct PreallocatedDataK2KrylovGPU{
   M <: Union{LinearOperator{T}, AbstractMatrix{T}},
   MT <: Union{MatrixTools{T}, Int},
   Pr <: PreconditionerData,
-  Ksol <: KrylovSolver,
+  Ksol <: KrylovWorkspace,
 } <: PreallocatedDataAugmentedKrylov{T, S}
   pdat::Pr
   D::S                                  # temporary top-left diagonal
@@ -403,7 +403,7 @@ function solver!(
     rtol = pad.rtol,
     itmax = pad.itmax,
   )
-  pad.kiter += niterations(pad.KS)
+  pad.kiter += Krylov.iteration_count(pad.KS)
   update_kresiduals_history!(res, pad.K, pad.KS.x, pad.rhs)
   if pad.rhs_scale
     kunscale!(pad.KS.x, rhsNorm)

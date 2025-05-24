@@ -32,7 +32,7 @@ function push_history_residuals!(
     push!(res.KresPNormH, @views norm(res.Kres[(id.nvar + 1):(id.nvar + id.ncon)]))
     push!(res.KresDNormH, @views norm(res.Kres[1:(id.nvar)]))
   elseif pad_type <: PreallocatedDataNormalKrylov
-    push!(res.kiterH, niterations(pad.KS))
+    push!(res.kiterH, Krylov.iteration_count(pad.KS))
     push!(res.KresNormH, norm(res.Kres))
   end
 end
@@ -78,7 +78,7 @@ function status_to_char(st::String)
   end
 end
 
-status_to_char(KS::KrylovSolver) = status_to_char(KS.stats.status)
+status_to_char(KS::KrylovWorkspace) = status_to_char(KS.stats.status)
 
 function show_log_row_krylov(
   pad::PreallocatedData{T},
