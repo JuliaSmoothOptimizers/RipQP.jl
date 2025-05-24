@@ -80,8 +80,12 @@ end
 
 K1KrylovParams(; kwargs...) = K1KrylovParams{Float64}(; kwargs...)
 
-mutable struct PreallocatedDataK1Krylov{T <: Real, S, L <: LinearOperator, Ksol <: KrylovWorkspace} <:
-               PreallocatedDataNormalKrylov{T, S}
+mutable struct PreallocatedDataK1Krylov{
+  T <: Real,
+  S,
+  L <: LinearOperator,
+  Ksol <: KrylovWorkspace,
+} <: PreallocatedDataNormalKrylov{T, S}
   D::S
   rhs::S
   rhs_scale::Bool
