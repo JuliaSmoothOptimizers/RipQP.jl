@@ -1,5 +1,3 @@
-module TestMulti
-
 using DoubleFloats, LinearAlgebra, QuadraticModels, RipQP, Test
 
 include("fixtures.jl")
@@ -120,6 +118,4 @@ end
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order
-end
-
 end
