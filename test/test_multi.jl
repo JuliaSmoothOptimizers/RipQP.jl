@@ -1,3 +1,7 @@
+using DoubleFloats, LinearAlgebra, QuadraticModels, RipQP, Test
+
+include("fixtures.jl")
+
 function createQuadraticModelT(qpdata; T = Double64, name = "qp_pb")
   return QuadraticModel(
     convert(Array{T}, qpdata.c),
@@ -85,6 +89,8 @@ end
 
   T128 = BigFloat
   qm128_1 = createQuadraticModelT(qps1, T = T128)
+  # Match the gap tolerance to the residual tolerances for this
+  # mixed-precision solve, rather than using the BigFloat default.
   stats1 = ripqp(
     qm128_1,
     mode = :multi,
@@ -108,7 +114,7 @@ end
       δ_min = sqrt(eps(T128)),
     ),
     display = true,
-    itol = InputTol(T128, ϵ_rb = T128(1.0e-12), ϵ_rc = T128(1.0e-12)),
+    itol = InputTol(T128, ϵ_pdd = T128(1.0e-12), ϵ_rb = T128(1.0e-12), ϵ_rc = T128(1.0e-12)),
   )
   @test isapprox(stats1.objective, -1.59078179, atol = 1e-2)
   @test stats1.status == :first_order

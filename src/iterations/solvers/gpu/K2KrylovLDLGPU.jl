@@ -72,7 +72,7 @@ function PreconditionerData(
   K_fact.LDL.n_d = id.nvar
   generic_factorize!(K, K_fact)
   L = UnitLowerTriangular(
-    CUDA.CUSPARSE.CuSparseMatrixCSC(
+    CuSparseMatrixCSC(
       CuVector(K_fact.LDL.Lp),
       CuVector(K_fact.LDL.Li),
       CuVector{Tlow}(K_fact.LDL.Lx),

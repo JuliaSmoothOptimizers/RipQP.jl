@@ -1,4 +1,10 @@
-using .CUDA, .CUDA.CUSPARSE
+using .CUDA
+# CUDA v6 moved `CUDA.CUSPARSE` to the `cuSPARSE` package, re-exported as `CUDA.cuSPARSE`.
+if isdefined(CUDA, :cuSPARSE)
+  using .CUDA.cuSPARSE
+else
+  using .CUDA.CUSPARSE
+end
 
 include("iterations/solvers/gpu/K2KrylovLDLGPU.jl")
 
@@ -15,8 +21,11 @@ function get_mat_QPData(
   return fdA, Symmetric(fdQ, sp.uplo)
 end
 
+# `CUDA.Mem.DeviceBuffer` was renamed `CUDA.DeviceMemory` in CUDA v5.4.
+const _CuDeviceMemory = isdefined(CUDA, :DeviceMemory) ? CUDA.DeviceMemory : CUDA.Mem.DeviceBuffer
+
 change_vector_eltype(S0::Type{<:CuVector}, ::Type{T}) where {T} =
-  S0.name.wrapper{T, 1, CUDA.Mem.DeviceBuffer}
+  S0.name.wrapper{T, 1, _CuDeviceMemory}
 
 convert_mat(M::CuSparseMatrixCSC, ::Type{T}) where {T} = CuSparseMatrixCSC(
   CuVector{Cint}(M.colPtr),
@@ -171,14 +180,14 @@ end
 
 import LinearAlgebra.rdiv!, LinearAlgebra.ldiv!
 
-function LinearAlgebra.rdiv!(M::CUDA.AbstractGPUArray{T}, D::Diagonal) where {T}
+function LinearAlgebra.rdiv!(M::CUDA.AnyCuArray{T}, D::Diagonal) where {T}
   D.diag .= one(T) ./ D.diag
   rmul!(M, D)
   D.diag .= one(T) ./ D.diag
   return M
 end
 
-function LinearAlgebra.ldiv!(D::Diagonal, M::CUDA.AbstractGPUArray{T}) where {T}
+function LinearAlgebra.ldiv!(D::Diagonal, M::CUDA.AnyCuArray{T}) where {T}
   D.diag .= one(T) ./ D.diag
   lmul!(D, M)
   D.diag .= one(T) ./ D.diag
